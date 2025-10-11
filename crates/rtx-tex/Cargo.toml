@@ -1,0 +1,10 @@
+[package]
+name = "rtx-tex"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rtx-prim = { path = "../rtx-prim" }
+
+[lints]
+workspace = true

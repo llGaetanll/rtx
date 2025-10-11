@@ -1,0 +1,13 @@
+[package]
+name = "rtx-mat"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+spirv-std = { workspace = true }
+
+rtx-prim = { path = "../rtx-prim" }
+rtx-tex = { path = "../rtx-tex" }
+
+[lints]
+workspace = true
