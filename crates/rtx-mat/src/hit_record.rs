@@ -5,6 +5,7 @@ use rtx_prim::Point3;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::F;
+use rtx_tex::SolidTexture;
 
 /// Contains information about a `Ray` hitting a surface
 #[derive(Clone)]
@@ -37,16 +38,19 @@ impl HitRecord {
     }
 }
 
-// impl Default for HitRecord {
-//     fn default() -> Self {
-//         Self {
-//             p: Point3::default(),
-//             norm: Vec3::default(),
-//             mat: Box::leak(Box::new(Lambertian::from_color(Color::new(0., 0., 0.)))),
-//             t: Default::default(),
-//             u: Default::default(),
-//             v: Default::default(),
-//             front_face: Default::default(),
-//         }
-//     }
-// }
+const DEFAULT_TEX: SolidTexture = SolidTexture::from_color(Color::new(0., 0., 0.));
+const DEFAULT_MAT: Lambertian = Lambertian::from_texture(&DEFAULT_TEX);
+
+impl Default for HitRecord {
+    fn default() -> Self {
+        Self {
+            p: Point3::default(),
+            norm: Vec3::default(),
+            mat: &DEFAULT_MAT,
+            t: Default::default(),
+            u: Default::default(),
+            v: Default::default(),
+            front_face: Default::default(),
+        }
+    }
+}

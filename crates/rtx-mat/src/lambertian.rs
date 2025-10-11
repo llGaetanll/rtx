@@ -12,17 +12,17 @@ pub struct Lambertian {
     tex: &'static dyn Texture,
 }
 
-// impl Lambertian {
-//     pub fn from_color(albedo: Color) -> Self {
-//         Self {
-//             tex: Arc::new(SolidTexture::from_color(albedo)),
-//         }
-//     }
-//
-//     pub fn from_texture(tex: Arc<dyn Texture>) -> Self {
-//         Self { tex }
-//     }
-// }
+impl Lambertian {
+    // pub const fn from_color(albedo: Color) -> Self {
+    //     Self {
+    //         tex: SolidTexture::from_color(albedo),
+    //     }
+    // }
+
+    pub const fn from_texture(tex: &'static dyn Texture) -> Self {
+        Self { tex }
+    }
+}
 
 impl Material for Lambertian {
     fn scatter(

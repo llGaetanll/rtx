@@ -8,11 +8,11 @@ pub struct SolidTexture {
 }
 
 impl SolidTexture {
-    pub fn from_color(color: Color) -> Self {
+    pub const fn from_color(color: Color) -> Self {
         Self { color }
     }
 
-    pub fn rgb(r: F, g: F, b: F) -> Self {
+    pub const fn rgb(r: F, g: F, b: F) -> Self {
         Self {
             color: Color::new(r, g, b),
         }
