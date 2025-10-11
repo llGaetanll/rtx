@@ -3,7 +3,6 @@ use rtx_prim::Color;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
 use rtx_prim::F;
-use rtx_tex::SolidTexture;
 use rtx_tex::Texture;
 
 pub struct DiffuseLight {
@@ -16,10 +15,10 @@ impl DiffuseLight {
     //         tex: Arc::new(SolidTexture::from_color(color)),
     //     }
     // }
-    //
-    // pub fn from_texture(tex: Arc<dyn Texture>) -> Self {
-    //     Self { tex }
-    // }
+
+    pub fn from_texture(tex: &'static dyn Texture) -> Self {
+        Self { tex }
+    }
 
     fn emitted(&self, u: F, v: F, point: Point3) -> Color {
         self.tex.value(u, v, point)
@@ -27,7 +26,7 @@ impl DiffuseLight {
 }
 
 impl Material for DiffuseLight {
-    fn emitted(&self, state: &mut RandState, u: F, v: F, point: Point3) -> Color {
+    fn emitted(&self, _state: &mut RandState, u: F, v: F, point: Point3) -> Color {
         self.emitted(u, v, point)
     }
 }

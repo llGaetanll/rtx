@@ -53,6 +53,7 @@ pub fn rand_usize(state: &mut RandState) -> usize {
     *state as usize
 }
 
+#[cfg(target_pointer_width = "64")]
 pub fn rand_usize_range<R>(state: &mut RandState, range: R) -> usize
 where
     R: Borrow<Range<usize>>,

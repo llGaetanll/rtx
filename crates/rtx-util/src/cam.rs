@@ -1,8 +1,8 @@
 // use crate::image::Image;
 // use crate::image::Pixel;
-// use crate::obj::List;
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
+use rtx_obj::List;
 use rtx_prim::rand;
 use rtx_prim::Color;
 use rtx_prim::Point3;
@@ -12,6 +12,8 @@ use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_prim::F;
 use rtx_prim::PI;
+
+use spirv_std::num_traits::Float;
 
 pub struct CameraParams {
     /// The position of the camera
@@ -175,13 +177,7 @@ impl Camera {
         todo!()
     }
 
-    pub fn ray_color(
-        &self,
-        state: &mut RandState,
-        ray: &Ray,
-        /* world: &List, */
-        depth: u8,
-    ) -> Color {
+    pub fn ray_color(&self, state: &mut RandState, ray: &Ray, world: &List, depth: u8) -> Color {
         if depth == 0 {
             return Color::new(0., 0., 0.);
         }
@@ -189,19 +185,16 @@ impl Camera {
         // Start of range is not zero to avoid floating point errors
         let mut rec: HitRecord = Default::default();
 
-        /*
         if !world.hit(ray, &mut (0.001..F::INFINITY), &mut rec) {
             return self.background;
         }
-        */
 
         let emission_color = rec.mat.emitted(state, rec.u, rec.v, rec.p);
         let Some((scattered, attenuation)) = rec.mat.scatter(state, ray, &rec) else {
             return emission_color;
         };
 
-        let scatter_color =
-            attenuation * self.ray_color(state, &scattered, /* world, */ depth - 1);
+        let scatter_color = attenuation * self.ray_color(state, &scattered, world, depth - 1);
 
         emission_color + scatter_color
     }

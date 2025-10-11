@@ -1,13 +1,11 @@
 use core::ops::Range;
 
+use spirv_std::num_traits::Float;
+
 use crate::rand;
 use crate::RandState;
 use crate::Vec3;
 use crate::F;
-
-pub trait FloatCoreExt {
-    fn sqrt(&self) -> Self;
-}
 
 pub trait Vec3Ext {
     fn rand_range(state: &mut RandState, range: Range<F>) -> Self;

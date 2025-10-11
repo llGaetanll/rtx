@@ -2032,6 +2032,7 @@ version = "0.1.0"
 dependencies = [
  "rtx-mat",
  "rtx-prim",
+ "spirv-std",
 ]
 
 [[package]]
@@ -2056,6 +2057,7 @@ dependencies = [
  "rtx-mat",
  "rtx-obj",
  "rtx-prim",
+ "spirv-std",
 ]
 
 [[package]]
@@ -2304,6 +2306,11 @@ dependencies = [
 name = "shader"
 version = "0.1.0"
 dependencies = [
+ "rtx-mat",
+ "rtx-obj",
+ "rtx-prim",
+ "rtx-tex",
+ "rtx-util",
  "shared",
  "spirv-std",
 ]

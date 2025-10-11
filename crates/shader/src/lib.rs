@@ -1,7 +1,7 @@
 #![no_std]
 
 use shared::ShaderConstants;
-use spirv_std::glam::{vec2, vec4, Vec4};
+use spirv_std::glam::{vec2, vec4, Vec4, Vec4Swizzles};
 
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
@@ -20,5 +20,14 @@ pub fn main_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    *output = vec4(1., 0., 0., 1.);
+    let resolution = vec2(constants.width as f32, constants.height as f32);
+    let uv = frag_coord.xy() / resolution;
+
+    // Simple gradient based on UV coordinates and time
+    let time = constants.time;
+    let r = 0.5 + 0.5 * (time + uv.x * 3.0).sin();
+    let g = 0.5 + 0.5 * (time * 1.3 + uv.y * 3.0).sin();
+    let b = 0.5 + 0.5 * (time * 1.7 + (uv.x + uv.y) * 2.0).sin();
+
+    *output = vec4(r, g, b, 1.0);
 }

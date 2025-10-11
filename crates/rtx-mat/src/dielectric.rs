@@ -6,6 +6,8 @@ use rtx_prim::RandState;
 use rtx_prim::Ray;
 use rtx_prim::F;
 
+use spirv_std::num_traits::Float;
+
 pub struct Dielectric {
     /// The refraction index of the material
     r: F,

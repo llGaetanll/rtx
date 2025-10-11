@@ -10,7 +10,7 @@ pub trait Material {
     /// and an attenuation `Color`.
     fn scatter(
         &self,
-        state: &mut RandState,
+        _state: &mut RandState,
         _incoming: &Ray,
         _rec: &HitRecord,
     ) -> Option<(Ray, Color)> {
@@ -18,7 +18,7 @@ pub trait Material {
     }
 
     /// The light emitted by this material. Defaults to no light.
-    fn emitted(&self, state: &mut RandState, _u: F, _v: F, _point: Point3) -> Color {
+    fn emitted(&self, _state: &mut RandState, _u: F, _v: F, _point: Point3) -> Color {
         Color::new(0., 0., 0.)
     }
 }

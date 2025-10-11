@@ -1,5 +1,7 @@
 use core::ops::Range;
 
+use spirv_std::num_traits::Float;
+
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
 use rtx_mat::Material;

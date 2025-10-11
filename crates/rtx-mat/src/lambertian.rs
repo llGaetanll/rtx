@@ -5,7 +5,6 @@ use rtx_prim::RandState;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
-use rtx_tex::SolidTexture;
 use rtx_tex::Texture;
 
 pub struct Lambertian {
