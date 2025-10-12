@@ -8,8 +8,9 @@ use rtx_prim::Vec3Ext;
 use rtx_tex::Texture;
 use rtx_tex::TextureType;
 
+#[derive(Clone)]
 pub struct Lambertian {
-    tex: &'static TextureType,
+    tex: TextureType,
 }
 
 impl Lambertian {
@@ -19,7 +20,7 @@ impl Lambertian {
     //     }
     // }
 
-    pub const fn from_texture(tex: &'static TextureType) -> Self {
+    pub const fn from_texture(tex: TextureType) -> Self {
         Self { tex }
     }
 }

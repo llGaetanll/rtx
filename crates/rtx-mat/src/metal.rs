@@ -7,6 +7,7 @@ use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_prim::F;
 
+#[derive(Clone)]
 pub struct Metal {
     albedo: Color,
     fuzz: F,

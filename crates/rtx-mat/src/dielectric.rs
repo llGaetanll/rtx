@@ -8,6 +8,7 @@ use rtx_prim::F;
 
 use spirv_std::num_traits::Float;
 
+#[derive(Clone)]
 pub struct Dielectric {
     /// The refraction index of the material
     r: F,

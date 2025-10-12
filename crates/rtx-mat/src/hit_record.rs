@@ -18,7 +18,7 @@ pub struct HitRecord {
     pub norm: Vec3,
 
     /// The material of the hit record
-    pub mat: &'static MaterialType,
+    pub mat: MaterialType,
 
     /// The `t` for which the ray `P(t)` hits the object
     pub t: F,
@@ -42,14 +42,14 @@ impl HitRecord {
 
 const DEFAULT_TEX: TextureType =
     TextureType::SolidTexture(SolidTexture::from_color(Color::new(0., 0., 0.)));
-const DEFAULT_MAT: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(&DEFAULT_TEX));
+const DEFAULT_MAT: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(DEFAULT_TEX));
 
 impl Default for HitRecord {
     fn default() -> Self {
         Self {
             p: Point3::default(),
             norm: Vec3::default(),
-            mat: &DEFAULT_MAT,
+            mat: DEFAULT_MAT,
             t: Default::default(),
             u: Default::default(),
             v: Default::default(),

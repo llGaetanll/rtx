@@ -30,10 +30,6 @@ fn gen_params(img_width: usize, img_height: usize) -> CameraParams {
 
 const STATE: RandState = 42;
 
-const TEXTURE: TextureType =
-    TextureType::SolidTexture(SolidTexture::from_color(Color::new(0.2, 0.3, 0.1)));
-const MATERIAL: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(&TEXTURE));
-
 #[spirv(vertex)]
 pub fn main_vs(#[spirv(vertex_index)] vert_id: i32, #[spirv(position)] out_pos: &mut Vec4) {
     let uv = vec2(((vert_id << 1) & 2) as f32, (vert_id & 2) as f32);
@@ -60,7 +56,10 @@ pub fn main_fs(
     *output = vec4(r, g, b, 1.0);
     */
 
-    let sphere = Sphere::fixed(Point3::new(0., 0., 0.), 1., &MATERIAL);
+    let texture: TextureType =
+        TextureType::SolidTexture(SolidTexture::from_color(Color::new(0.2, 0.3, 0.1)));
+    let material: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(texture));
+    let sphere = Sphere::fixed(Point3::new(0., 0., 0.), 1., material);
     // let object = Object::Sphere(sphere);
 
     // let objects: [Object; 1] = [object];

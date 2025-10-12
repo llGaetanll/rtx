@@ -12,17 +12,17 @@ use rtx_prim::Vec3;
 use rtx_prim::F;
 use rtx_prim::PI;
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct Sphere {
     center: Ray,
     radius: F,
-    mat: &'static MaterialType,
+    mat: MaterialType,
 
     bbox: Aabb,
 }
 
 impl Sphere {
-    pub fn fixed(center: Point3, radius: F, mat: &'static MaterialType) -> Self {
+    pub fn fixed(center: Point3, radius: F, mat: MaterialType) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let bbox = Aabb::from_points(center - rvec, center + rvec);
 
@@ -34,7 +34,7 @@ impl Sphere {
         }
     }
 
-    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: &'static MaterialType) -> Self {
+    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: MaterialType) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let b1 = Aabb::from_points(p1 - rvec, p1 + rvec);
         let b2 = Aabb::from_points(p2 - rvec, p2 + rvec);
@@ -103,7 +103,7 @@ impl Hit for Sphere {
         rec.u = u;
         rec.v = v;
         rec.p = p;
-        rec.mat = self.mat;
+        rec.mat = self.mat.clone();
 
         rec.set_norm(ray, norm);
 

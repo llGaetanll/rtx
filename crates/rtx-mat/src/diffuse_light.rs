@@ -6,8 +6,9 @@ use rtx_prim::F;
 use rtx_tex::Texture;
 use rtx_tex::TextureType;
 
+#[derive(Clone)]
 pub struct DiffuseLight {
-    tex: &'static TextureType,
+    tex: TextureType,
 }
 
 impl DiffuseLight {
@@ -17,7 +18,7 @@ impl DiffuseLight {
     //     }
     // }
 
-    pub fn from_texture(tex: &'static TextureType) -> Self {
+    pub fn from_texture(tex: TextureType) -> Self {
         Self { tex }
     }
 

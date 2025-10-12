@@ -8,6 +8,7 @@ pub trait Texture {
     fn value(&self, u: F, v: F, point: Point3) -> Color;
 }
 
+#[derive(Clone)]
 pub enum TextureType {
     SolidTexture(SolidTexture),
 }

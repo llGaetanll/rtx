@@ -93,7 +93,7 @@ impl Hit for Quad {
 
         rec.t = t;
         rec.p = intersect;
-        rec.mat = self.mat;
+        rec.mat = self.mat.clone();
 
         rec.set_norm(ray, self.norm);
 
