@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
-use rtx_mat::Material;
+use rtx_mat::MaterialType;
 use rtx_prim::Aabb;
 use rtx_prim::Point3;
 use rtx_prim::Ray;
@@ -19,13 +19,13 @@ pub struct Quad {
     d: F,
     w: Vec3,
 
-    mat: &'static dyn Material,
+    mat: &'static MaterialType,
 
     bbox: Aabb,
 }
 
 impl Quad {
-    pub fn new(q: Point3, u: Vec3, v: Vec3, mat: &'static dyn Material) -> Self {
+    pub fn new(q: Point3, u: Vec3, v: Vec3, mat: &'static MaterialType) -> Self {
         let bbox_diag1 = Aabb::from_points(q, q + u + v);
         let bbox_diag2 = Aabb::from_points(q + u, q + v);
 

@@ -4,9 +4,10 @@ use rtx_prim::Point3;
 use rtx_prim::RandState;
 use rtx_prim::F;
 use rtx_tex::Texture;
+use rtx_tex::TextureType;
 
 pub struct DiffuseLight {
-    tex: &'static dyn Texture,
+    tex: &'static TextureType,
 }
 
 impl DiffuseLight {
@@ -16,7 +17,7 @@ impl DiffuseLight {
     //     }
     // }
 
-    pub fn from_texture(tex: &'static dyn Texture) -> Self {
+    pub fn from_texture(tex: &'static TextureType) -> Self {
         Self { tex }
     }
 

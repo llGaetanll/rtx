@@ -1,10 +1,10 @@
 use core::ops::Range;
 
+use rtx_mat::MaterialType;
 use spirv_std::num_traits::Float;
 
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
-use rtx_mat::Material;
 use rtx_prim::Aabb;
 use rtx_prim::Point3;
 use rtx_prim::Ray;
@@ -16,13 +16,13 @@ use rtx_prim::PI;
 pub struct Sphere {
     center: Ray,
     radius: F,
-    mat: &'static dyn Material,
+    mat: &'static MaterialType,
 
     bbox: Aabb,
 }
 
 impl Sphere {
-    pub fn fixed(center: Point3, radius: F, mat: &'static dyn Material) -> Self {
+    pub fn fixed(center: Point3, radius: F, mat: &'static MaterialType) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let bbox = Aabb::from_points(center - rvec, center + rvec);
 
@@ -34,7 +34,7 @@ impl Sphere {
         }
     }
 
-    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: &'static dyn Material) -> Self {
+    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: &'static MaterialType) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let b1 = Aabb::from_points(p1 - rvec, p1 + rvec);
         let b2 = Aabb::from_points(p2 - rvec, p2 + rvec);

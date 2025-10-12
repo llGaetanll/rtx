@@ -2,6 +2,7 @@
 // use crate::image::Pixel;
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
+use rtx_mat::Material;
 use rtx_obj::List;
 use rtx_prim::rand;
 use rtx_prim::Color;

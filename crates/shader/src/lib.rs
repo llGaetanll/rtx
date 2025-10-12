@@ -1,9 +1,9 @@
 #![no_std]
 
-use rtx_mat::{Hit, Lambertian};
-use rtx_obj::{List, Sphere};
+use rtx_mat::{Hit, Lambertian, MaterialType};
+use rtx_obj::{List, Object, Sphere};
 use rtx_prim::{Color, Point3, RandState, Vec3};
-use rtx_tex::SolidTexture;
+use rtx_tex::{SolidTexture, TextureType};
 use rtx_util::{Camera, CameraParams};
 use shared::ShaderConstants;
 use spirv_std::glam::{vec2, vec4, Vec4, Vec4Swizzles};
@@ -30,8 +30,9 @@ fn gen_params(img_width: usize, img_height: usize) -> CameraParams {
 
 const STATE: RandState = 42;
 
-const TEXTURE: SolidTexture = SolidTexture::from_color(Color::new(0.2, 0.3, 0.1));
-const MATERIAL: Lambertian = Lambertian::from_texture(&TEXTURE);
+const TEXTURE: TextureType =
+    TextureType::SolidTexture(SolidTexture::from_color(Color::new(0.2, 0.3, 0.1)));
+const MATERIAL: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(&TEXTURE));
 
 #[spirv(vertex)]
 pub fn main_vs(#[spirv(vertex_index)] vert_id: i32, #[spirv(position)] out_pos: &mut Vec4) {
@@ -59,14 +60,14 @@ pub fn main_fs(
     *output = vec4(r, g, b, 1.0);
     */
 
-    let params = gen_params(constants.width as usize, constants.height as usize);
-    let cam = Camera::new(params);
+    let sphere = Sphere::fixed(Point3::new(0., 0., 0.), 1., &MATERIAL);
+    // let object = Object::Sphere(sphere);
 
-    let sphere: Sphere = Sphere::fixed(Point3::new(0., 0., 0.), 1., &MATERIAL);
-    let hit: &dyn Hit = &sphere;
-    // let objects: [&dyn Hit; 1] = [&sphere];
-
+    // let objects: [Object; 1] = [object];
     // let world = List::from_objects(&objects);
+    //
+    // let params = gen_params(constants.width as usize, constants.height as usize);
+    // let cam = Camera::new(params);
     //
     // let i = (frag_coord.x * constants.width as f32).floor() as usize;
     // let j = (frag_coord.y * constants.height as f32).floor() as usize;

@@ -6,9 +6,10 @@ use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_tex::Texture;
+use rtx_tex::TextureType;
 
 pub struct Lambertian {
-    tex: &'static dyn Texture,
+    tex: &'static TextureType,
 }
 
 impl Lambertian {
@@ -18,7 +19,7 @@ impl Lambertian {
     //     }
     // }
 
-    pub const fn from_texture(tex: &'static dyn Texture) -> Self {
+    pub const fn from_texture(tex: &'static TextureType) -> Self {
         Self { tex }
     }
 }
