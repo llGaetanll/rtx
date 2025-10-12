@@ -24,7 +24,7 @@ impl Aabb {
         }
     }
 
-    pub fn from_slabs(x: Range<F>, y: Range<F>, z: Range<F>) -> Self {
+    pub const fn from_slabs(x: Range<F>, y: Range<F>, z: Range<F>) -> Self {
         let mut aabb = Self { x, y, z };
 
         aabb.pad_to_minimums();
@@ -32,7 +32,7 @@ impl Aabb {
         aabb
     }
 
-    pub fn from_points(p1: Point3, p2: Point3) -> Self {
+    pub const fn from_points(p1: Point3, p2: Point3) -> Self {
         let (x1, y1, z1) = (p1.x, p1.y, p1.z);
         let (x2, y2, z2) = (p2.x, p2.y, p2.z);
 
@@ -138,10 +138,12 @@ impl Aabb {
     }
 
     /// Adjust the Aabb so that no side is narrower than some delta, padding if necessary
-    fn pad_to_minimums(&mut self) {
+    const fn pad_to_minimums(&mut self) {
         const DELTA: F = 0.0001;
 
-        let size = |range: &Range<F>| (range.end - range.start).max(0.);
+        const fn size(range: &Range<F>) -> F {
+            (range.end - range.start).max(0.)
+        }
 
         if size(&self.x) < DELTA {
             pad_range(&mut self.x, DELTA)
@@ -199,7 +201,7 @@ impl Add<Vec3> for Aabb {
     }
 }
 
-fn pad_range(range: &mut Range<F>, delta: F) {
+const fn pad_range(range: &mut Range<F>, delta: F) {
     let pad = delta / 2.;
 
     range.start -= pad;

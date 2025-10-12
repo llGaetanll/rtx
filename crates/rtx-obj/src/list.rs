@@ -6,15 +6,14 @@ use rtx_prim::Aabb;
 use rtx_prim::Ray;
 use rtx_prim::F;
 
-type Object = &'static dyn Hit;
-type Objects = &'static [Object];
+type Object<'a> = &'a dyn Hit;
 
-pub struct List {
-    objects: Objects,
+pub struct List<'a, 'b> {
+    objects: &'a [Object<'b>],
     bbox: Aabb,
 }
 
-impl List {
+impl<'a, 'b> List<'a, 'b> {
     // pub fn new() -> Self {
     //     List {
     //         objects: Vec::new(),
@@ -22,7 +21,7 @@ impl List {
     //     }
     // }
 
-    pub fn from_objects(objects: Objects) -> Self {
+    pub fn from_objects(objects: &'a [Object<'b>]) -> Self {
         let bbox = objects
             .iter()
             .fold(Aabb::empty(), |bbox, object| bbox.union(object.bbox()));
@@ -37,7 +36,7 @@ impl List {
     // }
 }
 
-impl Hit for List {
+impl<'a, 'b> Hit for List<'a, 'b> {
     fn hit(&self, ray: &Ray, t_int: &mut Range<F>, rec: &mut HitRecord) -> bool {
         let mut temp_rec = Default::default();
         let mut hit_anything = false;
