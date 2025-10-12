@@ -38,11 +38,11 @@ pub struct CameraParams {
 
     /// For sub-pixel sampling. This is the number of rays to shoot for each pixel. Produces
     /// higher-quality images
-    pub px_samples: u8,
+    pub px_samples: u32,
 
     /// The maximum number of times a ray should bounce off a surface before it stops emitting any
     /// light
-    pub max_ray_bounce: u8,
+    pub max_ray_bounce: u32,
 
     /// The width of the image in pixels
     pub img_width: usize,
@@ -69,10 +69,10 @@ pub struct Camera {
     px_dv: Vec3,
 
     /// Used for Anti-aliasing
-    pub px_samples: u8,
+    pub px_samples: u32,
     px_sample_scale: F,
 
-    pub max_ray_bounce: u8,
+    pub max_ray_bounce: u32,
 
     /// 3D position of the top left pixel
     px00_loc: Point3,

@@ -56,18 +56,14 @@ pub fn main_fs(
     *output = vec4(r, g, b, 1.0);
     */
 
-    let texture: TextureType =
-        TextureType::SolidTexture(SolidTexture::from_color(Color::new(0.2, 0.3, 0.1)));
-    let material: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(texture));
-    let sphere = Sphere::fixed(Point3::new(0., 0., 0.), 1., material);
+    let params = gen_params(constants.width as usize, constants.height as usize);
+    let cam = Camera::new(params);
+
     // let object = Object::Sphere(sphere);
 
     // let objects: [Object; 1] = [object];
     // let world = List::from_objects(&objects);
-    //
-    // let params = gen_params(constants.width as usize, constants.height as usize);
-    // let cam = Camera::new(params);
-    //
+
     // let i = (frag_coord.x * constants.width as f32).floor() as usize;
     // let j = (frag_coord.y * constants.height as f32).floor() as usize;
     //
@@ -76,4 +72,6 @@ pub fn main_fs(
     //
     // let ray = cam.get_ray(&mut state, i, j);
     // color += cam.ray_color(&mut state, &ray, &world, cam.max_ray_bounce);
+
+    *output = vec4(0., 0., 0., 1.0);
 }
