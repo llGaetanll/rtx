@@ -2057,6 +2057,7 @@ dependencies = [
  "rtx-mat",
  "rtx-obj",
  "rtx-prim",
+ "rtx-tex",
  "spirv-std",
 ]
 

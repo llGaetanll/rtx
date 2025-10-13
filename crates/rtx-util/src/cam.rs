@@ -3,19 +3,23 @@
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
 use rtx_mat::Material;
+use rtx_mat::MaterialTable;
 use rtx_obj::List;
 use rtx_prim::rand;
 use rtx_prim::Color;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
+use rtx_prim::Range;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_prim::F;
 use rtx_prim::PI;
+use rtx_tex::TextureTable;
 
 use spirv_std::num_traits::Float;
 
+#[repr(C)]
 pub struct CameraParams {
     /// The position of the camera
     pub lookfrom: Point3,
@@ -54,6 +58,7 @@ pub struct CameraParams {
     pub background: Color,
 }
 
+#[repr(C)]
 pub struct Camera {
     /// Position of the `Camera`
     pos: Point3,
@@ -178,7 +183,21 @@ impl Camera {
         todo!()
     }
 
-    pub fn ray_color(&self, state: &mut RandState, ray: &Ray, world: &List, depth: u8) -> Color {
+    pub fn ray_color<
+        const N: usize,
+        const MNL: usize,
+        const MNM: usize,
+        const MND: usize,
+        const TNS: usize,
+    >(
+        &self,
+        state: &mut RandState,
+        mat_table: &MaterialTable<MNL, MNM, MND>,
+        tex_table: &TextureTable<TNS>,
+        ray: &Ray,
+        world: &List<N>,
+        depth: u32,
+    ) -> Color {
         if depth == 0 {
             return Color::new(0., 0., 0.);
         }
@@ -186,16 +205,28 @@ impl Camera {
         // Start of range is not zero to avoid floating point errors
         let mut rec: HitRecord = Default::default();
 
-        if !world.hit(ray, &mut (0.001..F::INFINITY), &mut rec) {
+        let mut range = Range::new(0.001, F::INFINITY);
+        if !world.hit(ray, &mut range, &mut rec) {
             return self.background;
         }
 
-        let emission_color = rec.mat.emitted(state, rec.u, rec.v, rec.p);
-        let Some((scattered, attenuation)) = rec.mat.scatter(state, ray, &rec) else {
+        let emission_color = mat_table.emitted(state, tex_table, rec.u, rec.v, rec.p);
+        let mut scattered = Default::default();
+        let mut attenuation = Default::default();
+
+        let true = mat_table.scatter(
+            state,
+            tex_table,
+            ray,
+            &rec,
+            &mut scattered,
+            &mut attenuation,
+        ) else {
             return emission_color;
         };
 
-        let scatter_color = attenuation * self.ray_color(state, &scattered, world, depth - 1);
+        let scatter_color =
+            attenuation * self.ray_color(state, mat_table, tex_table, &scattered, world, depth - 1);
 
         emission_color + scatter_color
     }

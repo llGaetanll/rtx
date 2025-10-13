@@ -1,6 +1,6 @@
 use core::borrow::Borrow;
-use core::ops::Range;
 
+use crate::Range;
 use crate::F;
 
 pub type RandState = u64;

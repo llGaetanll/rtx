@@ -1,12 +1,9 @@
-use crate::Lambertian;
-use crate::MaterialType;
-use rtx_prim::Color;
+use crate::MaterialInfo;
+use crate::MaterialKind;
 use rtx_prim::Point3;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::F;
-use rtx_tex::SolidTexture;
-use rtx_tex::TextureType;
 
 /// Contains information about a `Ray` hitting a surface
 #[derive(Clone)]
@@ -18,7 +15,7 @@ pub struct HitRecord {
     pub norm: Vec3,
 
     /// The material of the hit record
-    pub mat: MaterialType,
+    pub mat: MaterialInfo,
 
     /// The `t` for which the ray `P(t)` hits the object
     pub t: F,
@@ -40,16 +37,15 @@ impl HitRecord {
     }
 }
 
-const DEFAULT_TEX: TextureType =
-    TextureType::SolidTexture(SolidTexture::from_color(Color::new(0., 0., 0.)));
-const DEFAULT_MAT: MaterialType = MaterialType::Lambertian(Lambertian::from_texture(DEFAULT_TEX));
-
 impl Default for HitRecord {
     fn default() -> Self {
         Self {
             p: Point3::default(),
             norm: Vec3::default(),
-            mat: DEFAULT_MAT,
+            mat: MaterialInfo {
+                kind: MaterialKind::Lambertian,
+                index: 0,
+            },
             t: Default::default(),
             u: Default::default(),
             v: Default::default(),

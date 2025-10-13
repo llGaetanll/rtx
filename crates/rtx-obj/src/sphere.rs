@@ -1,6 +1,5 @@
-use core::ops::Range;
-
-use rtx_mat::MaterialType;
+use rtx_mat::MaterialInfo;
+use rtx_prim::Range;
 use spirv_std::num_traits::Float;
 
 use rtx_mat::Hit;
@@ -12,17 +11,17 @@ use rtx_prim::Vec3;
 use rtx_prim::F;
 use rtx_prim::PI;
 
-// #[derive(Clone)]
+#[repr(C)]
 pub struct Sphere {
     center: Ray,
     radius: F,
-    mat: MaterialType,
+    mat: MaterialInfo,
 
     bbox: Aabb,
 }
 
 impl Sphere {
-    pub fn fixed(center: Point3, radius: F, mat: MaterialType) -> Self {
+    pub fn fixed(center: Point3, radius: F, mat: MaterialInfo) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let bbox = Aabb::from_points(center - rvec, center + rvec);
 
@@ -34,7 +33,7 @@ impl Sphere {
         }
     }
 
-    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: MaterialType) -> Self {
+    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: MaterialInfo) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let b1 = Aabb::from_points(p1 - rvec, p1 + rvec);
         let b2 = Aabb::from_points(p2 - rvec, p2 + rvec);
@@ -103,7 +102,7 @@ impl Hit for Sphere {
         rec.u = u;
         rec.v = v;
         rec.p = p;
-        rec.mat = self.mat.clone();
+        rec.mat = self.mat;
 
         rec.set_norm(ray, norm);
 

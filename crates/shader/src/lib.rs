@@ -1,9 +1,9 @@
 #![no_std]
 
-use rtx_mat::{Hit, Lambertian, MaterialType};
-use rtx_obj::{List, Object, Sphere};
+use rtx_mat::{Dielectric, Hit, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
+use rtx_obj::{List, Sphere};
 use rtx_prim::{Color, Point3, RandState, Vec3};
-use rtx_tex::{SolidTexture, TextureType};
+use rtx_tex::{SolidTexture, TextureInfo, TextureKind, TextureTable};
 use rtx_util::{Camera, CameraParams};
 use shared::ShaderConstants;
 use spirv_std::glam::{vec2, vec4, Vec4, Vec4Swizzles};
@@ -56,22 +56,50 @@ pub fn main_fs(
     *output = vec4(r, g, b, 1.0);
     */
 
+    let tex_table = TextureTable {
+        solids: [SolidTexture::from_color(Color::new(0.5, 0.5, 0.8))],
+    };
+
+    let mat_table = MaterialTable {
+        lambertians: [Lambertian::from_texture(TextureInfo {
+            kind: TextureKind::Solid,
+            index: 0,
+        })],
+        metals: [Metal::new(Color::new(0.5, 0.5, 0.5), 0.3)],
+        dielectrics: [Dielectric::new(0.4)],
+    };
+
     let params = gen_params(constants.width as usize, constants.height as usize);
     let cam = Camera::new(params);
 
-    // let object = Object::Sphere(sphere);
+    let sphere = Sphere::fixed(
+        Point3::new(0., 0., 0.),
+        1.,
+        MaterialInfo {
+            kind: MaterialKind::Lambertian,
+            index: 0,
+        },
+    );
 
-    // let objects: [Object; 1] = [object];
-    // let world = List::from_objects(&objects);
+    let list = [sphere];
 
-    // let i = (frag_coord.x * constants.width as f32).floor() as usize;
-    // let j = (frag_coord.y * constants.height as f32).floor() as usize;
-    //
-    // let mut state = STATE;
-    // let mut color = Color::new(0., 0., 0.);
-    //
-    // let ray = cam.get_ray(&mut state, i, j);
-    // color += cam.ray_color(&mut state, &ray, &world, cam.max_ray_bounce);
+    let world = List::from_objects(list);
+
+    let i = (frag_coord.x * constants.width as f32).floor() as usize;
+    let j = (frag_coord.y * constants.height as f32).floor() as usize;
+
+    let mut state = STATE;
+    let mut color = Color::new(0., 0., 0.);
+
+    let ray = cam.get_ray(&mut state, i, j);
+    color += cam.ray_color(
+        &mut state,
+        &mat_table,
+        &tex_table,
+        &ray,
+        &world,
+        cam.max_ray_bounce,
+    );
 
     *output = vec4(0., 0., 0., 1.0);
 }

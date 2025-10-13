@@ -6,6 +6,7 @@ use rtx_prim::RandState;
 use rtx_prim::Ray;
 use rtx_prim::F;
 
+use rtx_tex::TextureTable;
 use spirv_std::num_traits::Float;
 
 #[derive(Clone)]
@@ -29,12 +30,15 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(
+    fn scatter<const NS: usize>(
         &self,
         state: &mut RandState,
+        _tex_table: &TextureTable<NS>,
         incoming: &Ray,
         hit: &HitRecord,
-    ) -> Option<(Ray, Color)> {
+        scattered: &mut Ray,
+        attenuation: &mut Color,
+    ) -> bool {
         let r = if hit.front_face { 1.0 / self.r } else { self.r };
 
         let unit_dir = incoming.dir().normalize();
@@ -50,9 +54,9 @@ impl Material for Dielectric {
             unit_dir.refract(hit.norm, r)
         };
 
-        let scattered = Ray::new(hit.p, dir, incoming.time());
-        let attenuation = Color::new(1., 1., 1.);
+        *scattered = Ray::new(hit.p, dir, incoming.time());
+        *attenuation = Color::new(1., 1., 1.);
 
-        Some((scattered, attenuation))
+        true
     }
 }

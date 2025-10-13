@@ -1,14 +1,15 @@
 use core::ops::Add;
 use core::ops::Index;
-use core::ops::Range;
 
 use crate::Point3;
+use crate::Range;
 use crate::Ray;
 use crate::Vec3;
 use crate::F;
 
 /// An Axis-Aligned Bounding Box defined using the slab method.
 #[derive(Clone)]
+#[repr(C)]
 pub struct Aabb {
     x: Range<F>,
     y: Range<F>,
@@ -40,7 +41,11 @@ impl Aabb {
         let (y_lo, y_hi) = (y1.min(y2), y1.max(y2));
         let (z_lo, z_hi) = (z1.min(z2), z1.max(z2));
 
-        Self::from_slabs(x_lo..x_hi, y_lo..y_hi, z_lo..z_hi)
+        Self::from_slabs(
+            Range::new(x_lo, x_hi),
+            Range::new(y_lo, y_hi),
+            Range::new(z_lo, z_hi),
+        )
     }
 
     pub fn from_aabbs(b1: &Aabb, b2: &Aabb) -> Self {
@@ -60,7 +65,11 @@ impl Aabb {
         let (y_lo, y_hi) = (y1.start.min(y2.start), y1.end.max(y2.end));
         let (z_lo, z_hi) = (z1.start.min(z2.start), z1.end.max(z2.end));
 
-        Self::from_slabs(x_lo..x_hi, y_lo..y_hi, z_lo..z_hi)
+        Self::from_slabs(
+            Range::new(x_lo, x_hi),
+            Range::new(y_lo, y_hi),
+            Range::new(z_lo, z_hi),
+        )
     }
 
     pub fn x(&self) -> &Range<F> {
@@ -194,9 +203,9 @@ impl Add<Vec3> for Aabb {
         } = self;
 
         Self::from_slabs(
-            (x_lo + dx)..(x_hi + dx),
-            (y_lo + dy)..(y_hi + dy),
-            (z_lo + dz)..(z_hi + dz),
+            Range::new(x_lo + dx, x_hi + dx),
+            Range::new(y_lo + dy, y_hi + dy),
+            Range::new(z_lo + dz, z_hi + dz),
         )
     }
 }

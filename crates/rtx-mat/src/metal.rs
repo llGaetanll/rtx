@@ -6,6 +6,7 @@ use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_prim::F;
+use rtx_tex::TextureTable;
 
 #[derive(Clone)]
 pub struct Metal {
@@ -20,22 +21,25 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(
+    fn scatter<const NS: usize>(
         &self,
         state: &mut RandState,
+        _tex_table: &TextureTable<NS>,
         incoming: &Ray,
         hit: &HitRecord,
-    ) -> Option<(Ray, Color)> {
+        scattered: &mut Ray,
+        attenuation: &mut Color,
+    ) -> bool {
         let reflected = incoming.dir().reflect(hit.norm);
         let reflected = reflected.normalize() + self.fuzz * Vec3::rand_unit(state);
 
-        let scattered = Ray::new(hit.p, reflected, incoming.time());
-        let attenuation = self.albedo;
-
         if scattered.dir().dot(hit.norm) > 0. {
-            Some((scattered, attenuation))
-        } else {
-            None
+            *scattered = Ray::new(hit.p, reflected, incoming.time());
+            *attenuation = self.albedo;
+
+            return true;
         }
+
+        false
     }
 }

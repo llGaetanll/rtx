@@ -6,11 +6,12 @@ use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_tex::Texture;
-use rtx_tex::TextureType;
+use rtx_tex::TextureInfo;
+use rtx_tex::TextureTable;
 
 #[derive(Clone)]
 pub struct Lambertian {
-    tex: TextureType,
+    tex: TextureInfo,
 }
 
 impl Lambertian {
@@ -20,27 +21,30 @@ impl Lambertian {
     //     }
     // }
 
-    pub const fn from_texture(tex: TextureType) -> Self {
+    pub const fn from_texture(tex: TextureInfo) -> Self {
         Self { tex }
     }
 }
 
 impl Material for Lambertian {
-    fn scatter(
+    fn scatter<const NS: usize>(
         &self,
         state: &mut RandState,
+        tex_table: &TextureTable<NS>,
         incoming: &Ray,
         hit: &HitRecord,
-    ) -> Option<(Ray, Color)> {
+        scattered: &mut Ray,
+        attenuation: &mut Color,
+    ) -> bool {
         let mut scatter_dir = hit.norm + Vec3::rand_unit(state);
 
         if scatter_dir.near_zero() {
             scatter_dir = hit.norm;
         }
 
-        let scattered = Ray::new(hit.p, scatter_dir, incoming.time());
-        let attenuation: Color = self.tex.value(hit.u, hit.v, hit.p);
+        *scattered = Ray::new(hit.p, scatter_dir, incoming.time());
+        *attenuation = tex_table.value(self.tex, hit.u, hit.v, hit.p);
 
-        Some((scattered, attenuation))
+        true
     }
 }

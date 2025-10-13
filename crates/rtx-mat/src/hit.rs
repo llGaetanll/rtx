@@ -1,7 +1,6 @@
-use core::ops::Range;
-
 use crate::HitRecord;
 use rtx_prim::Aabb;
+use rtx_prim::Range;
 use rtx_prim::Ray;
 use rtx_prim::F;
 

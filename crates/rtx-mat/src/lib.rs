@@ -5,6 +5,7 @@ mod dielectric;
 mod diffuse_light;
 mod lambertian;
 mod material;
+mod material_table;
 mod metal;
 
 mod hit;
@@ -14,6 +15,7 @@ pub use dielectric::*;
 pub use diffuse_light::*;
 pub use lambertian::*;
 pub use material::*;
+pub use material_table::*;
 pub use metal::*;
 
 pub use hit::*;

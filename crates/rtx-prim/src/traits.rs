@@ -1,9 +1,8 @@
-use core::ops::Range;
-
 use spirv_std::num_traits::Float;
 
 use crate::rand;
 use crate::RandState;
+use crate::Range;
 use crate::Vec3;
 use crate::F;
 
@@ -30,7 +29,7 @@ impl Vec3Ext for Vec3 {
 
     fn rand_unit(state: &mut RandState) -> Self {
         loop {
-            let p = Vec3::rand_range(state, -1.0..1.0);
+            let p = Vec3::rand_range(state, Range::new(-1.0, 1.0));
 
             let l = p.length_squared();
 
@@ -53,8 +52,9 @@ impl Vec3Ext for Vec3 {
 
     fn rand_unit_disk(state: &mut RandState) -> Self {
         loop {
-            let x = rand::rand_f_range(state, -1.0..1.0);
-            let y = rand::rand_f_range(state, -1.0..1.0);
+            let rng = Range::new(-1.0, 1.0);
+            let x = rand::rand_f_range(state, rng);
+            let y = rand::rand_f_range(state, rng);
 
             let p = Vec3::new(x, y, 0.0);
 

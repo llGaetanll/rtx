@@ -9,6 +9,7 @@ spirv-std = { workspace = true }
 rtx-prim = { path = "../rtx-prim" }
 rtx-obj = { path = "../rtx-obj" }
 rtx-mat = { path = "../rtx-mat" }
+rtx-tex = { path = "../rtx-tex" }
 
 [lints]
 workspace = true
