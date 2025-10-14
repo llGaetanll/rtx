@@ -242,7 +242,7 @@ impl Camera {
         state: &mut RandState,
         mat_table: &MaterialTable<MNL, MNM, MND>,
         tex_table: &TextureTable<TNS>,
-        ray: &Ray,
+        mut ray: Ray,
         world: &List<N>,
         mut depth: u32,
     ) -> Color {
@@ -252,21 +252,32 @@ impl Camera {
         let mut range = Range::new(0.001, F::INFINITY);
         let mut rec: HitRecord = Default::default();
 
-        let mut color = Color::ZERO;
+        let mut color = self.background;
 
-        if world.hit(ray, &mut range, &mut rec) {
+        while world.hit(&ray, &mut range, &mut rec) {
+            if depth > self.max_ray_bounce {
+                break;
+            }
+
+            // let emission_color = mat_table.emitted(state, tex_table, rec.u, rec.v, rec.p);
+
             let mut scattered = Default::default();
             let mut attenuation = Default::default();
-            mat_table.scatter(
+            if !mat_table.scatter(
                 state,
                 tex_table,
-                ray,
+                &ray,
                 &rec,
                 &mut scattered,
                 &mut attenuation,
-            );
+            ) {
+                break;
+            }
 
-            color = attenuation;
+            ray = scattered;
+            color *= attenuation;
+
+            depth += 1;
         }
 
         color
@@ -295,7 +306,6 @@ impl Camera {
     /// the pixel (i, j).
     pub fn get_ray(&self, state: &mut RandState, i: usize, j: usize) -> Ray {
         let offset = Self::sample_square(state);
-        let offset = Vec3::ZERO;
 
         let px_sample =
             self.px00_loc + ((i as F + offset.x) * self.px_dv) + ((j as F + offset.y) * self.px_du);
@@ -308,7 +318,6 @@ impl Camera {
 
         let ray_direction = px_sample - ray_origin;
         let ray_time = rand::rand_f(state);
-        let ray_time = 0f32;
 
         Ray::new(ray_origin, ray_direction, ray_time)
     }

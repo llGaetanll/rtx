@@ -40,7 +40,7 @@ pub fn init_state() -> RandState {
 }
 
 /// Generates a pseudo-random `u64` in its entire domain.
-pub fn rand_u64(state: &mut RandState) -> RandState {
+pub fn rand_u32(state: &mut RandState) -> RandState {
     *state = generators::prf(*state);
 
     *state
@@ -67,7 +67,7 @@ where
 
 /// Generates a pseudo-random `F` in `[0, 1)`.
 pub fn rand_f(state: &mut RandState) -> F {
-    let x = rand_u64(state);
+    let x = rand_u32(state);
 
     let man = x >> (u32::BITS - F::MANTISSA_DIGITS);
 
@@ -84,4 +84,33 @@ where
     let f = rand_f(state);
 
     start + f * (end - start)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_rand_u32() {
+        let mut state = 42;
+
+        let a = super::rand_u32(&mut state);
+        let b = super::rand_u32(&mut state);
+        let c = super::rand_u32(&mut state);
+
+        assert_eq!(a, 11355432);
+        assert_eq!(b, 2836018348);
+        assert_eq!(c, 476557059);
+    }
+
+    #[test]
+    fn test_rand_f32() {
+        let mut state = 42;
+
+        let a = super::rand_f(&mut state);
+        let b = super::rand_f(&mut state);
+        let c = super::rand_f(&mut state);
+
+        assert_eq!(a, 0.0026438832);
+        assert_eq!(b, 0.66031194);
+        assert_eq!(c, 0.110957086);
+    }
 }

@@ -20,9 +20,9 @@ pub trait Vec3Ext {
 
 impl Vec3Ext for Vec3 {
     fn rand_range(state: &mut RandState, range: Range<F>) -> Self {
-        let x = rand::rand_f_range(state, &range);
-        let y = rand::rand_f_range(state, &range);
-        let z = rand::rand_f_range(state, &range);
+        let x = rand::rand_f_range(state, range);
+        let y = rand::rand_f_range(state, range);
+        let z = rand::rand_f_range(state, range);
 
         Self::new(x, y, z)
     }

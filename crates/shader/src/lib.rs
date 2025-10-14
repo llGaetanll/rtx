@@ -2,7 +2,7 @@
 
 use rtx_mat::{Dielectric, Hit, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
 use rtx_obj::{List, Sphere};
-use rtx_prim::{Color, Point3, RandState, Vec3};
+use rtx_prim::{rand, Color, Point3, RandState, Vec3};
 use rtx_tex::{SolidTexture, TextureInfo, TextureKind, TextureTable};
 use rtx_util::{Camera, CameraParams};
 use shared::ShaderConstants;
@@ -21,14 +21,23 @@ fn gen_params(img_width: usize, img_height: usize) -> CameraParams {
         defocus_angle: 0.0,
         focus_dist: 10.0,
         px_samples: 80,
-        max_ray_bounce: 10,
+        max_ray_bounce: 3,
         img_width,
         img_height,
         background: Color::new(0.7, 0.8, 1.),
     }
 }
 
-const STATE: RandState = 42;
+const NOISE: RandState = 42;
+
+fn gen_state(frag_coord: Vec4) -> RandState {
+    let x = frag_coord.x as u32;
+    let y = frag_coord.y as u32;
+
+    let mut res = (x + y) * (x + y + 1) + y;
+
+    rand::rand_u32(&mut res)
+}
 
 #[spirv(vertex)]
 pub fn main_vs(#[spirv(vertex_index)] vert_id: i32, #[spirv(position)] out_pos: &mut Vec4) {
@@ -57,14 +66,23 @@ pub fn main_fs(
     */
 
     let tex_table = TextureTable {
-        solids: [SolidTexture::from_color(Color::new(0.5, 0.5, 0.8))],
+        solids: [
+            SolidTexture::from_color(Color::new(0.5, 0.5, 0.8)),
+            SolidTexture::from_color(Color::new(0.5, 0.2, 0.2)),
+        ],
     };
 
     let mat_table = MaterialTable {
-        lambertians: [Lambertian::from_texture(TextureInfo {
-            kind: TextureKind::Solid,
-            index: 0,
-        })],
+        lambertians: [
+            Lambertian::from_texture(TextureInfo {
+                kind: TextureKind::Solid,
+                index: 0,
+            }),
+            Lambertian::from_texture(TextureInfo {
+                kind: TextureKind::Solid,
+                index: 1,
+            }),
+        ],
         metals: [Metal::new(Color::new(0.5, 0.5, 0.5), 0.3)],
         dielectrics: [Dielectric::new(0.4)],
     };
@@ -72,33 +90,34 @@ pub fn main_fs(
     let params = gen_params(constants.width as usize, constants.height as usize);
     let cam = Camera::new(params);
 
-    let sphere = Sphere::fixed(
-        Point3::new(0., 0., 0.),
-        1.,
-        MaterialInfo {
-            kind: MaterialKind::Lambertian,
-            index: 0,
-        },
-    );
-
-    let list = [sphere];
+    let list = [
+        Sphere::fixed(
+            Point3::new(0., 1., 0.),
+            1.,
+            MaterialInfo {
+                kind: MaterialKind::Lambertian,
+                index: 0,
+            },
+        ),
+        Sphere::fixed(
+            Point3::new(0., -100., 0.),
+            100.,
+            MaterialInfo {
+                kind: MaterialKind::Lambertian,
+                index: 1,
+            },
+        ),
+    ];
 
     let world = List::from_objects(list);
 
-    let i = frag_coord.x as usize;
-    let j = frag_coord.y as usize;
+    let i = frag_coord.y as usize;
+    let j = frag_coord.x as usize;
 
-    let mut state = STATE;
+    let mut state = gen_state(frag_coord);
 
     let ray = cam.get_ray(&mut state, i, j);
-    let color = cam.ray_color_simple(
-        &mut state,
-        &mat_table,
-        &tex_table,
-        &ray,
-        &world,
-        cam.max_ray_bounce,
-    );
+    let color = cam.ray_color_simple(&mut state, &mat_table, &tex_table, ray, &world, 0);
 
     *output = vec4(color.x, color.y, color.z, 1.0);
 }
