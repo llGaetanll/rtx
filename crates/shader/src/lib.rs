@@ -18,7 +18,7 @@ fn gen_params(img_width: usize, img_height: usize) -> CameraParams {
         lookat: Point3::new(0., 0., 0.),
         vup: Vec3::new(0., 1., 0.),
         fov_v: 20.0,
-        defocus_angle: 0.8,
+        defocus_angle: 0.0,
         focus_dist: 10.0,
         px_samples: 80,
         max_ray_bounce: 10,
@@ -85,30 +85,20 @@ pub fn main_fs(
 
     let world = List::from_objects(list);
 
-    let i = (frag_coord.x * constants.width as f32).floor() as usize;
-    let j = (frag_coord.y * constants.height as f32).floor() as usize;
+    let i = frag_coord.x as usize;
+    let j = frag_coord.y as usize;
 
-    let red = Vec3::new(1., 0., 0.);
-    let green = Vec3::new(0., 1., 0.);
-    let blue = Vec3::new(0., 0., 1.);
+    let mut state = STATE;
 
-    if i % 2 == 0 {
-        *output = vec4(red.x, red.y, red.z, 1.0);
-    } else {
-        *output = Vec4::ZERO;
-    }
+    let ray = cam.get_ray(&mut state, i, j);
+    let color = cam.ray_color_simple(
+        &mut state,
+        &mat_table,
+        &tex_table,
+        &ray,
+        &world,
+        cam.max_ray_bounce,
+    );
 
-    // let mut state = STATE;
-    //
-    // let ray = cam.get_ray(&mut state, i, j);
-    // let color = cam.ray_color_simple(
-    //     &mut state,
-    //     &mat_table,
-    //     &tex_table,
-    //     &ray,
-    //     &world,
-    //     cam.max_ray_bounce,
-    // );
-
-    // *output = vec4(color.x, color.y, color.z, 1.0);
+    *output = vec4(color.x, color.y, color.z, 1.0);
 }

@@ -295,6 +295,7 @@ impl Camera {
     /// the pixel (i, j).
     pub fn get_ray(&self, state: &mut RandState, i: usize, j: usize) -> Ray {
         let offset = Self::sample_square(state);
+        let offset = Vec3::ZERO;
 
         let px_sample =
             self.px00_loc + ((i as F + offset.x) * self.px_dv) + ((j as F + offset.y) * self.px_du);
@@ -307,6 +308,7 @@ impl Camera {
 
         let ray_direction = px_sample - ray_origin;
         let ray_time = rand::rand_f(state);
+        let ray_time = 0f32;
 
         Ray::new(ray_origin, ray_direction, ray_time)
     }
