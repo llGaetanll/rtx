@@ -231,6 +231,47 @@ impl Camera {
         emission_color + scatter_color
     }
 
+    pub fn ray_color_simple<
+        const N: usize,
+        const MNL: usize,
+        const MNM: usize,
+        const MND: usize,
+        const TNS: usize,
+    >(
+        &self,
+        state: &mut RandState,
+        mat_table: &MaterialTable<MNL, MNM, MND>,
+        tex_table: &TextureTable<TNS>,
+        ray: &Ray,
+        world: &List<N>,
+        mut depth: u32,
+    ) -> Color {
+        // e + a * (e + a * (e + ...))
+
+        // Start of range is not zero to avoid floating point errors
+        let mut range = Range::new(0.001, F::INFINITY);
+        let mut rec: HitRecord = Default::default();
+
+        let mut color = Color::ZERO;
+
+        if world.hit(ray, &mut range, &mut rec) {
+            let mut scattered = Default::default();
+            let mut attenuation = Default::default();
+            mat_table.scatter(
+                state,
+                tex_table,
+                ray,
+                &rec,
+                &mut scattered,
+                &mut attenuation,
+            );
+
+            color = attenuation;
+        }
+
+        color
+    }
+
     fn modify_color(color: Color) -> Color {
         let (x, y, z) = (color.x, color.y, color.z);
 

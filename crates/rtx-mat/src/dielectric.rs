@@ -10,6 +10,7 @@ use rtx_tex::TextureTable;
 use spirv_std::num_traits::Float;
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct Dielectric {
     /// The refraction index of the material
     r: F,

@@ -7,6 +7,7 @@ use rtx_prim::F;
 
 /// Contains information about a `Ray` hitting a surface
 #[derive(Clone)]
+#[repr(C)]
 pub struct HitRecord {
     /// The point at which there is a hit
     pub p: Point3,

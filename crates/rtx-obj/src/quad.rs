@@ -8,6 +8,7 @@ use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::F;
 
+#[repr(C)]
 pub struct Quad {
     q: Point3,
     u: Vec3,

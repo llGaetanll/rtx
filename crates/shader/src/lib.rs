@@ -88,18 +88,27 @@ pub fn main_fs(
     let i = (frag_coord.x * constants.width as f32).floor() as usize;
     let j = (frag_coord.y * constants.height as f32).floor() as usize;
 
-    let mut state = STATE;
-    let mut color = Color::new(0., 0., 0.);
+    let red = Vec3::new(1., 0., 0.);
+    let green = Vec3::new(0., 1., 0.);
+    let blue = Vec3::new(0., 0., 1.);
 
-    let ray = cam.get_ray(&mut state, i, j);
-    color += cam.ray_color(
-        &mut state,
-        &mat_table,
-        &tex_table,
-        &ray,
-        &world,
-        cam.max_ray_bounce,
-    );
+    if i % 2 == 0 {
+        *output = vec4(red.x, red.y, red.z, 1.0);
+    } else {
+        *output = Vec4::ZERO;
+    }
 
-    *output = vec4(0., 0., 0., 1.0);
+    // let mut state = STATE;
+    //
+    // let ray = cam.get_ray(&mut state, i, j);
+    // let color = cam.ray_color_simple(
+    //     &mut state,
+    //     &mat_table,
+    //     &tex_table,
+    //     &ray,
+    //     &world,
+    //     cam.max_ray_bounce,
+    // );
+
+    // *output = vec4(color.x, color.y, color.z, 1.0);
 }

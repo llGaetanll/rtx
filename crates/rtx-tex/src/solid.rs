@@ -5,6 +5,7 @@ use rtx_prim::Point3;
 use rtx_prim::F;
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct SolidTexture {
     color: Color,
 }

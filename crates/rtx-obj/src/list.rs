@@ -22,9 +22,11 @@ impl<const N: usize> List<N> {
     // }
 
     pub fn from_objects(objects: [Sphere; N]) -> Self {
-        let bbox = objects
-            .iter()
-            .fold(Aabb::empty(), |bbox, object| bbox.union(object.bbox()));
+        let mut bbox = Aabb::empty();
+
+        for i in 0..N {
+            bbox = bbox.union(objects[i].bbox());
+        }
 
         Self { objects, bbox }
     }
@@ -42,7 +44,8 @@ impl<const N: usize> Hit for List<N> {
         let mut hit_anything = false;
         let mut closest = t_int.end;
 
-        for object in self.objects.iter() {
+        for i in 0..N {
+            let object = &self.objects[i];
             let mut range = Range::new(t_int.start, closest);
             if object.hit(ray, &mut range, &mut temp_rec) {
                 hit_anything = true;

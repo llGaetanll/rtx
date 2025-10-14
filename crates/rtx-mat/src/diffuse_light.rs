@@ -8,6 +8,7 @@ use rtx_tex::TextureInfo;
 use rtx_tex::TextureTable;
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct DiffuseLight {
     tex: TextureInfo,
 }

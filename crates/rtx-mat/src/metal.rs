@@ -9,6 +9,7 @@ use rtx_prim::F;
 use rtx_tex::TextureTable;
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct Metal {
     albedo: Color,
     fuzz: F,

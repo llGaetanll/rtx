@@ -3,7 +3,7 @@ use core::borrow::Borrow;
 use crate::Range;
 use crate::F;
 
-pub type RandState = u64;
+pub type RandState = u32;
 
 mod generators {
     use core::ops::BitXorAssign;
@@ -40,7 +40,7 @@ pub fn init_state() -> RandState {
 }
 
 /// Generates a pseudo-random `u64` in its entire domain.
-pub fn rand_u64(state: &mut RandState) -> u64 {
+pub fn rand_u64(state: &mut RandState) -> RandState {
     *state = generators::prf(*state);
 
     *state
