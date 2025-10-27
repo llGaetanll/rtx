@@ -2,11 +2,11 @@
 
 use rtx_mat::{Dielectric, Hit, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
 use rtx_obj::{List, Sphere};
-use rtx_prim::{rand, Color, Point3, RandState, Vec3};
+use rtx_prim::{rand, Color, Point3, RandState, Vec3, F};
 use rtx_tex::{SolidTexture, TextureInfo, TextureKind, TextureTable};
 use rtx_util::{Camera, CameraParams};
 use shared::ShaderConstants;
-use spirv_std::glam::{vec2, vec4, Vec4, Vec4Swizzles};
+use spirv_std::glam::{vec2, vec4, Vec2, Vec4, Vec4Swizzles};
 
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
@@ -28,15 +28,14 @@ fn gen_params(img_width: usize, img_height: usize) -> CameraParams {
     }
 }
 
-const NOISE: RandState = 42;
-
-fn gen_state(frag_coord: Vec4) -> RandState {
+/// Basic PCG
+fn gen_state(frag_coord: Vec4) -> u32 {
     let x = frag_coord.x as u32;
     let y = frag_coord.y as u32;
 
-    let mut res = (x + y) * (x + y + 1) + y;
-
-    rand::rand_u32(&mut res)
+    let state = x.wrapping_mul(747796405).wrapping_add(y);
+    let word = ((state >> ((state >> 28) + 4)) ^ state).wrapping_mul(277803737);
+    (word >> 22) ^ word
 }
 
 #[spirv(vertex)]
