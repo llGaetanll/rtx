@@ -66,8 +66,8 @@ pub fn main_fs(
 
     let tex_table = TextureTable {
         solids: [
-            SolidTexture::from_color(Color::new(0.5, 0.5, 0.8)),
-            SolidTexture::from_color(Color::new(0.5, 0.2, 0.2)),
+            SolidTexture::from_color(Color::new(0.65, 0.05, 0.05)),
+            SolidTexture::from_color(Color::new(0.12, 0.45, 0.15)),
         ],
     };
 
@@ -115,8 +115,7 @@ pub fn main_fs(
 
     let mut state = gen_state(frag_coord);
 
-    let ray = cam.get_ray(&mut state, i, j);
-    let color = cam.ray_color_simple(&mut state, &mat_table, &tex_table, ray, &world, 0);
+    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
 
     *output = vec4(color.x, color.y, color.z, 1.0);
 }

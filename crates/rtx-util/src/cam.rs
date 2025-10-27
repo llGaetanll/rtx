@@ -159,31 +159,7 @@ impl Camera {
         }
     }
 
-    pub fn render(&self, state: &mut RandState /*, world: &List */) {
-        /*
-        let mut pixels: Vec<Pixel> = vec![Default::default(); self.img_height * self.img_width];
-        for i in 0..self.img_height {
-            for j in 0..self.img_width {
-                let mut color = Color::new(0., 0., 0.);
-                for _ in 0..self.px_samples {
-                    let ray = self.get_ray(state, i, j);
-                    color += self.ray_color(state, &ray, world, self.max_ray_bounce);
-                }
-
-                let color = Self::modify_color(self.px_sample_scale * color);
-
-                pixels[i * self.img_width + j] = color.into();
-            }
-        }
-
-        let image = Image::new(pixels, self.img_width, self.img_height);
-        image.to_ppm(&Path::new("example.ppm")).unwrap();
-        */
-
-        todo!()
-    }
-
-    pub fn ray_color<
+    pub fn render<
         const N: usize,
         const MNL: usize,
         const MNM: usize,
@@ -192,46 +168,24 @@ impl Camera {
     >(
         &self,
         state: &mut RandState,
+        i: usize,
+        j: usize,
         mat_table: &MaterialTable<MNL, MNM, MND>,
         tex_table: &TextureTable<TNS>,
-        ray: &Ray,
         world: &List<N>,
-        depth: u32,
     ) -> Color {
-        if depth == 0 {
-            return Color::new(0., 0., 0.);
+        let mut color = Color::new(0., 0., 0.);
+
+        for _ in 0..self.px_samples {
+            let ray = self.get_ray(state, i, j);
+            color += self.ray_color(state, mat_table, tex_table, ray, world, 0);
         }
 
-        // Start of range is not zero to avoid floating point errors
-        let mut rec: HitRecord = Default::default();
-
-        let mut range = Range::new(0.001, F::INFINITY);
-        if !world.hit(ray, &mut range, &mut rec) {
-            return self.background;
-        }
-
-        let emission_color = mat_table.emitted(state, tex_table, rec.u, rec.v, rec.p);
-        let mut scattered = Default::default();
-        let mut attenuation = Default::default();
-
-        let true = mat_table.scatter(
-            state,
-            tex_table,
-            ray,
-            &rec,
-            &mut scattered,
-            &mut attenuation,
-        ) else {
-            return emission_color;
-        };
-
-        let scatter_color =
-            attenuation * self.ray_color(state, mat_table, tex_table, &scattered, world, depth - 1);
-
-        emission_color + scatter_color
+        // TODO: One can also use Self::modify_color here but I prefer to not alter it
+        self.px_sample_scale * color
     }
 
-    pub fn ray_color_simple<
+    pub fn ray_color<
         const N: usize,
         const MNL: usize,
         const MNM: usize,
@@ -246,8 +200,6 @@ impl Camera {
         world: &List<N>,
         mut depth: u32,
     ) -> Color {
-        // e + a * (e + a * (e + ...))
-
         // Start of range is not zero to avoid floating point errors
         let mut range = Range::new(0.001, F::INFINITY);
         let mut rec: HitRecord = Default::default();
@@ -283,7 +235,7 @@ impl Camera {
         color
     }
 
-    fn modify_color(color: Color) -> Color {
+    pub fn modify_color(color: Color) -> Color {
         let (x, y, z) = (color.x, color.y, color.z);
 
         Vec3::new(
