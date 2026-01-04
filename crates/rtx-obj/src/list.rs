@@ -14,13 +14,6 @@ pub struct List<const N: usize> {
 }
 
 impl<const N: usize> List<N> {
-    // pub fn new() -> Self {
-    //     List {
-    //         objects: Vec::new(),
-    //         bbox: Aabb::empty(),
-    //     }
-    // }
-
     pub fn from_objects(objects: [Sphere; N]) -> Self {
         let mut bbox = Aabb::empty();
 
@@ -30,12 +23,6 @@ impl<const N: usize> List<N> {
 
         Self { objects, bbox }
     }
-
-    // pub fn add(&mut self, object: Object) {
-    //     self.bbox.union_mut(object.bbox());
-    //
-    //     self.objects.push(object);
-    // }
 }
 
 impl<const N: usize> Hit for List<N> {
