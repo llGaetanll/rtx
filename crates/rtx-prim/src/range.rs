@@ -1,4 +1,4 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct Range<T> {
     pub start: T,

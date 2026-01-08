@@ -9,7 +9,7 @@ use rtx_tex::Texture;
 use rtx_tex::TextureInfo;
 use rtx_tex::TextureTable;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[repr(C)]
 pub struct Lambertian {
     tex: TextureInfo,

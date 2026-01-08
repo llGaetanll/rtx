@@ -1,8 +1,8 @@
 use rtx_prim::Color;
+use rtx_prim::F;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
-use rtx_prim::F;
 use rtx_tex::TextureTable;
 
 use crate::Dielectric;
@@ -70,16 +70,17 @@ impl<const NL: usize, const NM: usize, const ND: usize> Material for MaterialTab
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct MaterialInfo {
     pub kind: MaterialKind,
     pub index: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub enum MaterialKind {
+    #[default]
     Lambertian,
     Metal,
     Dielectric,

@@ -1,14 +1,14 @@
 use core::ops::Add;
 use core::ops::Index;
 
+use crate::F;
 use crate::Point3;
 use crate::Range;
 use crate::Ray;
 use crate::Vec3;
-use crate::F;
 
 /// An Axis-Aligned Bounding Box defined using the slab method.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[repr(C)]
 pub struct Aabb {
     x: Range<F>,

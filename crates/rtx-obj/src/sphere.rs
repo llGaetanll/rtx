@@ -5,12 +5,13 @@ use spirv_std::num_traits::Float;
 use rtx_mat::Hit;
 use rtx_mat::HitRecord;
 use rtx_prim::Aabb;
+use rtx_prim::F;
+use rtx_prim::PI;
 use rtx_prim::Point3;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
-use rtx_prim::F;
-use rtx_prim::PI;
 
+#[derive(Default)]
 #[repr(C)]
 pub struct Sphere {
     center: Ray,

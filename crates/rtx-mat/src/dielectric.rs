@@ -1,10 +1,10 @@
 use crate::HitRecord;
 use crate::Material;
-use rtx_prim::rand;
 use rtx_prim::Color;
+use rtx_prim::F;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
-use rtx_prim::F;
+use rtx_prim::rand;
 
 use rtx_tex::TextureTable;
 use spirv_std::num_traits::Float;
@@ -14,6 +14,12 @@ use spirv_std::num_traits::Float;
 pub struct Dielectric {
     /// The refraction index of the material
     r: F,
+}
+
+impl Default for Dielectric {
+    fn default() -> Self {
+        Self { r: 1.0 }
+    }
 }
 
 impl Dielectric {

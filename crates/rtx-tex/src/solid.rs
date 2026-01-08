@@ -1,10 +1,10 @@
 use crate::Texture;
 use crate::TextureInfo;
 use rtx_prim::Color;
-use rtx_prim::Point3;
 use rtx_prim::F;
+use rtx_prim::Point3;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[repr(C)]
 pub struct SolidTexture {
     color: Color,

@@ -1,14 +1,14 @@
 use crate::HitRecord;
 use crate::Material;
 use rtx_prim::Color;
+use rtx_prim::F;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
-use rtx_prim::F;
 use rtx_tex::TextureTable;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[repr(C)]
 pub struct Metal {
     albedo: Color,

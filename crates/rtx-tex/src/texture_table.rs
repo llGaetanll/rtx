@@ -1,6 +1,6 @@
 use rtx_prim::Color;
-use rtx_prim::Point3;
 use rtx_prim::F;
+use rtx_prim::Point3;
 
 use crate::SolidTexture;
 use crate::Texture;
@@ -18,15 +18,16 @@ impl<const NS: usize> Texture for TextureTable<NS> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct TextureInfo {
     pub kind: TextureKind,
     pub index: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub enum TextureKind {
+    #[default]
     Solid,
 }
