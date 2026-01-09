@@ -72,20 +72,23 @@ pub fn main_fs(
         .solids
         .push(SolidTexture::from_color(Color::new(0.12, 0.45, 0.15)));
 
-    let mat_table = MaterialTable {
-        lambertians: [
-            Lambertian::from_texture(TextureInfo {
-                kind: TextureKind::Solid,
-                index: 0,
-            }),
-            Lambertian::from_texture(TextureInfo {
-                kind: TextureKind::Solid,
-                index: 1,
-            }),
-        ],
-        metals: [Metal::new(Color::new(0.5, 0.5, 0.5), 0.3)],
-        dielectrics: [Dielectric::new(0.4)],
-    };
+    let mut mat_table = MaterialTable::new();
+    mat_table
+        .lambertians
+        .push(Lambertian::from_texture(TextureInfo {
+            kind: TextureKind::Solid,
+            index: 0,
+        }));
+    mat_table
+        .lambertians
+        .push(Lambertian::from_texture(TextureInfo {
+            kind: TextureKind::Solid,
+            index: 1,
+        }));
+    mat_table
+        .metals
+        .push(Metal::new(Color::new(0.5, 0.5, 0.5), 0.3));
+    mat_table.dielectrics.push(Dielectric::new(0.4));
 
     let params = gen_params(constants.width as usize, constants.height as usize);
     let cam = Camera::new(params);

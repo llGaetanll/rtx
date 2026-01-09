@@ -159,12 +159,12 @@ impl Camera {
         }
     }
 
-    pub fn render<const N: usize, const MNL: usize, const MNM: usize, const MND: usize>(
+    pub fn render<const N: usize>(
         &self,
         state: &mut RandState,
         i: usize,
         j: usize,
-        mat_table: &MaterialTable<MNL, MNM, MND>,
+        mat_table: &MaterialTable,
         tex_table: &TextureTable,
         world: &List<N>,
     ) -> Color {
@@ -179,10 +179,10 @@ impl Camera {
         self.px_sample_scale * color
     }
 
-    pub fn ray_color<const N: usize, const MNL: usize, const MNM: usize, const MND: usize>(
+    pub fn ray_color<const N: usize>(
         &self,
         state: &mut RandState,
-        mat_table: &MaterialTable<MNL, MNM, MND>,
+        mat_table: &MaterialTable,
         tex_table: &TextureTable,
         mut ray: Ray,
         world: &List<N>,

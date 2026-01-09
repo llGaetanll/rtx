@@ -1,3 +1,4 @@
+use rtx_prim::Array;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::Point3;
@@ -11,14 +12,32 @@ use crate::Lambertian;
 use crate::Material;
 use crate::Metal;
 
+pub const MAT_TBL_LEN: usize = 32;
+
 #[repr(C)]
-pub struct MaterialTable<const NL: usize, const NM: usize, const ND: usize> {
-    pub lambertians: [Lambertian; NL],
-    pub metals: [Metal; NM],
-    pub dielectrics: [Dielectric; ND],
+pub struct MaterialTable {
+    pub lambertians: Array<Lambertian, MAT_TBL_LEN>,
+    pub metals: Array<Metal, MAT_TBL_LEN>,
+    pub dielectrics: Array<Dielectric, MAT_TBL_LEN>,
 }
 
-impl<const NL: usize, const NM: usize, const ND: usize> Material for MaterialTable<NL, NM, ND> {
+impl MaterialTable {
+    pub fn new() -> Self {
+        Self {
+            lambertians: Array::new(),
+            metals: Array::new(),
+            dielectrics: Array::new(),
+        }
+    }
+}
+
+impl Default for MaterialTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Material for MaterialTable {
     fn scatter(
         &self,
         state: &mut RandState,
