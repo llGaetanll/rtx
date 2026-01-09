@@ -9,7 +9,7 @@ use rtx_tex::Texture;
 use rtx_tex::TextureInfo;
 use rtx_tex::TextureTable;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct Lambertian {
     tex: TextureInfo,
@@ -28,10 +28,10 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter<const NS: usize>(
+    fn scatter(
         &self,
         state: &mut RandState,
-        tex_table: &TextureTable<NS>,
+        tex_table: &TextureTable,
         incoming: &Ray,
         hit: &HitRecord,
         scattered: &mut Ray,

@@ -1,4 +1,4 @@
-use core::ops::{Deref, DerefMut};
+use core::ops::{Index, IndexMut};
 
 #[repr(C)]
 pub struct Array<T, const N: usize> {
@@ -6,13 +6,10 @@ pub struct Array<T, const N: usize> {
     len: usize,
 }
 
-impl<T: Default, const N: usize> Array<T, N> {
-    pub fn new() -> Self
-    where
-        T: Default,
-    {
+impl<T: Copy + Default, const N: usize> Array<T, N> {
+    pub fn new() -> Self {
         Self {
-            data: core::array::from_fn(|_| Default::default()),
+            data: [T::default(); N],
             len: 0,
         }
     }
@@ -37,26 +34,29 @@ impl<T: Default, const N: usize> Array<T, N> {
     }
 }
 
-impl<T: Default, const N: usize> Default for Array<T, N>
-where
-    T: Default,
-{
+impl<T: Copy + Default, const N: usize> Default for Array<T, N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T, const N: usize> Deref for Array<T, N> {
-    type Target = [T];
-
-    fn deref(&self) -> &Self::Target {
-        &self.data[..self.len]
+impl<T, const N: usize> From<[T; N]> for Array<T, N> {
+    fn from(data: [T; N]) -> Self {
+        Self { data, len: N }
     }
 }
 
-impl<T, const N: usize> DerefMut for Array<T, N> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data[..self.len]
+impl<T, const N: usize> Index<usize> for Array<T, N> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
+impl<T, const N: usize> IndexMut<usize> for Array<T, N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.data[index]
     }
 }
 
@@ -83,24 +83,26 @@ mod tests {
     }
 
     #[test]
-    fn deref_returns_slice_of_active_elements() {
+    fn index_returns_elements() {
         let mut arr: Array<i32, 8> = Array::new();
         arr.push(10);
         arr.push(20);
         arr.push(30);
 
-        let slice: &[i32] = &*arr;
-        assert_eq!(slice, &[10, 20, 30]);
+        assert_eq!(arr[0], 10);
+        assert_eq!(arr[1], 20);
+        assert_eq!(arr[2], 30);
     }
 
     #[test]
-    fn deref_mut_allows_modification() {
+    fn index_mut_allows_modification() {
         let mut arr: Array<i32, 8> = Array::new();
         arr.push(1);
         arr.push(2);
 
         arr[0] = 100;
-        assert_eq!(&*arr, &[100, 2]);
+        assert_eq!(arr[0], 100);
+        assert_eq!(arr[1], 2);
     }
 
     #[test]
@@ -116,6 +118,24 @@ mod tests {
         assert!(arr.push(2));
         assert!(!arr.push(3));
         assert_eq!(arr.len(), 2);
-        assert_eq!(&*arr, &[1, 2]);
+        assert_eq!(arr[0], 1);
+        assert_eq!(arr[1], 2);
+    }
+
+    #[test]
+    fn from_array_sets_len_to_capacity() {
+        let arr: Array<i32, 3> = Array::from([10, 20, 30]);
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0], 10);
+        assert_eq!(arr[1], 20);
+        assert_eq!(arr[2], 30);
+    }
+
+    #[test]
+    fn from_array_allows_indexing() {
+        let arr: Array<i32, 3> = Array::from([5, 10, 15]);
+        assert_eq!(arr[0], 5);
+        assert_eq!(arr[1], 10);
+        assert_eq!(arr[2], 15);
     }
 }

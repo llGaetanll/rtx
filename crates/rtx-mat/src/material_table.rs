@@ -19,10 +19,10 @@ pub struct MaterialTable<const NL: usize, const NM: usize, const ND: usize> {
 }
 
 impl<const NL: usize, const NM: usize, const ND: usize> Material for MaterialTable<NL, NM, ND> {
-    fn scatter<const NS: usize>(
+    fn scatter(
         &self,
         state: &mut RandState,
-        tex_table: &TextureTable<NS>,
+        tex_table: &TextureTable,
         incoming: &Ray,
         rec: &HitRecord,
         scattered: &mut Ray,
@@ -57,10 +57,10 @@ impl<const NL: usize, const NM: usize, const ND: usize> Material for MaterialTab
         }
     }
 
-    fn emitted<const NS: usize>(
+    fn emitted(
         &self,
         _state: &mut RandState,
-        _tex_table: &TextureTable<NS>,
+        _tex_table: &TextureTable,
         _u: F,
         _v: F,
         _point: Point3,

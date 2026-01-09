@@ -9,7 +9,7 @@ use rtx_prim::rand;
 use rtx_tex::TextureTable;
 use spirv_std::num_traits::Float;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Dielectric {
     /// The refraction index of the material
@@ -37,10 +37,10 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter<const NS: usize>(
+    fn scatter(
         &self,
         state: &mut RandState,
-        _tex_table: &TextureTable<NS>,
+        _tex_table: &TextureTable,
         incoming: &Ray,
         hit: &HitRecord,
         scattered: &mut Ray,

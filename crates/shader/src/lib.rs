@@ -2,11 +2,11 @@
 
 use rtx_mat::{Dielectric, Hit, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
 use rtx_obj::{List, Sphere};
-use rtx_prim::{rand, Color, Point3, RandState, Vec3, F};
+use rtx_prim::{Color, F, Point3, RandState, Vec3, rand};
 use rtx_tex::{SolidTexture, TextureInfo, TextureKind, TextureTable};
 use rtx_util::{Camera, CameraParams};
 use shared::ShaderConstants;
-use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec4, Vec4Swizzles};
+use spirv_std::glam::{Vec2, Vec4, Vec4Swizzles, vec2, vec3, vec4};
 
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
@@ -64,12 +64,13 @@ pub fn main_fs(
     *output = vec4(r, g, b, 1.0);
     */
 
-    let tex_table = TextureTable {
-        solids: [
-            SolidTexture::from_color(Color::new(0.65, 0.05, 0.05)),
-            SolidTexture::from_color(Color::new(0.12, 0.45, 0.15)),
-        ],
-    };
+    let mut tex_table = TextureTable::new();
+    tex_table
+        .solids
+        .push(SolidTexture::from_color(Color::new(0.65, 0.05, 0.05)));
+    tex_table
+        .solids
+        .push(SolidTexture::from_color(Color::new(0.12, 0.45, 0.15)));
 
     let mat_table = MaterialTable {
         lambertians: [

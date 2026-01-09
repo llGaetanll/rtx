@@ -1,8 +1,8 @@
 use crate::Material;
 use rtx_prim::Color;
+use rtx_prim::F;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
-use rtx_prim::F;
 use rtx_tex::Texture;
 use rtx_tex::TextureInfo;
 use rtx_tex::TextureTable;
@@ -24,26 +24,20 @@ impl DiffuseLight {
         Self { tex }
     }
 
-    fn emitted<const NS: usize>(
-        &self,
-        tex_table: &TextureTable<NS>,
-        u: F,
-        v: F,
-        point: Point3,
-    ) -> Color {
+    fn emitted_impl(&self, tex_table: &TextureTable, u: F, v: F, point: Point3) -> Color {
         tex_table.value(self.tex, u, v, point)
     }
 }
 
 impl Material for DiffuseLight {
-    fn emitted<const NS: usize>(
+    fn emitted(
         &self,
         _state: &mut RandState,
-        tex_table: &TextureTable<NS>,
+        tex_table: &TextureTable,
         u: F,
         v: F,
         point: Point3,
     ) -> Color {
-        self.emitted(tex_table, u, v, point)
+        self.emitted_impl(tex_table, u, v, point)
     }
 }

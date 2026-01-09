@@ -1,18 +1,18 @@
 use crate::HitRecord;
 use rtx_prim::Color;
+use rtx_prim::F;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
-use rtx_prim::F;
 use rtx_tex::TextureTable;
 
 pub trait Material {
     /// Takes in an incoming `Ray` and `HitRecord` and computes, if applicable, an outgoing `Ray`,
     /// and an attenuation `Color`.
-    fn scatter<const NS: usize>(
+    fn scatter(
         &self,
         _state: &mut RandState,
-        _tex_table: &TextureTable<NS>,
+        _tex_table: &TextureTable,
         _incoming: &Ray,
         _rec: &HitRecord,
         _scattered: &mut Ray,
@@ -22,10 +22,10 @@ pub trait Material {
     }
 
     /// The light emitted by this material. Defaults to no light.
-    fn emitted<const NS: usize>(
+    fn emitted(
         &self,
         _state: &mut RandState,
-        _tex_table: &TextureTable<NS>,
+        _tex_table: &TextureTable,
         _u: F,
         _v: F,
         _point: Point3,

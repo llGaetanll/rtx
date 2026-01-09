@@ -5,16 +5,16 @@ use rtx_mat::HitRecord;
 use rtx_mat::Material;
 use rtx_mat::MaterialTable;
 use rtx_obj::List;
-use rtx_prim::rand;
 use rtx_prim::Color;
+use rtx_prim::F;
+use rtx_prim::PI;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
 use rtx_prim::Range;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
-use rtx_prim::F;
-use rtx_prim::PI;
+use rtx_prim::rand;
 use rtx_tex::TextureTable;
 
 use spirv_std::num_traits::Float;
@@ -159,19 +159,13 @@ impl Camera {
         }
     }
 
-    pub fn render<
-        const N: usize,
-        const MNL: usize,
-        const MNM: usize,
-        const MND: usize,
-        const TNS: usize,
-    >(
+    pub fn render<const N: usize, const MNL: usize, const MNM: usize, const MND: usize>(
         &self,
         state: &mut RandState,
         i: usize,
         j: usize,
         mat_table: &MaterialTable<MNL, MNM, MND>,
-        tex_table: &TextureTable<TNS>,
+        tex_table: &TextureTable,
         world: &List<N>,
     ) -> Color {
         let mut color = Color::new(0., 0., 0.);
@@ -185,17 +179,11 @@ impl Camera {
         self.px_sample_scale * color
     }
 
-    pub fn ray_color<
-        const N: usize,
-        const MNL: usize,
-        const MNM: usize,
-        const MND: usize,
-        const TNS: usize,
-    >(
+    pub fn ray_color<const N: usize, const MNL: usize, const MNM: usize, const MND: usize>(
         &self,
         state: &mut RandState,
         mat_table: &MaterialTable<MNL, MNM, MND>,
-        tex_table: &TextureTable<TNS>,
+        tex_table: &TextureTable,
         mut ray: Ray,
         world: &List<N>,
         mut depth: u32,

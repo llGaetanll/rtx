@@ -8,7 +8,7 @@ use rtx_prim::Vec3;
 use rtx_prim::Vec3Ext;
 use rtx_tex::TextureTable;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct Metal {
     albedo: Color,
@@ -22,10 +22,10 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter<const NS: usize>(
+    fn scatter(
         &self,
         state: &mut RandState,
-        _tex_table: &TextureTable<NS>,
+        _tex_table: &TextureTable,
         incoming: &Ray,
         hit: &HitRecord,
         scattered: &mut Ray,
