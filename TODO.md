@@ -8,6 +8,7 @@
   - [ ] Fix `ray_color` in `cam.rs` to accumulate emission with throughput
   - [ ] Create test scene with emissive quad
 - [x] Quads (axis-aligned and arbitrary)
+- [ ] Transforms (translate, rotate, scale)
 - [ ] Image textures
 - [ ] Noise textures (Perlin noise)
 
