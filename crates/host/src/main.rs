@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::time::Instant;
 
+use clap::Parser;
+use clap::Subcommand;
 use futures::executor::block_on;
 use ouroboros::self_referencing;
 use wgpu::InstanceDescriptor;
@@ -18,6 +20,26 @@ use winit::keyboard::NamedKey;
 use winit::window::Window;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
+
+#[derive(Parser)]
+#[command(name = "rtx")]
+#[command(about = "A GPU ray tracer built with rust-gpu")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Open a window and render the scene live
+    Live {
+        /// Which scene to render
+        #[arg(short, long, default_value = "cornell")]
+        scene: String,
+    },
+    /// Render all test scenes to a grid image
+    Test,
+}
 
 #[self_referencing]
 struct WindowSurface {
@@ -311,9 +333,26 @@ impl ApplicationHandler for RustShaderSandboxApp {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+fn run_live(scene: &str) -> Result<(), Box<dyn Error>> {
+    log::debug!("Running live with scene: {}", scene);
     let event_loop = EventLoop::new()?;
     let mut app = RustShaderSandboxApp::default();
     event_loop.run_app(&mut app).map_err(Into::into)
+}
+
+fn run_test() -> Result<(), Box<dyn Error>> {
+    log::debug!("Test mode: rendering all scenes to grid image...");
+    log::debug!("(not yet implemented)");
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::Live { scene }) => run_live(&scene),
+        Some(Commands::Test) => run_test(),
+        None => run_live("cornell"),
+    }
 }

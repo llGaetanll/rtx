@@ -18,6 +18,7 @@ wgpu = { workspace = true }
 ouroboros = { workspace = true }
 futures = { workspace = true }
 bytemuck = { workspace = true }
+clap = { workspace = true }
 
 [build-dependencies]
 spirv-builder = { workspace = true }
