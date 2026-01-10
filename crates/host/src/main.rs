@@ -259,8 +259,26 @@ fn run_live(scene: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_test() -> Result<(), Box<dyn Error>> {
-    log::debug!("Test mode: rendering all scenes to grid image...");
-    log::debug!("(not yet implemented)");
+    log::debug!("Test mode: rendering scene to image...");
+
+    let instance = GpuContext::create_instance();
+    let gpu = block_on(GpuContext::new(instance, None))?;
+
+    let width = 1920;
+    let height = 1080;
+
+    log::debug!("Rendering {}x{} image...", width, height);
+    let pixels = block_on(gpu.render_to_image(width, height));
+
+    std::fs::create_dir_all("renders")?;
+    let path = "renders/render.png";
+
+    log::debug!("Saving to {}...", path);
+    let img = image::RgbaImage::from_raw(width, height, pixels)
+        .expect("Failed to create image from pixel data");
+    img.save(path)?;
+
+    log::info!("Saved {}", path);
     Ok(())
 }
 

@@ -17,12 +17,12 @@
 1. [x] CLI with `live` and `test` subcommands
    - [x] Add clap dependency, `live` subcommand (current behavior), `test` placeholder
    - [x] `live --scene <name>` to select which scene to display (flag added, not yet functional)
-2. [ ] Refactor host rendering into reusable pieces
+2. [x] Refactor host rendering into reusable pieces
    - [x] Extract wgpu setup (device, queue, pipeline) into reusable module (`gpu.rs`)
-   - [ ] Create function to render to offscreen texture
-3. [ ] Offscreen rendering and image output
-   - [ ] Render to texture, read pixels back to CPU
-   - [ ] Save as PNG using `image` crate
+   - [x] Create function to render to offscreen texture (`render_to_image`)
+3. [x] Offscreen rendering and image output
+   - [x] Render to texture, read pixels back to CPU
+   - [x] Save as PNG using `image` crate
 4. [ ] Multiple scenes via shader entry points
    - [ ] Multiple fragment entry points in shader (one per scene)
    - [ ] Host selects entry point at runtime
