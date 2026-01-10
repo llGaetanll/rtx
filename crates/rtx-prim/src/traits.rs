@@ -2,6 +2,7 @@
 use spirv_std::num_traits::Float;
 
 use crate::F;
+use crate::PI;
 use crate::RandState;
 use crate::Range;
 use crate::Vec3;
@@ -48,22 +49,43 @@ impl Vec3Ext for Vec3 {
     }
 
     fn rand_unit_disk(state: &mut RandState) -> Self {
-        loop {
-            let rng = Range::new(-1.0, 1.0);
-            let x = rand::rand_f_range(state, rng);
-            let y = rand::rand_f_range(state, rng);
+        let theta = 2.0 * PI * rand::rand_f(state);
+        let r = rand::rand_f(state).sqrt();
 
-            let p = Vec3::new(x, y, 0.0);
-
-            if p.length_squared() < 1. {
-                return p;
-            }
-        }
+        Vec3::new(r * theta.cos(), r * theta.sin(), 0.0)
     }
 
     fn near_zero(&self) -> bool {
         const ERR: F = 1e-8;
 
         (self.x.abs() < ERR) && (self.y.abs() < ERR) && (self.z.abs() < ERR)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rand_unit_disk() {
+        let mut state: RandState = 12345;
+
+        for _ in 0..1000 {
+            let p = Vec3::rand_unit_disk(&mut state);
+
+            // Check z is always 0
+            assert_eq!(p.z, 0.0);
+
+            // Check point is within unit disk (radius <= 1)
+            let r_squared = p.x * p.x + p.y * p.y;
+            assert!(
+                r_squared <= 1.0,
+                "Point outside unit disk: r^2 = {}",
+                r_squared
+            );
+
+            // Check point is not at origin (would indicate bad sampling)
+            assert!(r_squared > 0.0, "Point at origin");
+        }
     }
 }
