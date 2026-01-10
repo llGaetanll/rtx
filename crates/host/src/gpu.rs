@@ -80,8 +80,12 @@ impl GpuContext {
         })
     }
 
-    /// Create a render pipeline for the given texture format.
-    pub fn create_pipeline(&self, format: wgpu::TextureFormat) -> wgpu::RenderPipeline {
+    /// Create a render pipeline for the given texture format and fragment entry point.
+    pub fn create_pipeline(
+        &self,
+        format: wgpu::TextureFormat,
+        fragment_entry_point: &str,
+    ) -> wgpu::RenderPipeline {
         let pipeline_layout = self
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -105,7 +109,7 @@ impl GpuContext {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &self.shader_module,
-                    entry_point: Some("main_fs"),
+                    entry_point: Some(fragment_entry_point),
                     targets: &[Some(wgpu::ColorTargetState {
                         format,
                         blend: Some(wgpu::BlendState::REPLACE),
@@ -125,7 +129,12 @@ impl GpuContext {
     }
 
     /// Render the scene to an image and return the pixel data as RGBA bytes.
-    pub async fn render_to_image(&self, width: u32, height: u32) -> Vec<u8> {
+    pub async fn render_to_image(
+        &self,
+        width: u32,
+        height: u32,
+        fragment_entry_point: &str,
+    ) -> Vec<u8> {
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
 
         // Create texture to render to
@@ -147,7 +156,7 @@ impl GpuContext {
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         // Create pipeline for this format
-        let pipeline = self.create_pipeline(format);
+        let pipeline = self.create_pipeline(format, fragment_entry_point);
 
         // Bytes per row must be aligned to 256
         let bytes_per_pixel = 4u32;

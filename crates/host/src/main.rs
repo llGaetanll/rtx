@@ -34,8 +34,8 @@ struct Cli {
 enum Commands {
     /// Open a window and render the scene live
     Live {
-        /// Which scene to render
-        #[arg(short, long, default_value = "cornell")]
+        /// Which scene to render (fragment shader entry point)
+        #[arg(short, long, default_value = "cornell_box_fs")]
         scene: String,
     },
     /// Render all test scenes to a grid image
@@ -51,6 +51,7 @@ struct WindowSurface {
 }
 
 struct RustShaderSandboxApp {
+    scene: String,
     gpu: Option<GpuContext>,
     window_surface: Option<WindowSurface>,
     config: Option<wgpu::SurfaceConfiguration>,
@@ -61,9 +62,10 @@ struct RustShaderSandboxApp {
     cursor_y: f32,
 }
 
-impl Default for RustShaderSandboxApp {
-    fn default() -> Self {
+impl RustShaderSandboxApp {
+    fn new(scene: String) -> Self {
         Self {
+            scene,
             gpu: None,
             window_surface: None,
             config: None,
@@ -102,7 +104,7 @@ impl RustShaderSandboxApp {
 
         let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
-        let render_pipeline = gpu.create_pipeline(swapchain_format);
+        let render_pipeline = gpu.create_pipeline(swapchain_format, &self.scene);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -254,7 +256,7 @@ impl ApplicationHandler for RustShaderSandboxApp {
 fn run_live(scene: &str) -> Result<(), Box<dyn Error>> {
     log::debug!("Running live with scene: {}", scene);
     let event_loop = EventLoop::new()?;
-    let mut app = RustShaderSandboxApp::default();
+    let mut app = RustShaderSandboxApp::new(scene.to_string());
     event_loop.run_app(&mut app).map_err(Into::into)
 }
 
@@ -268,7 +270,7 @@ fn run_test() -> Result<(), Box<dyn Error>> {
     let height = 1080;
 
     log::debug!("Rendering {}x{} image...", width, height);
-    let pixels = block_on(gpu.render_to_image(width, height));
+    let pixels = block_on(gpu.render_to_image(width, height, "cornell_box_fs"));
 
     std::fs::create_dir_all("renders")?;
     let path = "renders/render.png";
@@ -289,6 +291,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     match cli.command {
         Some(Commands::Live { scene }) => run_live(&scene),
         Some(Commands::Test) => run_test(),
-        None => run_live("cornell"),
+        None => run_live("cornell_box_fs"),
     }
 }
