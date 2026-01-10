@@ -34,20 +34,6 @@ impl Sphere {
         }
     }
 
-    pub fn moving(p1: Point3, p2: Point3, radius: F, mat: MaterialInfo) -> Self {
-        let rvec = Vec3::new(radius, radius, radius);
-        let b1 = Aabb::from_points(p1 - rvec, p1 + rvec);
-        let b2 = Aabb::from_points(p2 - rvec, p2 + rvec);
-        let bbox = b1.union(&b2);
-
-        Self {
-            center: Ray::new(p1, p2 - p1, 0.),
-            radius: radius.max(0.),
-            mat,
-            bbox,
-        }
-    }
-
     /// Given a point `p` on the sphere of radius one, centered at
     /// the origin, returns surface coordinates `(u, v)` both in
     /// `[0, 1]` where:
