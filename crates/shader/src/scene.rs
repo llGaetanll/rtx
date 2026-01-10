@@ -5,8 +5,10 @@ use rtx_mat::MaterialInfo;
 use rtx_mat::MaterialKind;
 use rtx_mat::MaterialTable;
 use rtx_mat::Metal;
+use rtx_obj::Instance;
 use rtx_obj::List;
 use rtx_obj::Quad;
+use rtx_obj::Scene;
 use rtx_obj::Sphere;
 use rtx_prim::Color;
 use rtx_prim::Point3;
@@ -1064,6 +1066,69 @@ pub fn three_spheres(
         ],
         [dummy_quad],
     );
+
+    (cam, mat_table, tex_table, world)
+}
+
+/// Simple test scene using the new Instance/Scene API.
+/// Just a single sphere to verify the instancing pipeline works.
+pub fn instance_test(
+    img_width: usize,
+    img_height: usize,
+) -> (Camera, MaterialTable, TextureTable, Scene) {
+    let mut tex_table = TextureTable::new();
+    tex_table
+        .solids
+        .push(SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))); // 0: gray ground
+    tex_table
+        .solids
+        .push(SolidTexture::from_color(Color::new(0.8, 0.3, 0.3))); // 1: red
+
+    let mut mat_table = MaterialTable::new();
+    mat_table
+        .lambertians
+        .push(Lambertian::from_texture(TextureInfo {
+            kind: TextureKind::Solid,
+            index: 0,
+        })); // 0: ground
+    mat_table
+        .lambertians
+        .push(Lambertian::from_texture(TextureInfo {
+            kind: TextureKind::Solid,
+            index: 1,
+        })); // 1: red
+
+    let ground_mat = MaterialInfo {
+        kind: MaterialKind::Lambertian,
+        index: 0,
+    };
+    let red_mat = MaterialInfo {
+        kind: MaterialKind::Lambertian,
+        index: 1,
+    };
+
+    let cam = Camera::new(CameraParams {
+        lookfrom: Point3::new(0., 1., 5.),
+        lookat: Point3::new(0., 0., 0.),
+        vup: Vec3::new(0., 1., 0.),
+        fov_v: 40.0,
+        defocus_angle: 0.0,
+        focus_dist: 5.0,
+        px_samples: PX_SAMPLES,
+        max_ray_bounce: MAX_RAY_BOUNCE,
+        img_width,
+        img_height,
+        background: Color::new(0.7, 0.8, 1.0),
+    });
+
+    // Ground sphere and a red sphere, both using Instance
+    let mut world = Scene::new();
+    world.push(Instance::sphere(
+        Point3::new(0., -100.5, 0.),
+        100.,
+        ground_mat,
+    ));
+    world.push(Instance::sphere(Point3::new(0., 0., 0.), 0.5, red_mat));
 
     (cam, mat_table, tex_table, world)
 }

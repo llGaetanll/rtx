@@ -130,3 +130,8 @@ Phase 2: Refactor ray tracer to use instances
 - [ ] Update `hit()` logic to iterate instances, transform rays, dispatch to unit primitives
 - [ ] Migrate existing scenes to use `Instance` with appropriate transforms
 - [ ] Remove old `Sphere`, `Quad`, and `List` types once migration is complete
+
+**Note:** The `t` parameter may need adjustment for non-uniform scale. When the ray
+is transformed to object space, direction length changes, so the same `t` value
+maps to different world-space distances. May need to recompute `t` in world space
+after hit, or be careful about comparing `t` values across differently-scaled instances.

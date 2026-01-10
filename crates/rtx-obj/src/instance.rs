@@ -1,5 +1,6 @@
 use rtx_mat::HitRecord;
 use rtx_mat::MaterialInfo;
+use rtx_mat::MaterialKind;
 use rtx_prim::F;
 use rtx_prim::Mat4;
 use rtx_prim::PI;
@@ -27,6 +28,20 @@ pub struct Instance {
     pub transform: Mat4,
     pub inv_transform: Mat4,
     pub material: MaterialInfo,
+}
+
+impl Default for Instance {
+    fn default() -> Self {
+        Self {
+            kind: PrimitiveKind::default(),
+            transform: Mat4::IDENTITY,
+            inv_transform: Mat4::IDENTITY,
+            material: MaterialInfo {
+                kind: MaterialKind::Lambertian,
+                index: 0,
+            },
+        }
+    }
 }
 
 impl Instance {
