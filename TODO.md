@@ -97,6 +97,24 @@ struct Scene {
 - Non-uniform scale: `scale(4, 1, 1)` stretches only on X axis
 - Compose as: `translate * rotate * scale` (apply right to left)
 
+**Mat4 structure (column-major):**
+```
+[ Rx Ry Rz | Tx ]     R = rotation/scale (upper-left 3x3)
+[ Rx Ry Rz | Ty ]     T = translation (fourth column)
+[ Rx Ry Rz | Tz ]
+[  0  0  0 |  1 ]
+```
+
+**Transforming Vec3 with Mat4:**
+glam's `Mat4` multiplies with `Vec4`, not `Vec3`. Use the `w` component to control behavior:
+- **Points** (positions): use `w=1`, affected by translation
+  `transformed_point = (mat * vec4(point, 1.0)).xyz`
+- **Directions** (ray dir, not normalized): use `w=0`, NOT affected by translation
+  `transformed_dir = (mat * vec4(dir, 0.0)).xyz`
+- **Normals**: use transpose of inverse matrix, or since we store `inv_transform`:
+  `world_normal = (inv_transform.transpose() * vec4(local_normal, 0.0)).xyz`
+  (then normalize)
+
 ### Implementation Plan
 
 Phase 1: Add new types (non-breaking, ray tracer still works)
