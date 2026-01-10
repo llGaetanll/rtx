@@ -15,7 +15,7 @@ The project splits into two layers:
 ### `host`
 CPU-side application with CLI interface:
 - `live --scene <name>` - Opens window and renders scene live (default: `cornell_box_fs`)
-- `test` - Renders all scenes to image grid (not yet implemented)
+- `test` - Renders all scenes to a 4x4 grid image at 720p each, saved to `renders/render.png`
 
 Manages window creation, wgpu device/queue/surface initialization, and the render loop. GPU setup is factored into `gpu.rs` with `GpuContext` struct providing:
 - `create_instance()` / `new()` - wgpu initialization
@@ -31,8 +31,11 @@ Types shared between host and shader. Currently just `ShaderConstants` (frame di
 GPU entry points compiled to SPIR-V. Contains multiple fragment shader entry points for different scenes:
 - `cornell_box_fs` - Cornell box with colored walls and ceiling light
 - `quads_fs` - Five colored quads in a room-like arrangement
+- `metal_test_fs` - Metal spheres with varying fuzz
+- `dielectric_test_fs` - Glass spheres demonstrating refraction
+- `two_spheres_fs` - Two spheres on checkered ground
 - `three_spheres_fs` - Glass, lambertian, and metal spheres on ground
-- `bouncing_spheres_fs` - Classic scene with many small spheres (currently broken)
+- `many_spheres_fs` - Classic final scene with many small spheres
 
 Scene setup is factored into `scene.rs` with functions like `cornell_box()`, `quads()`, etc. that return `(Camera, MaterialTable, TextureTable, List<NS, NQ>)`. Each entry point calls its scene function, then traces rays per-pixel.
 

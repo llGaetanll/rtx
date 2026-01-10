@@ -15,8 +15,18 @@ A ray tracing sandbox written in Rust, compiled to SPIR-V shaders using [rust-gp
 
 ## Running
 
+Open a live window rendering a scene:
+
 ```sh
-cargo run --release
+cargo run --release -- live --scene cornell_box_fs
+```
+
+Available scenes: `cornell_box_fs`, `quads_fs`, `metal_test_fs`, `dielectric_test_fs`, `two_spheres_fs`, `three_spheres_fs`, `many_spheres_fs`
+
+Render all scenes to a grid image (`renders/render.png`):
+
+```sh
+cargo run --release -- test
 ```
 
 ## Testing
