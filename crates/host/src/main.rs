@@ -313,16 +313,17 @@ fn run_test() -> Result<(), Box<dyn Error>> {
         let col = (i as u32) % grid_cols;
         let row = (i as u32) / grid_cols;
 
+        let start = Instant::now();
+        let pixels = block_on(gpu.render_to_image(scene_width, scene_height, scene));
+        let elapsed = start.elapsed();
+
         log::debug!(
-            "Rendering {} ({}/{}) at grid position ({}, {})...",
+            "Rendered {} ({}/{}) in {:.2?}",
             scene,
             i + 1,
             scenes.len(),
-            col,
-            row
+            elapsed
         );
-
-        let pixels = block_on(gpu.render_to_image(scene_width, scene_height, scene));
         let scene_img = image::RgbaImage::from_raw(scene_width, scene_height, pixels)
             .expect("Failed to create image from pixel data");
 
