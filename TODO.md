@@ -118,12 +118,12 @@ glam's `Mat4` multiplies with `Vec4`, not `Vec3`. Use the `w` component to contr
 ### Implementation Plan
 
 Phase 1: Add new types (non-breaking, ray tracer still works)
-- [ ] Re-export `Mat4` from `spirv_std::glam` in `rtx-prim/src/types.rs`
+- [x] Re-export `Mat4` from `spirv_std::glam` in `rtx-prim/src/types.rs`
       (glam already provides identity, from_translation, from_rotation_y, from_scale,
       inverse, and all the Mul impls we need)
-- [ ] Create `PrimitiveKind` enum in `rtx-obj`
-- [ ] Create `Instance` struct in `rtx-obj`
-- [ ] Implement hardcoded `hit_unit_sphere()` and `hit_unit_quad()` functions
+- [x] Create `PrimitiveKind` enum in `rtx-obj`
+- [x] Create `Instance` struct in `rtx-obj`
+- [x] Implement hardcoded `hit_unit_sphere()` and `hit_unit_quad()` functions
 
 Phase 2: Refactor ray tracer to use instances
 - [ ] Create new `Scene` type that holds `Array<Instance, N>`
