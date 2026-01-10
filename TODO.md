@@ -11,6 +11,12 @@
 3. [ ] Transforms (translate, rotate, scale)
 4. [ ] Image textures
 5. [ ] Noise textures (Perlin noise)
+6. [ ] Bounding Volume Hierarchy (BVH)
+   - [ ] Implement AABB (Axis-Aligned Bounding Box) with ray intersection test
+   - [ ] Add `bbox()` method to hittable primitives (Sphere, Quad)
+   - [ ] Implement linearized BVH structure (flat array, no recursion/pointers for GPU)
+   - [ ] Build BVH on CPU, upload as buffer to GPU
+   - [ ] Iterative BVH traversal in shader (stack-based or stackless)
 
 ## Testing Infrastructure
 
