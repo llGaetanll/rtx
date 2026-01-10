@@ -7,6 +7,7 @@ use rtx_prim::Ray;
 use rtx_prim::rand;
 
 use rtx_tex::TextureTable;
+#[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
 #[derive(Clone, Copy)]

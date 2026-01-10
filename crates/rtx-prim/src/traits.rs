@@ -1,10 +1,11 @@
+#[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::rand;
+use crate::F;
 use crate::RandState;
 use crate::Range;
 use crate::Vec3;
-use crate::F;
+use crate::rand;
 
 pub trait Vec3Ext {
     fn rand_range(state: &mut RandState, range: Range<F>) -> Self;
@@ -43,11 +44,7 @@ impl Vec3Ext for Vec3 {
     fn rand_hemisphere(state: &mut RandState, normal: Vec3) -> Self {
         let v = Self::rand_unit(state);
 
-        if v.dot(normal) > 0. {
-            v
-        } else {
-            -v
-        }
+        if v.dot(normal) > 0. { v } else { -v }
     }
 
     fn rand_unit_disk(state: &mut RandState) -> Self {

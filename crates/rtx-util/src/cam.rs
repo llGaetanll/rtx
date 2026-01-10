@@ -17,6 +17,7 @@ use rtx_prim::Vec3Ext;
 use rtx_prim::rand;
 use rtx_tex::TextureTable;
 
+#[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
 #[repr(C)]

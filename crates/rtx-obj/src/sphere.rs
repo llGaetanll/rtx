@@ -1,5 +1,6 @@
 use rtx_mat::MaterialInfo;
 use rtx_prim::Range;
+#[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
 use rtx_mat::Hit;

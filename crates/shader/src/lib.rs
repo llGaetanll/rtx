@@ -1,12 +1,12 @@
 #![no_std]
 
-use rtx_mat::{Dielectric, Hit, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
+use rtx_mat::{Dielectric, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
 use rtx_obj::{List, Sphere};
-use rtx_prim::{Color, F, Point3, RandState, Vec3, rand};
+use rtx_prim::{Color, Point3, Vec3};
 use rtx_tex::{SolidTexture, TextureInfo, TextureKind, TextureTable};
 use rtx_util::{Camera, CameraParams};
 use shared::ShaderConstants;
-use spirv_std::glam::{Vec2, Vec4, Vec4Swizzles, vec2, vec3, vec4};
+use spirv_std::glam::{Vec4, vec2, vec4};
 
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
