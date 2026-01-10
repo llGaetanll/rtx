@@ -287,8 +287,26 @@ fn run_test() -> Result<(), Box<dyn Error>> {
     let grid_width = scene_width * grid_cols;
     let grid_height = scene_height * grid_rows;
 
-    // Create the final grid image (black background)
+    // Create the final grid image with checkerboard background
     let mut grid_img = image::RgbaImage::new(grid_width, grid_height);
+
+    // Fill with checkerboard pattern for empty slots
+    let color_a = image::Rgba([0x17, 0x1d, 0x1c, 0xff]);
+    let color_b = image::Rgba([0x3f, 0x50, 0x4d, 0xff]);
+    let checker_size = 128u32;
+
+    for y in 0..grid_height {
+        for x in 0..grid_width {
+            let checker_x = x / checker_size;
+            let checker_y = y / checker_size;
+            let color = if (checker_x + checker_y) % 2 == 0 {
+                color_a
+            } else {
+                color_b
+            };
+            grid_img.put_pixel(x, y, color);
+        }
+    }
 
     // Render each scene and place in grid (top to bottom, left to right)
     for (i, scene) in scenes.iter().enumerate() {
