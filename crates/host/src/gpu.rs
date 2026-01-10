@@ -6,7 +6,6 @@ use wgpu::include_spirv_raw;
 use wgpu::{self};
 
 pub struct GpuContext {
-    pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -72,7 +71,6 @@ impl GpuContext {
         };
 
         Ok(Self {
-            instance,
             adapter,
             device,
             queue,
