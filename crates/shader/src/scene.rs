@@ -154,9 +154,9 @@ pub fn cornell_box(
     (cam, mat_table, tex_table, world)
 }
 
-/// The classic "bouncing spheres" scene from Ray Tracing in One Weekend.
-/// Uses a solid ground instead of checker texture.
-pub fn bouncing_spheres(
+/// The classic final scene from Ray Tracing in One Weekend.
+/// Many small spheres scattered on a ground plane with three large spheres.
+pub fn many_spheres(
     img_width: usize,
     img_height: usize,
 ) -> (Camera, MaterialTable, TextureTable, List<28, 1>) {
