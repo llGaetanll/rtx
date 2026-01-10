@@ -13,17 +13,28 @@ The project splits into two layers:
 ## Crate Purposes
 
 ### `host`
-CPU-side application. Manages window creation, wgpu device/queue/surface initialization, and the render loop. Compiles the shader crate to SPIR-V at build time via `spirv-builder`. Uses `ouroboros` for self-referential window/surface lifetime management.
+CPU-side application with CLI interface:
+- `live --scene <name>` - Opens window and renders scene live (default: `cornell_box_fs`)
+- `test` - Renders all scenes to image grid (not yet implemented)
+
+Manages window creation, wgpu device/queue/surface initialization, and the render loop. GPU setup is factored into `gpu.rs` with `GpuContext` struct providing:
+- `create_instance()` / `new()` - wgpu initialization
+- `create_pipeline(format, entry_point)` - render pipeline creation
+- `render_to_image(width, height, entry_point)` - offscreen rendering
+
+Compiles the shader crate to SPIR-V at build time via `spirv-builder`. Uses `ouroboros` for self-referential window/surface lifetime management.
 
 ### `shared`
 Types shared between host and shader. Currently just `ShaderConstants` (frame dimensions, time, cursor position). Uses bytemuck for safe GPU memory mapping.
 
 ### `shader`
-GPU entry points compiled to SPIR-V. Contains `main_fs` fragment shader that:
-1. Initializes texture/material tables
-2. Configures camera
-3. Builds scene geometry
-4. Traces rays per-pixel with multi-sample anti-aliasing
+GPU entry points compiled to SPIR-V. Contains multiple fragment shader entry points for different scenes:
+- `cornell_box_fs` - Cornell box with colored walls and ceiling light
+- `quads_fs` - Five colored quads in a room-like arrangement
+- `three_spheres_fs` - Glass, lambertian, and metal spheres on ground
+- `bouncing_spheres_fs` - Classic scene with many small spheres (currently broken)
+
+Scene setup is factored into `scene.rs` with functions like `cornell_box()`, `quads()`, etc. that return `(Camera, MaterialTable, TextureTable, List<NS, NQ>)`. Each entry point calls its scene function, then traces rays per-pixel.
 
 ### `rtx-prim`
 Core primitives and utilities:
@@ -38,7 +49,8 @@ Core primitives and utilities:
 ### `rtx-obj`
 Scene objects implementing the `Hit` trait:
 - `Sphere` - with UV mapping, motion blur support
-- `List<N>` - fixed-size collection of spheres with bounding box
+- `Quad` - arbitrary parallelogram defined by corner point and two edge vectors
+- `List<NS, NQ>` - fixed-size collection of spheres and quads with bounding box
 - `HitRecord` - intersection data (point, normal, material, UV, t)
 
 ### `rtx-mat`
