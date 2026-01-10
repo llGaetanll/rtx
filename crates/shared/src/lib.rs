@@ -1,6 +1,7 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 
-use bytemuck::{Pod, Zeroable};
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]

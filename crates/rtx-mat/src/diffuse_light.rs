@@ -1,4 +1,3 @@
-use crate::Material;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::Point3;
@@ -6,6 +5,8 @@ use rtx_prim::RandState;
 use rtx_tex::Texture;
 use rtx_tex::TextureInfo;
 use rtx_tex::TextureTable;
+
+use crate::Material;
 
 #[derive(Clone)]
 #[repr(C)]

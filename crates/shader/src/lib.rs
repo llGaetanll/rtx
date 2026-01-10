@@ -1,13 +1,26 @@
 #![no_std]
 
-use rtx_mat::{Dielectric, Lambertian, MaterialInfo, MaterialKind, MaterialTable, Metal};
-use rtx_obj::{List, Sphere};
-use rtx_prim::{Color, Point3, Vec3};
-use rtx_tex::{SolidTexture, TextureInfo, TextureKind, TextureTable};
-use rtx_util::{Camera, CameraParams};
+use rtx_mat::Dielectric;
+use rtx_mat::Lambertian;
+use rtx_mat::MaterialInfo;
+use rtx_mat::MaterialKind;
+use rtx_mat::MaterialTable;
+use rtx_mat::Metal;
+use rtx_obj::List;
+use rtx_obj::Sphere;
+use rtx_prim::Color;
+use rtx_prim::Point3;
+use rtx_prim::Vec3;
+use rtx_tex::SolidTexture;
+use rtx_tex::TextureInfo;
+use rtx_tex::TextureKind;
+use rtx_tex::TextureTable;
+use rtx_util::Camera;
+use rtx_util::CameraParams;
 use shared::ShaderConstants;
-use spirv_std::glam::{Vec4, vec2, vec4};
-
+use spirv_std::glam::Vec4;
+use spirv_std::glam::vec2;
+use spirv_std::glam::vec4;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;

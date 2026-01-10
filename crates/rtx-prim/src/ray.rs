@@ -1,6 +1,6 @@
+use crate::F;
 use crate::Point3;
 use crate::Vec3;
-use crate::F;
 
 #[derive(Default, Clone, Copy)]
 #[repr(C)]

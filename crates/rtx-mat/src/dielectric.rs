@@ -1,14 +1,14 @@
-use crate::HitRecord;
-use crate::Material;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
 use rtx_prim::rand;
-
 use rtx_tex::TextureTable;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
+
+use crate::HitRecord;
+use crate::Material;
 
 #[derive(Clone, Copy)]
 #[repr(C)]

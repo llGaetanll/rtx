@@ -1,10 +1,11 @@
-use crate::HitRecord;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::Point3;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
 use rtx_tex::TextureTable;
+
+use crate::HitRecord;
 
 pub trait Material {
     /// Takes in an incoming `Ray` and `HitRecord` and computes, if applicable, an outgoing `Ray`,

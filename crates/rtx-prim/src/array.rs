@@ -1,4 +1,5 @@
-use core::ops::{Index, IndexMut};
+use core::ops::Index;
+use core::ops::IndexMut;
 
 #[repr(C)]
 pub struct Array<T, const N: usize> {

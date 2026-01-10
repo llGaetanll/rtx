@@ -13,10 +13,9 @@ mod hit_record;
 
 pub use dielectric::*;
 pub use diffuse_light::*;
+pub use hit::*;
+pub use hit_record::*;
 pub use lambertian::*;
 pub use material::*;
 pub use material_table::*;
 pub use metal::*;
-
-pub use hit::*;
-pub use hit_record::*;

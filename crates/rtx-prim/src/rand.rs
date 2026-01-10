@@ -1,7 +1,7 @@
 use core::borrow::Borrow;
 
-use crate::Range;
 use crate::F;
+use crate::Range;
 
 pub type RandState = u32;
 

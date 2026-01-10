@@ -1,8 +1,9 @@
-use crate::HitRecord;
 use rtx_prim::Aabb;
+use rtx_prim::F;
 use rtx_prim::Range;
 use rtx_prim::Ray;
-use rtx_prim::F;
+
+use crate::HitRecord;
 
 pub trait Hit {
     /// An object can figure out for itself whether it was hit by a `Ray`.

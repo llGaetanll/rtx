@@ -1,15 +1,23 @@
-use futures::executor::block_on;
-use ouroboros::self_referencing;
 use std::error::Error;
 use std::time::Instant;
-use wgpu::{self, InstanceDescriptor};
-use wgpu::{include_spirv, include_spirv_raw};
+
+use futures::executor::block_on;
+use ouroboros::self_referencing;
+use wgpu::InstanceDescriptor;
+use wgpu::include_spirv;
+use wgpu::include_spirv_raw;
+use wgpu::{self};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event::ElementState;
+use winit::event::WindowEvent;
+use winit::event_loop::ActiveEventLoop;
+use winit::event_loop::ControlFlow;
+use winit::event_loop::EventLoop;
 use winit::keyboard::NamedKey;
-use winit::window::{Window, WindowAttributes, WindowId};
+use winit::window::Window;
+use winit::window::WindowAttributes;
+use winit::window::WindowId;
 
 #[self_referencing]
 struct WindowSurface {

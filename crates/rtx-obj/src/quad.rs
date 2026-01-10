@@ -2,11 +2,11 @@ use rtx_mat::Hit;
 use rtx_mat::HitRecord;
 use rtx_mat::MaterialInfo;
 use rtx_prim::Aabb;
+use rtx_prim::F;
 use rtx_prim::Point3;
 use rtx_prim::Range;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
-use rtx_prim::F;
 
 #[repr(C)]
 pub struct Quad {

@@ -1,6 +1,6 @@
 use rtx_prim::Color;
-use rtx_prim::Point3;
 use rtx_prim::F;
+use rtx_prim::Point3;
 
 use crate::TextureInfo;
 

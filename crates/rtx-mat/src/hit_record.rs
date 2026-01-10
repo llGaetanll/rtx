@@ -1,9 +1,10 @@
-use crate::MaterialInfo;
-use crate::MaterialKind;
+use rtx_prim::F;
 use rtx_prim::Point3;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
-use rtx_prim::F;
+
+use crate::MaterialInfo;
+use crate::MaterialKind;
 
 /// Contains information about a `Ray` hitting a surface
 #[derive(Clone)]
