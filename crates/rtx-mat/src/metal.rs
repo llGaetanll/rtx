@@ -35,13 +35,9 @@ impl Material for Metal {
         let reflected = incoming.dir().reflect(hit.norm);
         let reflected = reflected.normalize() + self.fuzz * Vec3::rand_unit(state);
 
-        if scattered.dir().dot(hit.norm) > 0. {
-            *scattered = Ray::new(hit.p, reflected, incoming.time());
-            *attenuation = self.albedo;
+        *scattered = Ray::new(hit.p, reflected, incoming.time());
+        *attenuation = self.albedo;
 
-            return true;
-        }
-
-        false
+        scattered.dir().dot(hit.norm) > 0.
     }
 }
