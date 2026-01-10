@@ -2,11 +2,11 @@
 
 ## Features (Ray Tracing in One Weekend series)
 
-- [ ] Lighting (emissive materials, diffuse lights)
+- [x] Lighting (emissive materials, diffuse lights)
   - [x] Add `DiffuseLight` to `MaterialTable` (new variant in `MaterialKind`, new array field)
   - [x] Implement `emitted()` dispatch in `MaterialTable` (currently a `todo!()`)
-  - [ ] Fix `ray_color` in `cam.rs` to accumulate emission with throughput
-  - [ ] Create test scene with emissive quad
+  - [x] Fix `ray_color` in `cam.rs` to accumulate emission with throughput
+  - [x] Create test scene with emissive quad (Cornell box)
 - [x] Quads (axis-aligned and arbitrary)
 - [ ] Transforms (translate, rotate, scale)
 - [ ] Image textures

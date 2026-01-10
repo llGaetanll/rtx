@@ -192,15 +192,19 @@ impl Camera {
         let mut range = Range::new(0.001, F::INFINITY);
         let mut rec: HitRecord = Default::default();
 
-        let mut color = self.background;
+        let mut accumulated = Color::new(0., 0., 0.);
+        let mut throughput = Color::new(1., 1., 1.);
 
         while world.hit(&ray, &mut range, &mut rec) {
             if depth > self.max_ray_bounce {
                 break;
             }
 
-            // let emission_color = mat_table.emitted(state, tex_table, rec.u, rec.v, rec.p);
+            // Add emission at this hit point, scaled by current throughput
+            let emission = mat_table.emitted(state, tex_table, &rec, rec.u, rec.v, rec.p);
+            accumulated += throughput * emission;
 
+            // If material doesn't scatter, we're done (hit a pure light)
             let mut scattered = Default::default();
             let mut attenuation = Default::default();
             if !mat_table.scatter(
@@ -214,13 +218,14 @@ impl Camera {
                 break;
             }
 
+            // Update throughput and continue bouncing
+            throughput *= attenuation;
             ray = scattered;
-            color *= attenuation;
-
             depth += 1;
         }
 
-        color
+        // Ray escaped or stopped - add background scaled by remaining throughput
+        accumulated + throughput * self.background
     }
 
     pub fn modify_color(color: Color) -> Color {
