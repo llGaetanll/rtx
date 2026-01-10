@@ -261,24 +261,69 @@ fn run_live(scene: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_test() -> Result<(), Box<dyn Error>> {
-    log::debug!("Test mode: rendering scene to image...");
+    log::debug!("Test mode: rendering all scenes to grid image...");
 
     let instance = GpuContext::create_instance();
     let gpu = block_on(GpuContext::new(instance, None))?;
 
-    let width = 1920;
-    let height = 1080;
+    // All available scenes (fragment shader entry points)
+    let scenes = [
+        "cornell_box_fs",
+        "quads_fs",
+        "metal_test_fs",
+        "dielectric_test_fs",
+        "two_spheres_fs",
+        "three_spheres_fs",
+        "many_spheres_fs",
+    ];
 
-    log::debug!("Rendering {}x{} image...", width, height);
-    let pixels = block_on(gpu.render_to_image(width, height, "cornell_box_fs"));
+    // 720p per scene
+    let scene_width = 1280u32;
+    let scene_height = 720u32;
+
+    // 4x4 grid
+    let grid_cols = 4u32;
+    let grid_rows = 4u32;
+    let grid_width = scene_width * grid_cols;
+    let grid_height = scene_height * grid_rows;
+
+    // Create the final grid image (black background)
+    let mut grid_img = image::RgbaImage::new(grid_width, grid_height);
+
+    // Render each scene and place in grid (top to bottom, left to right)
+    for (i, scene) in scenes.iter().enumerate() {
+        let col = (i as u32) % grid_cols;
+        let row = (i as u32) / grid_cols;
+
+        log::debug!(
+            "Rendering {} ({}/{}) at grid position ({}, {})...",
+            scene,
+            i + 1,
+            scenes.len(),
+            col,
+            row
+        );
+
+        let pixels = block_on(gpu.render_to_image(scene_width, scene_height, scene));
+        let scene_img = image::RgbaImage::from_raw(scene_width, scene_height, pixels)
+            .expect("Failed to create image from pixel data");
+
+        // Copy scene image into grid
+        let x_offset = col * scene_width;
+        let y_offset = row * scene_height;
+        for y in 0..scene_height {
+            for x in 0..scene_width {
+                let pixel = scene_img.get_pixel(x, y);
+                grid_img.put_pixel(x + x_offset, y + y_offset, *pixel);
+            }
+        }
+    }
 
     std::fs::create_dir_all("renders")?;
     let path = "renders/render.png";
 
-    log::debug!("Saving to {}...", path);
-    let img = image::RgbaImage::from_raw(width, height, pixels)
-        .expect("Failed to create image from pixel data");
-    img.save(path)?;
+    log::debug!("Saving {}x{} grid to {}...", grid_width, grid_height, path);
+    grid_img.save(path)?;
 
     log::info!("Saved {}", path);
     Ok(())

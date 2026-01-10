@@ -26,19 +26,10 @@
 4. [x] Multiple scenes via shader entry points
    - [x] Multiple fragment entry points in shader (one per scene)
    - [x] Host selects entry point at runtime
-5. [ ] Grid composition for `test` command
-   - [ ] Render each scene at 1080p
-   - [ ] Stitch into 4x4 grid image
+5. [x] Grid composition for `test` command
+   - [x] Render each scene at 720p
+   - [x] Stitch into 4x4 grid image
 
 ## Technical Debt
 
 1. [ ] `Array<T, N>` currently requires `T: Copy + Default` because we use `[Default::default(); N]` for initialization. This is overly restrictive. Ideally, `T` would only need to be "zeroable" (all zero bytes is a valid default). This would allow types like `Sphere` that aren't `Copy` but can be safely zero-initialized. The goal is something like `core::array::from_fn(|_| Default::default())` but in a form rust-gpu accepts.
-
-## Known Issues
-
-1. [ ] `bouncing_spheres_fs` scene crashes with wgpu lock recursion error
-   - Error: "thread 'main' attempted to acquire a snatch lock recursively"
-   - Occurs in `wgpu-core` when creating render pipeline or during queue submission
-   - May be related to shader complexity (28 spheres, 10 textures, 13 materials)
-   - Other scenes (`cornell_box_fs`, `quads_fs`, `three_spheres_fs`) work correctly
-   - Possibly a wgpu 25.0 bug or resource limit issue

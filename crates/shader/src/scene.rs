@@ -18,8 +18,8 @@ use rtx_tex::TextureTable;
 use rtx_util::Camera;
 use rtx_util::CameraParams;
 
-const PX_SAMPLES: u32 = 10;
-const MAX_RAY_BOUNCE: u32 = 8;
+const PX_SAMPLES: u32 = 40;
+const MAX_RAY_BOUNCE: u32 = 10;
 
 pub fn cornell_box(
     img_width: usize,
