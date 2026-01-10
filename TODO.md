@@ -18,7 +18,7 @@
    - [x] Add clap dependency, `live` subcommand (current behavior), `test` placeholder
    - [x] `live --scene <name>` to select which scene to display (flag added, not yet functional)
 2. [ ] Refactor host rendering into reusable pieces
-   - [ ] Extract wgpu setup (device, queue, pipeline) into reusable module
+   - [x] Extract wgpu setup (device, queue, pipeline) into reusable module (`gpu.rs`)
    - [ ] Create function to render to offscreen texture
 3. [ ] Offscreen rendering and image output
    - [ ] Render to texture, read pixels back to CPU

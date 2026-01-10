@@ -5,10 +5,7 @@ use clap::Parser;
 use clap::Subcommand;
 use futures::executor::block_on;
 use ouroboros::self_referencing;
-use wgpu::InstanceDescriptor;
-use wgpu::include_spirv;
-use wgpu::include_spirv_raw;
-use wgpu::{self};
+use wgpu;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -20,6 +17,10 @@ use winit::keyboard::NamedKey;
 use winit::window::Window;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
+
+mod gpu;
+
+use gpu::GpuContext;
 
 #[derive(Parser)]
 #[command(name = "rtx")]
@@ -50,12 +51,10 @@ struct WindowSurface {
 }
 
 struct RustShaderSandboxApp {
-    device: Option<wgpu::Device>,
-    queue: Option<wgpu::Queue>,
+    gpu: Option<GpuContext>,
     window_surface: Option<WindowSurface>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
-    shader_module: Option<wgpu::ShaderModule>,
     close_requested: bool,
     start: Instant,
     cursor_x: f32,
@@ -65,12 +64,10 @@ struct RustShaderSandboxApp {
 impl Default for RustShaderSandboxApp {
     fn default() -> Self {
         Self {
-            device: None,
-            queue: None,
+            gpu: None,
             window_surface: None,
             config: None,
             render_pipeline: None,
-            shader_module: None,
             close_requested: false,
             start: Instant::now(),
             cursor_x: 0.0,
@@ -86,14 +83,7 @@ impl RustShaderSandboxApp {
             .with_inner_size(LogicalSize::new(800.0, 600.0));
         let window_box = event_loop.create_window(window_attributes)?;
 
-        let mut instance_flags = wgpu::InstanceFlags::default();
-        instance_flags.remove(wgpu::InstanceFlags::VALIDATION);
-        instance_flags.remove(wgpu::InstanceFlags::DEBUG);
-
-        let instance = wgpu::Instance::new(&InstanceDescriptor {
-            flags: instance_flags,
-            ..Default::default()
-        });
+        let instance = GpuContext::create_instance();
 
         let window_surface = WindowSurfaceBuilder {
             window: Box::new(window_box),
@@ -108,84 +98,11 @@ impl RustShaderSandboxApp {
         let window_size = window_surface.borrow_window().inner_size();
         let surface = window_surface.borrow_surface();
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(surface),
-                force_fallback_adapter: false,
-            })
-            .await?;
+        let gpu = GpuContext::new(instance, Some(surface)).await?;
 
-        let mut required_features = wgpu::Features::PUSH_CONSTANTS;
-        if adapter
-            .features()
-            .contains(wgpu::Features::SPIRV_SHADER_PASSTHROUGH)
-        {
-            required_features |= wgpu::Features::SPIRV_SHADER_PASSTHROUGH;
-        }
+        let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
-        let required_limits = wgpu::Limits {
-            max_push_constant_size: 256,
-            ..Default::default()
-        };
-
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: None,
-                required_features,
-                required_limits,
-                ..Default::default()
-            })
-            .await?;
-
-        let shader_module = if device
-            .features()
-            .contains(wgpu::Features::SPIRV_SHADER_PASSTHROUGH)
-        {
-            let x = include_spirv_raw!(env!("shader.spv"));
-            unsafe { device.create_shader_module_passthrough(x) }
-        } else {
-            device.create_shader_module(include_spirv!(env!("shader.spv")))
-        };
-
-        let swapchain_format = surface.get_capabilities(&adapter).formats[0];
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[],
-            push_constant_ranges: &[wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                range: 0..std::mem::size_of::<shared::ShaderConstants>() as u32,
-            }],
-        });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader_module,
-                entry_point: Some("main_vs"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader_module,
-                entry_point: Some("main_fs"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: swapchain_format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-            cache: None,
-        });
+        let render_pipeline = gpu.create_pipeline(swapchain_format);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -197,14 +114,12 @@ impl RustShaderSandboxApp {
             view_formats: vec![],
             desired_maximum_frame_latency: Default::default(),
         };
-        surface.configure(&device, &config);
+        surface.configure(&gpu.device, &config);
 
-        self.device = Some(device);
-        self.queue = Some(queue);
+        self.gpu = Some(gpu);
         self.window_surface = Some(window_surface);
         self.config = Some(config);
         self.render_pipeline = Some(render_pipeline);
-        self.shader_module = Some(shader_module);
         self.start = Instant::now();
         Ok(())
     }
@@ -214,12 +129,14 @@ impl RustShaderSandboxApp {
             Some(ws) => ws,
             None => return,
         };
+        let gpu = match &self.gpu {
+            Some(gpu) => gpu,
+            None => return,
+        };
 
         let window = window_surface.borrow_window();
         let current_size = window.inner_size();
         let surface = window_surface.borrow_surface();
-        let device = self.device.as_ref().unwrap();
-        let queue = self.queue.as_ref().unwrap();
 
         let frame = match surface.get_current_texture() {
             Ok(frame) => frame,
@@ -233,8 +150,9 @@ impl RustShaderSandboxApp {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder =
-            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut encoder = gpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         let push_constants = shared::ShaderConstants {
             width: current_size.width,
@@ -269,7 +187,7 @@ impl RustShaderSandboxApp {
             rpass.draw(0..3, 0..1);
         }
 
-        queue.submit(Some(encoder.finish()));
+        gpu.queue.submit(Some(encoder.finish()));
         frame.present();
     }
 }
@@ -296,8 +214,8 @@ impl ApplicationHandler for RustShaderSandboxApp {
                     config.height = new_size.height;
                     if let Some(ws) = &self.window_surface {
                         let surface = ws.borrow_surface();
-                        if let Some(device) = self.device.as_ref() {
-                            surface.configure(device, config);
+                        if let Some(gpu) = &self.gpu {
+                            surface.configure(&gpu.device, config);
                         }
                     }
                 }
