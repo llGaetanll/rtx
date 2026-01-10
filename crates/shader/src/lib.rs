@@ -45,3 +45,60 @@ pub fn cornell_box_fs(
 
     *output = vec4(color.x, color.y, color.z, 1.0);
 }
+
+#[spirv(fragment)]
+pub fn quads_fs(
+    #[spirv(frag_coord)] frag_coord: Vec4,
+    #[spirv(push_constant)] constants: &ShaderConstants,
+    output: &mut Vec4,
+) {
+    let (cam, mat_table, tex_table, world) =
+        scene::quads(constants.width as usize, constants.height as usize);
+
+    let i = frag_coord.y as usize;
+    let j = frag_coord.x as usize;
+
+    let mut state = gen_state(frag_coord);
+
+    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
+
+    *output = vec4(color.x, color.y, color.z, 1.0);
+}
+
+#[spirv(fragment)]
+pub fn three_spheres_fs(
+    #[spirv(frag_coord)] frag_coord: Vec4,
+    #[spirv(push_constant)] constants: &ShaderConstants,
+    output: &mut Vec4,
+) {
+    let (cam, mat_table, tex_table, world) =
+        scene::three_spheres(constants.width as usize, constants.height as usize);
+
+    let i = frag_coord.y as usize;
+    let j = frag_coord.x as usize;
+
+    let mut state = gen_state(frag_coord);
+
+    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
+
+    *output = vec4(color.x, color.y, color.z, 1.0);
+}
+
+#[spirv(fragment)]
+pub fn bouncing_spheres_fs(
+    #[spirv(frag_coord)] frag_coord: Vec4,
+    #[spirv(push_constant)] constants: &ShaderConstants,
+    output: &mut Vec4,
+) {
+    let (cam, mat_table, tex_table, world) =
+        scene::bouncing_spheres(constants.width as usize, constants.height as usize);
+
+    let i = frag_coord.y as usize;
+    let j = frag_coord.x as usize;
+
+    let mut state = gen_state(frag_coord);
+
+    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
+
+    *output = vec4(color.x, color.y, color.z, 1.0);
+}
