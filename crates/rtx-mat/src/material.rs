@@ -27,6 +27,7 @@ pub trait Material {
         &self,
         _state: &mut RandState,
         _tex_table: &TextureTable,
+        _rec: &HitRecord,
         _u: F,
         _v: F,
         _point: Point3,

@@ -8,7 +8,7 @@ use rtx_tex::TextureTable;
 
 use crate::Material;
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct DiffuseLight {
     tex: TextureInfo,
@@ -35,6 +35,7 @@ impl Material for DiffuseLight {
         &self,
         _state: &mut RandState,
         tex_table: &TextureTable,
+        _rec: &crate::HitRecord,
         u: F,
         v: F,
         point: Point3,

@@ -7,6 +7,7 @@ use rtx_prim::Ray;
 use rtx_tex::TextureTable;
 
 use crate::Dielectric;
+use crate::DiffuseLight;
 use crate::HitRecord;
 use crate::Lambertian;
 use crate::Material;
@@ -19,6 +20,7 @@ pub struct MaterialTable {
     pub lambertians: Array<Lambertian, MAT_TBL_LEN>,
     pub metals: Array<Metal, MAT_TBL_LEN>,
     pub dielectrics: Array<Dielectric, MAT_TBL_LEN>,
+    pub diffuse_lights: Array<DiffuseLight, MAT_TBL_LEN>,
 }
 
 impl MaterialTable {
@@ -27,6 +29,7 @@ impl MaterialTable {
             lambertians: Array::new(),
             metals: Array::new(),
             dielectrics: Array::new(),
+            diffuse_lights: Array::new(),
         }
     }
 }
@@ -73,19 +76,26 @@ impl Material for MaterialTable {
                 scattered,
                 attenuation,
             ),
+            // Diffuse lights don't scatter, they only emit
+            MaterialKind::DiffuseLight => false,
         }
     }
 
     fn emitted(
         &self,
-        _state: &mut RandState,
-        _tex_table: &TextureTable,
-        _u: F,
-        _v: F,
-        _point: Point3,
+        state: &mut RandState,
+        tex_table: &TextureTable,
+        rec: &HitRecord,
+        u: F,
+        v: F,
+        point: Point3,
     ) -> Color {
-        // Color::new(0., 0., 0.)
-        todo!("Emission not yet supported")
+        match rec.mat.kind {
+            MaterialKind::DiffuseLight => {
+                self.diffuse_lights[rec.mat.index].emitted(state, tex_table, rec, u, v, point)
+            }
+            _ => Color::new(0., 0., 0.),
+        }
     }
 }
 
@@ -103,4 +113,5 @@ pub enum MaterialKind {
     Lambertian,
     Metal,
     Dielectric,
+    DiffuseLight,
 }

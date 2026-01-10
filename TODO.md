@@ -3,6 +3,10 @@
 ## Features (Ray Tracing in One Weekend series)
 
 - [ ] Lighting (emissive materials, diffuse lights)
+  - [x] Add `DiffuseLight` to `MaterialTable` (new variant in `MaterialKind`, new array field)
+  - [x] Implement `emitted()` dispatch in `MaterialTable` (currently a `todo!()`)
+  - [ ] Fix `ray_color` in `cam.rs` to accumulate emission with throughput
+  - [ ] Create test scene with emissive quad
 - [x] Quads (axis-aligned and arbitrary)
 - [ ] Image textures
 - [ ] Noise textures (Perlin noise)
