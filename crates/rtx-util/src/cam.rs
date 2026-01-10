@@ -159,14 +159,14 @@ impl Camera {
         }
     }
 
-    pub fn render<const N: usize>(
+    pub fn render<const NS: usize, const NQ: usize>(
         &self,
         state: &mut RandState,
         i: usize,
         j: usize,
         mat_table: &MaterialTable,
         tex_table: &TextureTable,
-        world: &List<N>,
+        world: &List<NS, NQ>,
     ) -> Color {
         let mut color = Color::new(0., 0., 0.);
 
@@ -179,13 +179,13 @@ impl Camera {
         self.px_sample_scale * color
     }
 
-    pub fn ray_color<const N: usize>(
+    pub fn ray_color<const NS: usize, const NQ: usize>(
         &self,
         state: &mut RandState,
         mat_table: &MaterialTable,
         tex_table: &TextureTable,
         mut ray: Ray,
-        world: &List<N>,
+        world: &List<NS, NQ>,
         mut depth: u32,
     ) -> Color {
         // Start of range is not zero to avoid floating point errors

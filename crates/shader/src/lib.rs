@@ -7,6 +7,7 @@ use rtx_mat::MaterialKind;
 use rtx_mat::MaterialTable;
 use rtx_mat::Metal;
 use rtx_obj::List;
+use rtx_obj::Quad;
 use rtx_obj::Sphere;
 use rtx_prim::Color;
 use rtx_prim::Point3;
@@ -27,10 +28,10 @@ use spirv_std::spirv;
 
 fn gen_params(img_width: usize, img_height: usize) -> CameraParams {
     CameraParams {
-        lookfrom: Point3::new(13., 2., 3.),
+        lookfrom: Point3::new(0., 0., 9.),
         lookat: Point3::new(0., 0., 0.),
         vup: Vec3::new(0., 1., 0.),
-        fov_v: 20.0,
+        fov_v: 40.0,
         defocus_angle: 0.0,
         focus_dist: 10.0,
         px_samples: 80,
@@ -106,26 +107,29 @@ pub fn main_fs(
     let params = gen_params(constants.width as usize, constants.height as usize);
     let cam = Camera::new(params);
 
-    let list = [
-        Sphere::fixed(
-            Point3::new(0., 1., 0.),
-            1.,
-            MaterialInfo {
-                kind: MaterialKind::Lambertian,
-                index: 0,
-            },
-        ),
-        Sphere::fixed(
-            Point3::new(0., -100., 0.),
-            100.,
-            MaterialInfo {
-                kind: MaterialKind::Lambertian,
-                index: 1,
-            },
-        ),
-    ];
+    let quad = Quad::new(
+        Point3::new(-2., -2., 0.),
+        Vec3::new(4., 0., 0.),
+        Vec3::new(0., 4., 0.),
+        MaterialInfo {
+            kind: MaterialKind::Lambertian,
+            index: 0,
+        },
+    );
 
-    let world = List::from_objects(list);
+    // NOTE: rust-gpu cannot handle empty arrays (fails with "cannot offset a pointer
+    // to an arbitrary element" when indexing). This dummy sphere is placed far behind
+    // the camera so it's never visible, but ensures the sphere array is non-empty.
+    let dummy_sphere = Sphere::fixed(
+        Point3::new(0., 0., 100.),
+        0.001,
+        MaterialInfo {
+            kind: MaterialKind::Lambertian,
+            index: 0,
+        },
+    );
+
+    let world = List::from_objects([dummy_sphere], [quad]);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;

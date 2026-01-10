@@ -3,7 +3,7 @@
 ## Features (Ray Tracing in One Weekend series)
 
 - [ ] Lighting (emissive materials, diffuse lights)
-- [ ] Quads (axis-aligned and arbitrary)
+- [x] Quads (axis-aligned and arbitrary)
 - [ ] Image textures
 - [ ] Noise textures (Perlin noise)
 

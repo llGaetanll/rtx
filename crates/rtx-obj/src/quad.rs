@@ -51,9 +51,7 @@ impl Quad {
     /// Given the hit point in plane coordinates, returns whether it is inside the `Quad`. If so,
     /// updates the `HitRecord`.
     fn is_interior(a: F, b: F, rec: &mut HitRecord) -> bool {
-        let unit = 0.0..=1.0;
-
-        if !unit.contains(&a) || !unit.contains(&b) {
+        if a < 0.0 || a > 1.0 || b < 0.0 || b > 1.0 {
             return false;
         }
 
