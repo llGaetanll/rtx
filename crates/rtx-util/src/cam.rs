@@ -4,7 +4,7 @@ use rtx_mat::Hit;
 use rtx_mat::HitRecord;
 use rtx_mat::Material;
 use rtx_mat::MaterialTable;
-use rtx_obj::List;
+use rtx_obj::Scene;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::PI;
@@ -159,14 +159,14 @@ impl Camera {
         }
     }
 
-    pub fn render<const NS: usize, const NQ: usize>(
+    pub fn render(
         &self,
         state: &mut RandState,
         i: usize,
         j: usize,
         mat_table: &MaterialTable,
         tex_table: &TextureTable,
-        world: &List<NS, NQ>,
+        world: &Scene,
     ) -> Color {
         let mut color = Color::new(0., 0., 0.);
 
@@ -179,13 +179,13 @@ impl Camera {
         self.px_sample_scale * color
     }
 
-    pub fn ray_color<const NS: usize, const NQ: usize>(
+    pub fn ray_color(
         &self,
         state: &mut RandState,
         mat_table: &MaterialTable,
         tex_table: &TextureTable,
         mut ray: Ray,
-        world: &List<NS, NQ>,
+        world: &Scene,
         mut depth: u32,
     ) -> Color {
         // Start of range is not zero to avoid floating point errors

@@ -120,7 +120,7 @@ pub fn hit_unit_sphere(ray: &Ray, t_int: &mut Range<F>, rec: &mut HitRecord) -> 
     rec.u = u;
     rec.v = v;
     rec.p = p;
-    rec.set_norm(ray, norm);
+    rec.norm = norm;
 
     true
 }
@@ -161,7 +161,7 @@ pub fn hit_unit_quad(ray: &Ray, t_int: &mut Range<F>, rec: &mut HitRecord) -> bo
     rec.u = alpha;
     rec.v = beta;
     rec.p = intersect;
-    rec.set_norm(ray, normal);
+    rec.norm = normal;
 
     true
 }
