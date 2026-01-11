@@ -35,6 +35,10 @@
 5. [x] Grid composition for `test` command
    - [x] Render each scene at 720p
    - [x] Stitch into 4x4 grid image
+6. [ ] Unit tests for ray-material interactions
+   - [ ] Shoot specific rays at specific materials, verify resulting scattered ray
+   - [ ] Test cases: Lambertian diffuse, Metal reflection, Dielectric refraction (entering/exiting)
+   - [ ] Helps catch regressions like the normal-flip bug from instance transforms
 
 ## Technical Debt
 
