@@ -126,9 +126,9 @@ Phase 1: Add new types (non-breaking, ray tracer still works)
 - [x] Implement hardcoded `hit_unit_sphere()` and `hit_unit_quad()` functions
 
 Phase 2: Refactor ray tracer to use instances
-- [ ] Create new `Scene` type that holds `Array<Instance, N>`
-- [ ] Update `hit()` logic to iterate instances, transform rays, dispatch to unit primitives
-- [ ] Migrate existing scenes to use `Instance` with appropriate transforms
+- [x] Create new `Scene` type that holds `Array<Instance, N>`
+- [x] Update `hit()` logic to iterate instances, transform rays, dispatch to unit primitives
+- [x] Migrate existing scenes to use `Instance` with appropriate transforms
 - [ ] Remove old `Sphere`, `Quad`, and `List` types once migration is complete
 
 **Note:** The `t` parameter may need adjustment for non-uniform scale. When the ray
