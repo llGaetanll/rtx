@@ -619,6 +619,56 @@ pub fn two_spheres(
     (cam, mat_table, tex_table, world)
 }
 
+pub fn glass_debug(
+    img_width: usize,
+    img_height: usize,
+) -> (Camera, MaterialTable, TextureTable, Scene) {
+    let mut tex_table = TextureTable::new();
+    tex_table
+        .solids
+        .push(SolidTexture::from_color(Color::new(0.3, 0.3, 0.8))); // 0: blue
+
+    let mut mat_table = MaterialTable::new();
+    mat_table
+        .lambertians
+        .push(Lambertian::from_texture(TextureInfo {
+            kind: TextureKind::Solid,
+            index: 0,
+        }));
+    mat_table.dielectrics.push(Dielectric::new(1.5));
+
+    let blue_mat = MaterialInfo {
+        kind: MaterialKind::Lambertian,
+        index: 0,
+    };
+    let glass_mat = MaterialInfo {
+        kind: MaterialKind::Dielectric,
+        index: 0,
+    };
+
+    let cam = Camera::new(CameraParams {
+        lookfrom: Point3::new(0., 2., 5.),
+        lookat: Point3::new(0., 0.5, 0.),
+        vup: Vec3::new(0., 1., 0.),
+        fov_v: 40.0,
+        defocus_angle: 0.0,
+        focus_dist: 5.0,
+        px_samples: PX_SAMPLES,
+        max_ray_bounce: MAX_RAY_BOUNCE,
+        img_width,
+        img_height,
+        background: Color::new(0.7, 0.8, 1.0),
+    });
+
+    let mut world = Scene::new();
+    // Large blue floor sphere
+    world.push(Instance::sphere(Point3::new(0., -100., 0.), 100., blue_mat));
+    // Glass sphere on top
+    world.push(Instance::sphere(Point3::new(0., 1., 0.), 1.0, glass_mat));
+
+    (cam, mat_table, tex_table, world)
+}
+
 pub fn three_spheres(
     img_width: usize,
     img_height: usize,

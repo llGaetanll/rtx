@@ -273,6 +273,7 @@ fn run_test() -> Result<(), Box<dyn Error>> {
         "metal_test_fs",
         "dielectric_test_fs",
         "two_spheres_fs",
+        "glass_debug_fs",
         "three_spheres_fs",
         "many_spheres_fs",
     ];
