@@ -2631,6 +2631,7 @@ version = "0.1.0"
 dependencies = [
  "rtx-mat",
  "rtx-prim",
+ "rtx-tex",
  "spirv-std",
 ]
 
