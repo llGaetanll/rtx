@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::f32::consts::PI;
 use std::time::Instant;
 
 use clap::Parser;
@@ -13,6 +14,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::event_loop::ControlFlow;
 use winit::event_loop::EventLoop;
+use winit::keyboard::Key;
 use winit::keyboard::NamedKey;
 use winit::window::Window;
 use winit::window::WindowAttributes;
@@ -50,6 +52,17 @@ struct WindowSurface {
     surface: wgpu::Surface<'this>,
 }
 
+/// Tracks which movement keys are currently held
+#[derive(Default)]
+struct KeysHeld {
+    w: bool,
+    a: bool,
+    s: bool,
+    d: bool,
+    space: bool,
+    c: bool,
+}
+
 struct RustShaderSandboxApp {
     scene: String,
     gpu: Option<GpuContext>,
@@ -60,10 +73,25 @@ struct RustShaderSandboxApp {
     start: Instant,
     cursor_x: f32,
     cursor_y: f32,
+    // Camera state
+    cam_pos: [f32; 3],
+    cam_yaw: f32,   // radians, 0 = looking down -Z
+    cam_pitch: f32, // radians, 0 = horizontal
+    keys_held: KeysHeld,
+    last_cursor_x: f32,
+    last_cursor_y: f32,
+    last_frame: Instant,
 }
 
 impl RustShaderSandboxApp {
     fn new(scene: String) -> Self {
+        // Default camera: Cornell box position, looking into the box
+        // Cornell box camera: lookfrom (278, 278, -800), lookat (278, 278, 0)
+        // This means looking down +Z from a negative Z position
+        let cam_pos = [278.0, 278.0, -800.0];
+        let cam_yaw = PI; // Looking down +Z (opposite of default -Z)
+        let cam_pitch = 0.0;
+
         Self {
             scene,
             gpu: None,
@@ -74,11 +102,96 @@ impl RustShaderSandboxApp {
             start: Instant::now(),
             cursor_x: 0.0,
             cursor_y: 0.0,
+            cam_pos,
+            cam_yaw,
+            cam_pitch,
+            keys_held: KeysHeld::default(),
+            last_cursor_x: 0.0,
+            last_cursor_y: 0.0,
+            last_frame: Instant::now(),
         }
     }
 }
 
 impl RustShaderSandboxApp {
+    fn update_camera(&mut self) {
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_frame).as_secs_f32();
+        self.last_frame = now;
+
+        // Mouse look: compute delta from last cursor position
+        let mouse_dx = self.cursor_x - self.last_cursor_x;
+        let mouse_dy = self.cursor_y - self.last_cursor_y;
+        self.last_cursor_x = self.cursor_x;
+        self.last_cursor_y = self.cursor_y;
+
+        // Update yaw/pitch from mouse (sensitivity factor)
+        let sensitivity = 0.003;
+        self.cam_yaw -= mouse_dx * sensitivity;
+        self.cam_pitch -= mouse_dy * sensitivity;
+
+        // Clamp pitch to avoid gimbal lock
+        let max_pitch = PI / 2.0 - 0.01;
+        self.cam_pitch = self.cam_pitch.clamp(-max_pitch, max_pitch);
+
+        // Compute forward and right vectors from yaw (ignore pitch for movement)
+        let forward_x = self.cam_yaw.sin();
+        let forward_z = self.cam_yaw.cos();
+        let right_x = (self.cam_yaw - PI / 2.0).sin();
+        let right_z = (self.cam_yaw - PI / 2.0).cos();
+
+        // Movement speed (units per second)
+        let speed = 200.0 * dt;
+
+        // Apply movement based on held keys
+        if self.keys_held.w {
+            self.cam_pos[0] += forward_x * speed;
+            self.cam_pos[2] += forward_z * speed;
+        }
+        if self.keys_held.s {
+            self.cam_pos[0] -= forward_x * speed;
+            self.cam_pos[2] -= forward_z * speed;
+        }
+        if self.keys_held.a {
+            self.cam_pos[0] -= right_x * speed;
+            self.cam_pos[2] -= right_z * speed;
+        }
+        if self.keys_held.d {
+            self.cam_pos[0] += right_x * speed;
+            self.cam_pos[2] += right_z * speed;
+        }
+        if self.keys_held.space {
+            self.cam_pos[1] += speed;
+        }
+        if self.keys_held.c {
+            self.cam_pos[1] -= speed;
+        }
+
+        // Compute lookat point (1 unit in front of camera)
+        let look_forward_x = self.cam_yaw.sin() * self.cam_pitch.cos();
+        let look_forward_y = self.cam_pitch.sin();
+        let look_forward_z = self.cam_yaw.cos() * self.cam_pitch.cos();
+
+        let lookat = [
+            self.cam_pos[0] + look_forward_x,
+            self.cam_pos[1] + look_forward_y,
+            self.cam_pos[2] + look_forward_z,
+        ];
+
+        // Log camera params
+        log::debug!(
+            "Camera: pos=({:.1}, {:.1}, {:.1}) lookat=({:.1}, {:.1}, {:.1}) yaw={:.2} pitch={:.2}",
+            self.cam_pos[0],
+            self.cam_pos[1],
+            self.cam_pos[2],
+            lookat[0],
+            lookat[1],
+            lookat[2],
+            self.cam_yaw,
+            self.cam_pitch
+        );
+    }
+
     async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
         let window_attributes = WindowAttributes::default()
             .with_title("Rust Shader Sandbox")
@@ -127,6 +240,9 @@ impl RustShaderSandboxApp {
     }
 
     fn render(&mut self) {
+        // Update camera state before rendering
+        self.update_camera();
+
         let window_surface = match &self.window_surface {
             Some(ws) => ws,
             None => return,
@@ -227,8 +343,28 @@ impl ApplicationHandler for RustShaderSandboxApp {
                 self.cursor_y = position.y as f32;
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.logical_key == NamedKey::Escape && event.state == ElementState::Pressed {
-                    self.close_requested = true;
+                let pressed = event.state == ElementState::Pressed;
+                match &event.logical_key {
+                    Key::Named(NamedKey::Escape) => {
+                        if pressed {
+                            self.close_requested = true;
+                        }
+                    }
+                    Key::Named(NamedKey::Space) => self.keys_held.space = pressed,
+                    Key::Character(c) => match c.as_str() {
+                        "w" | "W" => self.keys_held.w = pressed,
+                        "a" | "A" => self.keys_held.a = pressed,
+                        "s" | "S" => self.keys_held.s = pressed,
+                        "d" | "D" => self.keys_held.d = pressed,
+                        "c" | "C" => self.keys_held.c = pressed,
+                        "q" | "Q" => {
+                            if pressed {
+                                self.close_requested = true;
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {}
                 }
             }
             WindowEvent::RedrawRequested => self.render(),
