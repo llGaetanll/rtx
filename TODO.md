@@ -8,7 +8,7 @@
    - [x] Fix `ray_color` in `cam.rs` to accumulate emission with throughput
    - [x] Create test scene with emissive quad (Cornell box)
 2. [x] Quads (axis-aligned and arbitrary)
-3. [ ] Transforms (translate, rotate, scale) - see design notes at bottom of file
+3. [x] Transforms (translate, rotate, scale) - see design notes at bottom of file
 4. [ ] Image textures
 5. [ ] Noise textures (Perlin noise)
 6. [ ] Bounding Volume Hierarchy (BVH)
@@ -133,7 +133,7 @@ Phase 2: Refactor ray tracer to use instances
 - [x] Create new `Scene` type that holds `Array<Instance, N>`
 - [x] Update `hit()` logic to iterate instances, transform rays, dispatch to unit primitives
 - [x] Migrate existing scenes to use `Instance` with appropriate transforms
-- [ ] Remove old `Sphere`, `Quad`, and `List` types once migration is complete
+- [x] Remove old `Sphere`, `Quad`, and `List` types once migration is complete
 
 **Note:** The `t` parameter may need adjustment for non-uniform scale. When the ray
 is transformed to object space, direction length changes, so the same `t` value
