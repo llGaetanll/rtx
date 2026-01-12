@@ -81,4 +81,8 @@ Once CPU-side camera is working:
 
 ## Technical Debt
 
-1. [ ] `Array<T, N>` currently requires `T: Copy + Default` because we use `[Default::default(); N]` for initialization. This is overly restrictive. Ideally, `T` would only need to be "zeroable" (all zero bytes is a valid default). This would allow types like `Sphere` that aren't `Copy` but can be safely zero-initialized. The goal is something like `core::array::from_fn(|_| Default::default())` but in a form rust-gpu accepts.
+1. [ ] **Ray tracer flips image left-to-right**: The interactive camera controls have inverted signs on movement and mouse look to compensate. The ray tracer appears to be rendering the image mirrored horizontally. The workaround is in `host/src/main.rs` (`update_camera`). The root cause should be investigated - likely in `Camera::new()` or `Camera::get_ray()` in `rtx-util/src/cam.rs`, possibly related to how pixel coordinates map to ray directions.
+
+2. [ ] **Crash when camera enters an object**: The program sometimes crashes, likely when the camera position moves inside geometry. This may cause issues with ray-object intersection tests (e.g., negative t values, NaN from inside-surface calculations). Needs investigation.
+
+2. [ ] `Array<T, N>` currently requires `T: Copy + Default` because we use `[Default::default(); N]` for initialization. This is overly restrictive. Ideally, `T` would only need to be "zeroable" (all zero bytes is a valid default). This would allow types like `Sphere` that aren't `Copy` but can be safely zero-initialized. The goal is something like `core::array::from_fn(|_| Default::default())` but in a form rust-gpu accepts.

@@ -109,8 +109,26 @@ pub fn two_spheres_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::two_spheres(constants.width as usize, constants.height as usize);
+    use spirv_std::glam::Vec3;
+
+    let lookfrom = Vec3::new(
+        constants.cam_pos[0],
+        constants.cam_pos[1],
+        constants.cam_pos[2],
+    );
+    let cam_dir = Vec3::new(
+        constants.cam_dir[0],
+        constants.cam_dir[1],
+        constants.cam_dir[2],
+    );
+    let lookat = lookfrom + cam_dir;
+
+    let (cam, mat_table, tex_table, world) = scene::two_spheres(
+        constants.width as usize,
+        constants.height as usize,
+        lookfrom,
+        lookat,
+    );
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;

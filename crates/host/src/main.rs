@@ -75,8 +75,9 @@ struct RustShaderSandboxApp {
     cursor_y: f32,
     // Camera state
     cam_pos: [f32; 3],
-    cam_yaw: f32,   // radians, 0 = looking down -Z
-    cam_pitch: f32, // radians, 0 = horizontal
+    cam_dir: [f32; 3], // normalized forward direction
+    cam_yaw: f32,      // radians, 0 = looking down -Z
+    cam_pitch: f32,    // radians, 0 = horizontal
     keys_held: KeysHeld,
     last_cursor_x: f32,
     last_cursor_y: f32,
@@ -85,12 +86,18 @@ struct RustShaderSandboxApp {
 
 impl RustShaderSandboxApp {
     fn new(scene: String) -> Self {
-        // Default camera: Cornell box position, looking into the box
-        // Cornell box camera: lookfrom (278, 278, -800), lookat (278, 278, 0)
-        // This means looking down +Z from a negative Z position
-        let cam_pos = [278.0, 278.0, -800.0];
-        let cam_yaw = PI; // Looking down +Z (opposite of default -Z)
-        let cam_pitch = 0.0;
+        // Default camera: two_spheres position
+        // two_spheres camera: lookfrom (0, 1, 5), lookat (0, 0, 0)
+        // Direction to origin: (0, -1, -5), normalized ≈ (0, -0.196, -0.98)
+        let cam_pos = [0.0, 1.0, 5.0];
+        let cam_yaw: f32 = 0.0; // Looking down -Z
+        let cam_pitch: f32 = -0.197; // Slightly down to look at origin
+        // Initial direction from yaw/pitch
+        let cam_dir = [
+            cam_yaw.sin() * cam_pitch.cos(),
+            cam_pitch.sin(),
+            cam_yaw.cos() * cam_pitch.cos(),
+        ];
 
         Self {
             scene,
@@ -103,6 +110,7 @@ impl RustShaderSandboxApp {
             cursor_x: 0.0,
             cursor_y: 0.0,
             cam_pos,
+            cam_dir,
             cam_yaw,
             cam_pitch,
             keys_held: KeysHeld::default(),
@@ -120,12 +128,23 @@ impl RustShaderSandboxApp {
         self.last_frame = now;
 
         // Mouse look: compute delta from last cursor position
-        let mouse_dx = self.cursor_x - self.last_cursor_x;
-        let mouse_dy = self.cursor_y - self.last_cursor_y;
+        // Skip if last_cursor is uninitialized (first frame)
+        let first_frame = self.last_cursor_x == 0.0 && self.last_cursor_y == 0.0;
+        let mouse_dx = if first_frame {
+            0.0
+        } else {
+            self.cursor_x - self.last_cursor_x
+        };
+        let mouse_dy = if first_frame {
+            0.0
+        } else {
+            self.cursor_y - self.last_cursor_y
+        };
         self.last_cursor_x = self.cursor_x;
         self.last_cursor_y = self.cursor_y;
 
         // Update yaw/pitch from mouse (sensitivity factor)
+        // Signs inverted to compensate for ray tracer's left-right flip
         let sensitivity = 0.003;
         self.cam_yaw -= mouse_dx * sensitivity;
         self.cam_pitch -= mouse_dy * sensitivity;
@@ -141,9 +160,10 @@ impl RustShaderSandboxApp {
         let right_z = (self.cam_yaw - PI / 2.0).cos();
 
         // Movement speed (units per second)
-        let speed = 200.0 * dt;
+        let speed = 5.0 * dt;
 
         // Apply movement based on held keys
+        // Signs inverted to compensate for ray tracer's left-right flip
         if self.keys_held.w {
             self.cam_pos[0] += forward_x * speed;
             self.cam_pos[2] += forward_z * speed;
@@ -167,28 +187,22 @@ impl RustShaderSandboxApp {
             self.cam_pos[1] -= speed;
         }
 
-        // Compute lookat point (1 unit in front of camera)
-        let look_forward_x = self.cam_yaw.sin() * self.cam_pitch.cos();
-        let look_forward_y = self.cam_pitch.sin();
-        let look_forward_z = self.cam_yaw.cos() * self.cam_pitch.cos();
-
-        let lookat = [
-            self.cam_pos[0] + look_forward_x,
-            self.cam_pos[1] + look_forward_y,
-            self.cam_pos[2] + look_forward_z,
+        // Compute forward direction (normalized)
+        self.cam_dir = [
+            self.cam_yaw.sin() * self.cam_pitch.cos(),
+            self.cam_pitch.sin(),
+            self.cam_yaw.cos() * self.cam_pitch.cos(),
         ];
 
         // Log camera params
         log::debug!(
-            "Camera: pos=({:.1}, {:.1}, {:.1}) lookat=({:.1}, {:.1}, {:.1}) yaw={:.2} pitch={:.2}",
+            "Camera: pos=({:.1}, {:.1}, {:.1}) dir=({:.2}, {:.2}, {:.2})",
             self.cam_pos[0],
             self.cam_pos[1],
             self.cam_pos[2],
-            lookat[0],
-            lookat[1],
-            lookat[2],
-            self.cam_yaw,
-            self.cam_pitch
+            self.cam_dir[0],
+            self.cam_dir[1],
+            self.cam_dir[2],
         );
     }
 
@@ -278,6 +292,8 @@ impl RustShaderSandboxApp {
             time: self.start.elapsed().as_secs_f32(),
             cursor_x: self.cursor_x,
             cursor_y: self.cursor_y,
+            cam_pos: self.cam_pos,
+            cam_dir: self.cam_dir,
         };
 
         {

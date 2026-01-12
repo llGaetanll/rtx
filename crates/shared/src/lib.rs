@@ -11,4 +11,6 @@ pub struct ShaderConstants {
     pub time: f32,
     pub cursor_x: f32,
     pub cursor_y: f32,
+    pub cam_pos: [f32; 3],
+    pub cam_dir: [f32; 3],
 }

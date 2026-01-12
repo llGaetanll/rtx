@@ -558,6 +558,8 @@ pub fn dielectric_test(
 pub fn two_spheres(
     img_width: usize,
     img_height: usize,
+    lookfrom: Point3,
+    lookat: Point3,
 ) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
     tex_table
@@ -594,8 +596,8 @@ pub fn two_spheres(
     };
 
     let cam = Camera::new(CameraParams {
-        lookfrom: Point3::new(0., 1., 5.),
-        lookat: Point3::new(0., 0., 0.),
+        lookfrom,
+        lookat,
         vup: Vec3::new(0., 1., 0.),
         fov_v: 40.0,
         defocus_angle: 0.0,

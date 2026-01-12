@@ -183,6 +183,8 @@ impl GpuContext {
             time: 0.0,
             cursor_x: 0.0,
             cursor_y: 0.0,
+            cam_pos: [278.0, 278.0, -800.0],
+            cam_dir: [0.0, 0.0, 1.0], // Looking down +Z
         };
 
         {
