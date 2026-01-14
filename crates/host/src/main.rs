@@ -144,7 +144,6 @@ impl RustShaderSandboxApp {
         self.last_cursor_y = self.cursor_y;
 
         // Update yaw/pitch from mouse (sensitivity factor)
-        // Signs inverted to compensate for ray tracer's left-right flip
         let sensitivity = 0.003;
         self.cam_yaw -= mouse_dx * sensitivity;
         self.cam_pitch -= mouse_dy * sensitivity;
@@ -163,7 +162,6 @@ impl RustShaderSandboxApp {
         let speed = 5.0 * dt;
 
         // Apply movement based on held keys
-        // Signs inverted to compensate for ray tracer's left-right flip
         if self.keys_held.w {
             self.cam_pos[0] += forward_x * speed;
             self.cam_pos[2] += forward_z * speed;

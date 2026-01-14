@@ -121,8 +121,8 @@ impl Camera {
         let viewport_width = viewport_height * aspect_ratio;
 
         let w = (lookfrom - lookat).normalize();
-        let u = vup.cross(w).normalize();
-        let v = w.cross(u);
+        let u = w.cross(vup).normalize();
+        let v = u.cross(w);
 
         // Calculate the vectors across the horizontal and down the vertical viewport edges.
         let viewport_u = viewport_width * -u;
