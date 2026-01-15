@@ -1,5 +1,16 @@
 # TODO
 
+## Benchmarking Infrastructure (Priority)
+
+**No optimization code changes until this is complete.**
+
+- [ ] Implement benchmark mode CLI subcommand (`cargo run --release -- bench`)
+- [ ] Camera spline system - move camera along a path over time
+- [ ] Look-at spline - animate what the camera looks at for realistic movement
+- [ ] Frame time recording - capture timing for each frame
+- [ ] Output timing data to file for analysis
+- [ ] Consistent benchmark runs (fixed frame count, deterministic camera path)
+
 ## Features (Ray Tracing in One Weekend series)
 
 1. [x] Lighting (emissive materials, diffuse lights)
@@ -9,9 +20,11 @@
    - [x] Create test scene with emissive quad (Cornell box)
 2. [x] Quads (axis-aligned and arbitrary)
 3. [x] Transforms (translate, rotate, scale)
-4. [ ] Image textures
-5. [ ] Noise textures (Perlin noise)
-6. [ ] Bounding Volume Hierarchy (BVH)
+4. [ ] Finish Cornell box scene - add the two rotated boxes inside
+   - Reference: `ray-tracing-in-one-weekend/src/main.rs:cornell_box`
+5. [ ] Image textures
+6. [ ] Noise textures (Perlin noise)
+7. [ ] Bounding Volume Hierarchy (BVH)
    - [ ] Implement AABB (Axis-Aligned Bounding Box) with ray intersection test
    - [ ] Add `bbox()` method to hittable primitives (Sphere, Quad)
    - [ ] Implement linearized BVH structure (flat array, no recursion/pointers for GPU)
@@ -99,8 +112,8 @@ The camera crashes when looking straight up or down because `vup` becomes parall
 
 ### Future enhancements (not for first pass)
 
-- Sample accumulation when stationary
-- Screenshot with current camera position
+- [ ] **Dynamic ray sampling**: Lower samples per pixel when camera/world is moving for faster feedback, then accumulate rays over time when stationary for higher quality. Requires tracking frame-to-frame camera changes and maintaining an accumulation buffer.
+- [ ] Screenshot with current camera position
 
 ## Technical Debt
 
