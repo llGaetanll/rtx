@@ -30,7 +30,7 @@ Run `cargo run --release -- bench` to execute a benchmark. The camera follows a 
 ### TODO
 - [x] Benchmark definition files in `benchmarks/` directory (TOML format with scene + camera path)
 - [x] Output filename uses benchmark name (TOML filename) instead of scene name
-- [ ] Run all benchmarks when no name specified (`cargo run --release -- bench`)
+- [x] Run all benchmarks when no name specified (`cargo run --release -- bench`)
 
 ## Benchmark Definition Format
 

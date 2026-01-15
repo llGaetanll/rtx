@@ -420,3 +420,37 @@ pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
     let mut app = BenchApp::new(name, def);
     event_loop.run_app(&mut app).map_err(Into::into)
 }
+
+pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
+    let benchmarks_dir = PathBuf::from("benchmarks");
+    let mut benchmark_names: Vec<String> = fs::read_dir(&benchmarks_dir)
+        .map_err(|e| format!("Failed to read benchmarks directory: {}", e))?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            if path.extension()? == "toml" {
+                path.file_stem()?.to_str().map(|s| s.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    benchmark_names.sort();
+
+    if benchmark_names.is_empty() {
+        return Err("No benchmark files found in benchmarks/ directory".into());
+    }
+
+    log::info!(
+        "Found {} benchmark(s): {}",
+        benchmark_names.len(),
+        benchmark_names.join(", ")
+    );
+
+    for name in benchmark_names {
+        run_bench(name)?;
+    }
+
+    Ok(())
+}
