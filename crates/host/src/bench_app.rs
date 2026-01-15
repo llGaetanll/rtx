@@ -29,6 +29,17 @@ pub struct GpuInfo {
     pub backend: String,
 }
 
+/// Per-frame timing and camera data.
+#[derive(Serialize)]
+pub struct FrameRecord {
+    pub frame: u32,
+    pub t: f32,
+    pub time_us: u64,
+    pub cam_pos: [f32; 3],
+    pub cam_dir: [f32; 3],
+    pub cam_vup: [f32; 3],
+}
+
 impl GpuInfo {
     /// Extract GPU info from a wgpu adapter.
     pub fn from_adapter(adapter: &wgpu::Adapter) -> Self {
@@ -51,6 +62,8 @@ pub struct BenchApp {
     close_requested: bool,
     start: Instant,
     camera_path: CameraPath,
+    frame_records: Vec<FrameRecord>,
+    frame_count: u32,
 }
 
 impl BenchApp {
@@ -95,6 +108,8 @@ impl BenchApp {
             close_requested: false,
             start: Instant::now(),
             camera_path,
+            frame_records: Vec::new(),
+            frame_count: 0,
         }
     }
 
@@ -148,6 +163,8 @@ impl BenchApp {
     }
 
     fn render(&mut self) {
+        let frame_start = Instant::now();
+
         let window_surface = match &self.window_surface {
             Some(ws) => ws,
             None => return,
@@ -167,6 +184,7 @@ impl BenchApp {
             return;
         }
 
+        let t = elapsed / duration;
         let pose = self.camera_path.evaluate(elapsed);
 
         let cam_pos = pose.position;
@@ -231,6 +249,18 @@ impl BenchApp {
 
         gpu.queue.submit(Some(encoder.finish()));
         frame.present();
+
+        // Record frame timing
+        let frame_time_us = frame_start.elapsed().as_micros() as u64;
+        self.frame_records.push(FrameRecord {
+            frame: self.frame_count,
+            t,
+            time_us: frame_time_us,
+            cam_pos: cam_pos.into(),
+            cam_dir: cam_dir.into(),
+            cam_vup: cam_vup.into(),
+        });
+        self.frame_count += 1;
     }
 }
 
