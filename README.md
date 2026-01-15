@@ -13,9 +13,11 @@ A ray tracing sandbox written in Rust, compiled to SPIR-V shaders using [rust-gp
 - **rtx-tex** - Textures (solid colors, checkerboard) and the texture table.
 - **rtx-util** - Utilities including the camera and random number generation.
 
-## Running
+## Commands
 
-Open a live window rendering a scene:
+### `live` - Interactive rendering
+
+Open a window and render a scene in real-time with interactive camera controls.
 
 ```sh
 cargo run --release -- live --scene cornell_box_fs
@@ -23,11 +25,37 @@ cargo run --release -- live --scene cornell_box_fs
 
 Available scenes: `cornell_box_fs`, `quads_fs`, `metal_test_fs`, `dielectric_test_fs`, `two_spheres_fs`, `three_spheres_fs`, `many_spheres_fs`
 
-Render all scenes to a grid image (`renders/render.png`):
+Controls:
+- **WASD** - Move horizontally (forward/back/strafe)
+- **Space/C** - Move up/down
+- **Mouse** - Look around
+- **Q/Escape** - Quit
+
+### `test` - Render all scenes
+
+Render all scenes to a 4x4 grid image saved to `renders/render.png`.
 
 ```sh
 cargo run --release -- test
 ```
+
+### `bench` - Performance benchmarking
+
+Run benchmarks with an animated camera path. Results are saved to `bench-results/<git-sha>/<timestamp>-<name>.jsonl`.
+
+Run a specific benchmark:
+
+```sh
+cargo run --release -- bench two_spheres
+```
+
+Run all benchmarks in the `benchmarks/` directory:
+
+```sh
+cargo run --release -- bench
+```
+
+Benchmark definitions are TOML files in `benchmarks/`. See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md) for details on the format and output.
 
 ## Testing
 
