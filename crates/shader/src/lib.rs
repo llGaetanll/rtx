@@ -122,12 +122,18 @@ pub fn two_spheres_fs(
         constants.cam_dir[2],
     );
     let lookat = lookfrom + cam_dir;
+    let vup = Vec3::new(
+        constants.cam_vup[0],
+        constants.cam_vup[1],
+        constants.cam_vup[2],
+    );
 
     let (cam, mat_table, tex_table, world) = scene::two_spheres(
         constants.width as usize,
         constants.height as usize,
         lookfrom,
         lookat,
+        vup,
     );
 
     let i = frag_coord.y as usize;

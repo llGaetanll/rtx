@@ -148,8 +148,8 @@ impl RustShaderSandboxApp {
         self.cam_yaw -= mouse_dx * sensitivity;
         self.cam_pitch -= mouse_dy * sensitivity;
 
-        // Clamp pitch to avoid gimbal lock
-        let max_pitch = PI / 2.0 - 0.01;
+        // Clamp pitch to straight up/down (full 180 degree range)
+        let max_pitch = PI / 2.0;
         self.cam_pitch = self.cam_pitch.clamp(-max_pitch, max_pitch);
 
         // Compute forward and right vectors from yaw (ignore pitch for movement)
@@ -202,6 +202,24 @@ impl RustShaderSandboxApp {
             self.cam_dir[1],
             self.cam_dir[2],
         );
+    }
+
+    /// Compute the up vector for the camera based on pitch.
+    /// When looking steeply up or down, we switch to a different reference
+    /// vector to avoid gimbal lock (vup parallel to view direction).
+    fn compute_vup(&self) -> [f32; 3] {
+        let threshold = PI / 4.0; // 45 degrees
+
+        if self.cam_pitch > threshold {
+            // Looking up: use backward as reference (negative forward on XZ plane)
+            [-self.cam_yaw.sin(), 0.0, -self.cam_yaw.cos()]
+        } else if self.cam_pitch < -threshold {
+            // Looking down: use forward as reference (forward on XZ plane)
+            [self.cam_yaw.sin(), 0.0, self.cam_yaw.cos()]
+        } else {
+            // Normal case: world up
+            [0.0, 1.0, 0.0]
+        }
     }
 
     async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
@@ -292,6 +310,7 @@ impl RustShaderSandboxApp {
             cursor_y: self.cursor_y,
             cam_pos: self.cam_pos,
             cam_dir: self.cam_dir,
+            cam_vup: self.compute_vup(),
         };
 
         {
