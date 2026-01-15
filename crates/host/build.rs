@@ -13,8 +13,16 @@ fn build_shader(path_to_crate: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn set_git_sha() {
-    // Re-run if HEAD changes (e.g., new commit, branch switch)
+    // Re-run if HEAD changes (e.g., branch switch)
     println!("cargo::rerun-if-changed=../../.git/HEAD");
+
+    // Also watch the ref that HEAD points to (e.g., refs/heads/master)
+    // This ensures we re-run when new commits are made on the current branch
+    if let Ok(head_contents) = std::fs::read_to_string("../../.git/HEAD") {
+        if let Some(ref_path) = head_contents.trim().strip_prefix("ref: ") {
+            println!("cargo::rerun-if-changed=../../.git/{}", ref_path);
+        }
+    }
 
     let sha = Command::new("git")
         .args(["rev-parse", "--short=7", "HEAD"])
