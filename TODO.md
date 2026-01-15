@@ -79,23 +79,23 @@ Once CPU-side camera is working:
 The camera crashes when looking straight up or down because `vup` becomes parallel to the view direction, causing a zero-length cross product that produces NaN values. Tests in `crates/rtx-util/tests/camera_tests.rs` demonstrate this issue.
 
 **Stage 1: Add `vup` to data path**
-- [ ] Add `vup: [f32; 3]` to `ShaderConstants`
-- [ ] Thread `vup` through `two_spheres()` and `CameraParams`
-- [ ] Host computes `vup` dynamically (switch reference vector when pitch exceeds ±45°)
-- [ ] Update tests to pass with dynamic `vup`
+- [x] Add `vup: [f32; 3]` to `ShaderConstants`
+- [x] Thread `vup` through `two_spheres()` and `CameraParams`
+- [x] Host computes `vup` dynamically (switch reference vector when pitch exceeds ±45°)
+- [x] Update tests to pass with dynamic `vup`
 
 **Stage 2: Switch host to quaternions**
-- [ ] Add `glam` crate dependency to host (for `Quat`)
-- [ ] Replace `cam_yaw: f32` / `cam_pitch: f32` with `cam_orientation: Quat`
-- [ ] Rewrite `update_camera()`:
+- [x] Add `glam` crate dependency to host (for `Quat`)
+- [x] Replace `cam_yaw: f32` / `cam_pitch: f32` with `cam_orientation: Quat`
+- [x] Rewrite `update_camera()`:
   - Apply yaw rotation in world space (around world Y axis)
   - Apply pitch rotation in local space (around camera's right axis)
   - Multiply rotations into orientation quaternion
-- [ ] Extract `cam_dir` and `vup` from quaternion for shader:
+- [x] Extract `cam_dir` and `vup` from quaternion for shader:
   - `cam_dir` = quaternion rotated `-Z` (forward)
   - `vup` = quaternion rotated `+Y` (up)
-- [ ] Remove pitch clamping (quaternions handle full rotation)
-- [ ] Tune mouse sensitivity for natural feel
+- [x] Remove pitch clamping (quaternions handle full rotation)
+- [x] Tune mouse sensitivity for natural feel
 
 ### Future enhancements (not for first pass)
 

@@ -1,10 +1,11 @@
 use std::error::Error;
-use std::f32::consts::PI;
 use std::time::Instant;
 
 use clap::Parser;
 use clap::Subcommand;
 use futures::executor::block_on;
+use glam::Quat;
+use glam::Vec3;
 use ouroboros::self_referencing;
 use wgpu;
 use winit::application::ApplicationHandler;
@@ -74,10 +75,8 @@ struct RustShaderSandboxApp {
     cursor_x: f32,
     cursor_y: f32,
     // Camera state
-    cam_pos: [f32; 3],
-    cam_dir: [f32; 3], // normalized forward direction
-    cam_yaw: f32,      // radians, 0 = looking down -Z
-    cam_pitch: f32,    // radians, 0 = horizontal
+    cam_pos: Vec3,
+    cam_orientation: Quat, // Camera orientation as quaternion
     keys_held: KeysHeld,
     last_cursor_x: f32,
     last_cursor_y: f32,
@@ -88,16 +87,12 @@ impl RustShaderSandboxApp {
     fn new(scene: String) -> Self {
         // Default camera: two_spheres position
         // two_spheres camera: lookfrom (0, 1, 5), lookat (0, 0, 0)
-        // Direction to origin: (0, -1, -5), normalized ≈ (0, -0.196, -0.98)
-        let cam_pos = [0.0, 1.0, 5.0];
-        let cam_yaw: f32 = 0.0; // Looking down -Z
-        let cam_pitch: f32 = -0.197; // Slightly down to look at origin
-        // Initial direction from yaw/pitch
-        let cam_dir = [
-            cam_yaw.sin() * cam_pitch.cos(),
-            cam_pitch.sin(),
-            cam_yaw.cos() * cam_pitch.cos(),
-        ];
+        let cam_pos = Vec3::new(0.0, 1.0, 5.0);
+
+        // Initial orientation: looking slightly down toward origin
+        // Start with identity (looking down -Z), then pitch down slightly
+        let pitch = -0.197f32; // Slightly down to look at origin
+        let cam_orientation = Quat::from_rotation_x(pitch);
 
         Self {
             scene,
@@ -110,9 +105,7 @@ impl RustShaderSandboxApp {
             cursor_x: 0.0,
             cursor_y: 0.0,
             cam_pos,
-            cam_dir,
-            cam_yaw,
-            cam_pitch,
+            cam_orientation,
             keys_held: KeysHeld::default(),
             last_cursor_x: 0.0,
             last_cursor_y: 0.0,
@@ -143,83 +136,74 @@ impl RustShaderSandboxApp {
         self.last_cursor_x = self.cursor_x;
         self.last_cursor_y = self.cursor_y;
 
-        // Update yaw/pitch from mouse (sensitivity factor)
+        // Update orientation from mouse using quaternion rotations
         let sensitivity = 0.003;
-        self.cam_yaw -= mouse_dx * sensitivity;
-        self.cam_pitch -= mouse_dy * sensitivity;
 
-        // Clamp pitch to straight up/down (full 180 degree range)
-        let max_pitch = PI / 2.0;
-        self.cam_pitch = self.cam_pitch.clamp(-max_pitch, max_pitch);
+        // Yaw: rotate around world Y axis (allows full 360° horizontal rotation)
+        let yaw_delta = Quat::from_rotation_y(-mouse_dx * sensitivity);
 
-        // Compute forward and right vectors from yaw (ignore pitch for movement)
-        let forward_x = self.cam_yaw.sin();
-        let forward_z = self.cam_yaw.cos();
-        let right_x = (self.cam_yaw - PI / 2.0).sin();
-        let right_z = (self.cam_yaw - PI / 2.0).cos();
+        // Pitch: rotate around camera's local X (right) axis
+        let pitch_delta = Quat::from_rotation_x(-mouse_dy * sensitivity);
+
+        // Apply yaw in world space (pre-multiply), pitch in local space (post-multiply)
+        self.cam_orientation = yaw_delta * self.cam_orientation * pitch_delta;
+
+        // Normalize to prevent drift from floating point errors
+        self.cam_orientation = self.cam_orientation.normalize();
+
+        // Extract forward and right vectors from orientation for movement
+        // Camera looks down -Z in its local space, so forward = orientation * -Z
+        let forward = self.cam_orientation * Vec3::NEG_Z;
+        let right = self.cam_orientation * Vec3::X;
+
+        // For movement, use only horizontal components (project onto XZ plane)
+        let forward_horizontal = Vec3::new(forward.x, 0.0, forward.z).normalize_or_zero();
+        let right_horizontal = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
 
         // Movement speed (units per second)
         let speed = 5.0 * dt;
 
         // Apply movement based on held keys
         if self.keys_held.w {
-            self.cam_pos[0] += forward_x * speed;
-            self.cam_pos[2] += forward_z * speed;
+            self.cam_pos += forward_horizontal * speed;
         }
         if self.keys_held.s {
-            self.cam_pos[0] -= forward_x * speed;
-            self.cam_pos[2] -= forward_z * speed;
+            self.cam_pos -= forward_horizontal * speed;
         }
         if self.keys_held.a {
-            self.cam_pos[0] -= right_x * speed;
-            self.cam_pos[2] -= right_z * speed;
+            self.cam_pos -= right_horizontal * speed;
         }
         if self.keys_held.d {
-            self.cam_pos[0] += right_x * speed;
-            self.cam_pos[2] += right_z * speed;
+            self.cam_pos += right_horizontal * speed;
         }
         if self.keys_held.space {
-            self.cam_pos[1] += speed;
+            self.cam_pos.y += speed;
         }
         if self.keys_held.c {
-            self.cam_pos[1] -= speed;
+            self.cam_pos.y -= speed;
         }
 
-        // Compute forward direction (normalized)
-        self.cam_dir = [
-            self.cam_yaw.sin() * self.cam_pitch.cos(),
-            self.cam_pitch.sin(),
-            self.cam_yaw.cos() * self.cam_pitch.cos(),
-        ];
-
         // Log camera params
+        let cam_dir = self.cam_dir();
         log::debug!(
             "Camera: pos=({:.1}, {:.1}, {:.1}) dir=({:.2}, {:.2}, {:.2})",
-            self.cam_pos[0],
-            self.cam_pos[1],
-            self.cam_pos[2],
-            self.cam_dir[0],
-            self.cam_dir[1],
-            self.cam_dir[2],
+            self.cam_pos.x,
+            self.cam_pos.y,
+            self.cam_pos.z,
+            cam_dir.x,
+            cam_dir.y,
+            cam_dir.z,
         );
     }
 
-    /// Compute the up vector for the camera based on pitch.
-    /// When looking steeply up or down, we switch to a different reference
-    /// vector to avoid gimbal lock (vup parallel to view direction).
-    fn compute_vup(&self) -> [f32; 3] {
-        let threshold = PI / 4.0; // 45 degrees
+    /// Get camera forward direction from quaternion
+    fn cam_dir(&self) -> Vec3 {
+        self.cam_orientation * Vec3::NEG_Z
+    }
 
-        if self.cam_pitch > threshold {
-            // Looking up: use backward as reference (negative forward on XZ plane)
-            [-self.cam_yaw.sin(), 0.0, -self.cam_yaw.cos()]
-        } else if self.cam_pitch < -threshold {
-            // Looking down: use forward as reference (forward on XZ plane)
-            [self.cam_yaw.sin(), 0.0, self.cam_yaw.cos()]
-        } else {
-            // Normal case: world up
-            [0.0, 1.0, 0.0]
-        }
+    /// Get camera up vector from quaternion
+    fn cam_vup(&self) -> Vec3 {
+        self.cam_orientation * Vec3::Y
     }
 
     async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
@@ -302,15 +286,17 @@ impl RustShaderSandboxApp {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+        let cam_dir = self.cam_dir();
+        let cam_vup = self.cam_vup();
         let push_constants = shared::ShaderConstants {
             width: current_size.width,
             height: current_size.height,
             time: self.start.elapsed().as_secs_f32(),
             cursor_x: self.cursor_x,
             cursor_y: self.cursor_y,
-            cam_pos: self.cam_pos,
-            cam_dir: self.cam_dir,
-            cam_vup: self.compute_vup(),
+            cam_pos: self.cam_pos.into(),
+            cam_dir: cam_dir.into(),
+            cam_vup: cam_vup.into(),
         };
 
         {

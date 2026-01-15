@@ -15,6 +15,7 @@ ouroboros = "0.18.5"
 bytemuck = { version = "1.20.0", features = ["derive"] }
 clap = { version = "4", features = ["derive"] }
 image = "0.25"
+glam = "0.29"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = [

@@ -1073,6 +1073,12 @@ dependencies = [
 
 [[package]]
 name = "glam"
+version = "0.29.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
+
+[[package]]
+name = "glam"
 version = "0.30.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2d1aab06663bdce00d6ca5e5ed586ec8d18033a771906c993a1e3755b368d85"
@@ -1212,6 +1218,7 @@ dependencies = [
  "clap",
  "env_logger",
  "futures",
+ "glam 0.29.3",
  "image",
  "log",
  "ouroboros",
@@ -3066,7 +3073,7 @@ version = "0.9.0"
 source = "git+https://github.com/Rust-GPU/rust-gpu?rev=b320baf49b392b194e14f15bf06ad528c7ae656c#b320baf49b392b194e14f15bf06ad528c7ae656c"
 dependencies = [
  "bitflags 1.3.2",
- "glam",
+ "glam 0.30.5",
  "libm",
  "num-traits",
  "spirv-std-macros",
