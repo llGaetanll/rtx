@@ -2,6 +2,8 @@
 
 mod scene;
 
+use rtx_prim::Vec3;
+use rtx_util::CameraParams;
 use shared::ShaderConstants;
 use spirv_std::glam::Vec4;
 use spirv_std::glam::vec2;
@@ -9,6 +11,34 @@ use spirv_std::glam::vec4;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;
+
+/// Extract camera params from ShaderConstants, using defaults from a scene's camera constant
+fn cam_params_from_constants(constants: &ShaderConstants, default: CameraParams) -> CameraParams {
+    let lookfrom = Vec3::new(
+        constants.cam_pos[0],
+        constants.cam_pos[1],
+        constants.cam_pos[2],
+    );
+    let cam_dir = Vec3::new(
+        constants.cam_dir[0],
+        constants.cam_dir[1],
+        constants.cam_dir[2],
+    );
+    let vup = Vec3::new(
+        constants.cam_vup[0],
+        constants.cam_vup[1],
+        constants.cam_vup[2],
+    );
+
+    CameraParams {
+        lookfrom,
+        lookat: lookfrom + cam_dir,
+        vup,
+        img_width: constants.width as usize,
+        img_height: constants.height as usize,
+        ..default
+    }
+}
 
 /// Basic PCG
 fn gen_state(frag_coord: Vec4) -> u32 {
@@ -33,8 +63,8 @@ pub fn cornell_box_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::cornell_box(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_CORNELL_BOX);
+    let (cam, mat_table, tex_table, world) = scene::cornell_box(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -52,8 +82,8 @@ pub fn quads_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::quads(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_QUADS);
+    let (cam, mat_table, tex_table, world) = scene::quads(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -71,8 +101,8 @@ pub fn metal_test_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::metal_test(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_METAL_TEST);
+    let (cam, mat_table, tex_table, world) = scene::metal_test(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -90,8 +120,8 @@ pub fn dielectric_test_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::dielectric_test(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_DIELECTRIC_TEST);
+    let (cam, mat_table, tex_table, world) = scene::dielectric_test(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -109,32 +139,8 @@ pub fn two_spheres_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    use spirv_std::glam::Vec3;
-
-    let lookfrom = Vec3::new(
-        constants.cam_pos[0],
-        constants.cam_pos[1],
-        constants.cam_pos[2],
-    );
-    let cam_dir = Vec3::new(
-        constants.cam_dir[0],
-        constants.cam_dir[1],
-        constants.cam_dir[2],
-    );
-    let lookat = lookfrom + cam_dir;
-    let vup = Vec3::new(
-        constants.cam_vup[0],
-        constants.cam_vup[1],
-        constants.cam_vup[2],
-    );
-
-    let (cam, mat_table, tex_table, world) = scene::two_spheres(
-        constants.width as usize,
-        constants.height as usize,
-        lookfrom,
-        lookat,
-        vup,
-    );
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_TWO_SPHERES);
+    let (cam, mat_table, tex_table, world) = scene::two_spheres(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -152,8 +158,8 @@ pub fn glass_debug_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::glass_debug(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_GLASS_DEBUG);
+    let (cam, mat_table, tex_table, world) = scene::glass_debug(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -171,8 +177,8 @@ pub fn three_spheres_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::three_spheres(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_THREE_SPHERES);
+    let (cam, mat_table, tex_table, world) = scene::three_spheres(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
@@ -190,8 +196,8 @@ pub fn many_spheres_fs(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4,
 ) {
-    let (cam, mat_table, tex_table, world) =
-        scene::many_spheres(constants.width as usize, constants.height as usize);
+    let cam_params = cam_params_from_constants(constants, scene::CAMERA_MANY_SPHERES);
+    let (cam, mat_table, tex_table, world) = scene::many_spheres(cam_params);
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;
