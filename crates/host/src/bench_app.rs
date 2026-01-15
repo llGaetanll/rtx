@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use futures::executor::block_on;
 use glam::Vec3;
+use serde::Serialize;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -20,9 +21,30 @@ use crate::gpu::GpuContext;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
 
+/// GPU information captured from the wgpu adapter.
+#[derive(Serialize)]
+pub struct GpuInfo {
+    pub name: String,
+    pub driver: String,
+    pub backend: String,
+}
+
+impl GpuInfo {
+    /// Extract GPU info from a wgpu adapter.
+    pub fn from_adapter(adapter: &wgpu::Adapter) -> Self {
+        let info = adapter.get_info();
+        Self {
+            name: info.name,
+            driver: info.driver,
+            backend: format!("{:?}", info.backend),
+        }
+    }
+}
+
 /// Application for benchmark mode with animated camera path.
 pub struct BenchApp {
     gpu: Option<GpuContext>,
+    gpu_info: Option<GpuInfo>,
     window_surface: Option<WindowSurface>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
@@ -66,6 +88,7 @@ impl BenchApp {
 
         Self {
             gpu: None,
+            gpu_info: None,
             window_surface: None,
             config: None,
             render_pipeline: None,
@@ -97,6 +120,7 @@ impl BenchApp {
         let surface = window_surface.borrow_surface();
 
         let gpu = GpuContext::new(instance, Some(surface)).await?;
+        let gpu_info = GpuInfo::from_adapter(&gpu.adapter);
 
         let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
@@ -115,6 +139,7 @@ impl BenchApp {
         surface.configure(&gpu.device, &config);
 
         self.gpu = Some(gpu);
+        self.gpu_info = Some(gpu_info);
         self.window_surface = Some(window_surface);
         self.config = Some(config);
         self.render_pipeline = Some(render_pipeline);
