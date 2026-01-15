@@ -4,12 +4,7 @@
 
 **No optimization code changes until this is complete.**
 
-- [ ] Implement benchmark mode CLI subcommand (`cargo run --release -- bench`)
-- [ ] Camera spline system - move camera along a path over time
-- [ ] Look-at spline - animate what the camera looks at for realistic movement
-- [ ] Frame time recording - capture timing for each frame
-- [ ] Output timing data to file for analysis
-- [ ] Consistent benchmark runs (fixed frame count, deterministic camera path)
+See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md) for detailed plan and status.
 
 ## Features (Ray Tracing in One Weekend series)
 
