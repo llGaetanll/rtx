@@ -30,16 +30,11 @@ impl Vec3Ext for Vec3 {
     }
 
     fn rand_unit(state: &mut RandState) -> Self {
-        loop {
-            let p = Vec3::rand_range(state, Range::new(-1.0, 1.0));
+        let theta = 2.0 * PI * rand::rand_f(state);
+        let z = rand::rand_f_range(state, Range::new(-1.0, 1.0));
+        let r = (1.0 - z * z).sqrt();
 
-            let l = p.length_squared();
-
-            // Avoid floating point error
-            if (1e-160..1.).contains(&l) {
-                return p / l.sqrt();
-            }
-        }
+        Vec3::new(r * theta.cos(), r * theta.sin(), z)
     }
 
     fn rand_hemisphere(state: &mut RandState, normal: Vec3) -> Self {
@@ -65,6 +60,22 @@ impl Vec3Ext for Vec3 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_rand_unit() {
+        let mut state: RandState = 73;
+
+        for _ in 0..1000 {
+            let p = Vec3::rand_unit(&mut state);
+
+            let len_squared = p.x * p.x + p.y * p.y + p.z * p.z;
+            assert!(
+                (len_squared - 1.0).abs() < 1e-6,
+                "Point not on unit sphere: length^2 = {}",
+                len_squared
+            );
+        }
+    }
 
     #[test]
     fn test_rand_unit_disk() {

@@ -217,7 +217,7 @@ fn test_metal_fuzz_affects_direction() {
     );
 
     // Fuzzy reflection (deterministic with seed 42)
-    let expected_fuzzy = Vec3::new(0.49181005, 0.08924299, -0.8661169);
+    let expected_fuzzy = Vec3::new(0.4912008, 0.008160583, -0.8710082);
     assert!(
         approx_eq(dir2, expected_fuzzy, 0.0001),
         "Fuzzy reflection: expected {:?}, got {:?}",
@@ -495,7 +495,7 @@ fn test_lambertian_scatters_in_hemisphere() {
     );
 
     let dir = scattered.dir().normalize();
-    let expected = Vec3::new(0.858194, 0.15572637, -0.4891343);
+    let expected = Vec3::new(0.81248367, 0.013498228, -0.5828276);
     assert!(
         approx_eq(dir, expected, 0.0001),
         "Lambertian scatter: expected {:?}, got {:?}",
@@ -558,7 +558,7 @@ fn test_lambertian_deterministic_with_seed() {
     );
 
     // And should match expected value
-    let expected = Vec3::new(0.858194, 0.15572637, -0.4891343);
+    let expected = Vec3::new(0.81248367, 0.013498228, -0.5828276);
     assert!(
         approx_eq(dir1, expected, 0.0001),
         "Lambertian with seed 42: expected {:?}, got {:?}",
@@ -613,7 +613,7 @@ fn test_lambertian_grazing_angle() {
     );
 
     let dir = scattered.dir().normalize();
-    let expected = Vec3::new(0.98451847, 0.09938881, -0.14437863);
+    let expected = Vec3::new(0.96750796, 0.009416749, -0.252665);
     assert!(
         approx_eq(dir, expected, 0.0001),
         "Lambertian grazing: expected {:?}, got {:?}",

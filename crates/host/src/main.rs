@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::Write;
 use std::time::Instant;
 
 use clap::Parser;
