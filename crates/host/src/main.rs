@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io::Write;
 use std::time::Instant;
 
 use clap::Parser;
@@ -225,6 +224,7 @@ impl RustShaderSandboxApp {
         }
         .build();
 
+        window_surface.borrow_window().set_cursor_visible(false);
         let window_size = window_surface.borrow_window().inner_size();
         let surface = window_surface.borrow_surface();
 
