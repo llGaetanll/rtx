@@ -28,11 +28,13 @@ Run `cargo run --release -- bench` to execute a benchmark. The camera follows a 
 - [x] Datetime in output filename
 
 ### TODO
-- [ ] Benchmark definition files in `benchmarks/` directory (TOML format with scene + camera path)
+- [x] Benchmark definition files in `benchmarks/` directory (TOML format with scene + camera path)
+- [x] Output filename uses benchmark name (TOML filename) instead of scene name
+- [ ] Run all benchmarks when no name specified (`cargo run --release -- bench`)
 
 ## Benchmark Definition Format
 
-Benchmark definitions live in `benchmarks/<name>.toml`:
+Benchmark definitions live in `benchmarks/<name>.toml`. The `<name>` is used in the output filename (`bench-results/<git-sha>/<datetime>-<name>.jsonl`):
 
 ```toml
 scene = "two_spheres_fs"

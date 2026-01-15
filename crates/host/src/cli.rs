@@ -21,8 +21,8 @@ pub enum Commands {
     Test,
     /// Run benchmark with animated camera path
     Bench {
-        /// Which scene to render (fragment shader entry point)
-        #[arg(short, long, default_value = "two_spheres_fs")]
-        scene: String,
+        /// Benchmark definition name (loads from benchmarks/<name>.toml).
+        /// If not specified, runs all benchmarks in the benchmarks/ directory.
+        name: Option<String>,
     },
 }

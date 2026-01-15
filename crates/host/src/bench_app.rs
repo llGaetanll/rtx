@@ -8,6 +8,7 @@ use std::time::Instant;
 use chrono::Utc;
 use futures::executor::block_on;
 use glam::Vec3;
+use serde::Deserialize;
 use serde::Serialize;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -25,6 +26,55 @@ use crate::camera_path::CameraPath;
 use crate::gpu::GpuContext;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
+
+/// Benchmark definition loaded from a TOML file.
+#[derive(Deserialize)]
+pub struct BenchmarkFile {
+    pub scene: String,
+    pub duration: f32,
+    pub position: Vec<[f32; 3]>,
+    pub look_at: Vec<[f32; 3]>,
+}
+
+impl BenchmarkFile {
+    /// Load a benchmark definition from `benchmarks/<name>.toml`.
+    pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
+        let path = PathBuf::from("benchmarks").join(format!("{}.toml", name));
+        let contents = fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+        let def: BenchmarkFile = toml::from_str(&contents)
+            .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
+
+        if def.position.len() < 4 {
+            return Err(format!(
+                "Benchmark {} needs at least 4 position points, got {}",
+                name,
+                def.position.len()
+            )
+            .into());
+        }
+        if def.look_at.len() < 4 {
+            return Err(format!(
+                "Benchmark {} needs at least 4 look_at points, got {}",
+                name,
+                def.look_at.len()
+            )
+            .into());
+        }
+
+        Ok(def)
+    }
+
+    /// Convert position points to Vec<Vec3>.
+    pub fn position_points(&self) -> Vec<Vec3> {
+        self.position.iter().map(|&p| Vec3::from(p)).collect()
+    }
+
+    /// Convert look_at points to Vec<Vec3>.
+    pub fn look_at_points(&self) -> Vec<Vec3> {
+        self.look_at.iter().map(|&p| Vec3::from(p)).collect()
+    }
+}
 
 /// GPU information captured from the wgpu adapter.
 #[derive(Serialize)]
@@ -84,41 +134,14 @@ pub struct BenchApp {
     camera_path: CameraPath,
     frame_records: Vec<FrameRecord>,
     frame_count: u32,
+    name: String,
     scene: String,
 }
 
 impl BenchApp {
-    pub fn new(scene: String) -> Self {
-        // Hardcoded camera path for two_spheres scene
-        // Camera orbits around the scene, looking at the origin
-        let position_points = vec![
-            Vec3::new(5.0, 2.0, 5.0),   // Start: front-right
-            Vec3::new(5.0, 1.5, 0.0),   // Right side
-            Vec3::new(5.0, 2.0, -5.0),  // Back-right
-            Vec3::new(0.0, 3.0, -6.0),  // Back center, higher
-            Vec3::new(-5.0, 2.0, -5.0), // Back-left
-            Vec3::new(-5.0, 1.5, 0.0),  // Left side
-            Vec3::new(-5.0, 2.0, 5.0),  // Front-left
-            Vec3::new(0.0, 1.0, 7.0),   // Front center, lower
-            Vec3::new(5.0, 2.0, 5.0),   // Back to start
-            Vec3::new(5.0, 1.5, 0.0),   // (duplicate for spline)
-        ];
-
-        // Look at origin throughout, with slight vertical variation
-        let look_at_points = vec![
-            Vec3::new(0.0, 0.5, 0.0),
-            Vec3::new(0.0, 0.3, 0.0),
-            Vec3::new(0.0, 0.5, 0.0),
-            Vec3::new(0.0, 0.8, 0.0),
-            Vec3::new(0.0, 0.5, 0.0),
-            Vec3::new(0.0, 0.3, 0.0),
-            Vec3::new(0.0, 0.5, 0.0),
-            Vec3::new(0.0, 0.2, 0.0),
-            Vec3::new(0.0, 0.5, 0.0),
-            Vec3::new(0.0, 0.3, 0.0),
-        ];
-
-        let camera_path = CameraPath::new(position_points, look_at_points, 10.0);
+    pub fn new(name: String, def: BenchmarkFile) -> Self {
+        let camera_path =
+            CameraPath::new(def.position_points(), def.look_at_points(), def.duration);
 
         Self {
             gpu: None,
@@ -131,7 +154,8 @@ impl BenchApp {
             camera_path,
             frame_records: Vec::new(),
             frame_count: 0,
-            scene,
+            name,
+            scene: def.scene,
         }
     }
 
@@ -298,9 +322,9 @@ impl BenchApp {
         let output_dir = PathBuf::from("bench-results").join(GIT_SHA);
         fs::create_dir_all(&output_dir)?;
 
-        // Output file: bench-results/<git-sha>/<datetime>-<scene>.jsonl
+        // Output file: bench-results/<git-sha>/<datetime>-<name>.jsonl
         let datetime = Utc::now().format("%Y-%m-%d-%H-%M-%S");
-        let output_path = output_dir.join(format!("{}-{}.jsonl", datetime, self.scene));
+        let output_path = output_dir.join(format!("{}-{}.jsonl", datetime, self.name));
         let file = fs::File::create(&output_path)?;
         let mut writer = BufWriter::new(file);
 
@@ -389,9 +413,10 @@ impl ApplicationHandler for BenchApp {
     }
 }
 
-pub fn run_bench(scene: String) -> Result<(), Box<dyn Error>> {
-    log::debug!("Running benchmark with camera path");
+pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
+    let def = BenchmarkFile::load(&name)?;
+    log::info!("Running benchmark '{}' (scene: {})", name, def.scene);
     let event_loop = EventLoop::new()?;
-    let mut app = BenchApp::new(scene);
+    let mut app = BenchApp::new(name, def);
     event_loop.run_app(&mut app).map_err(Into::into)
 }
