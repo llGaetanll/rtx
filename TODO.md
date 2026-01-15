@@ -117,7 +117,7 @@ The camera crashes when looking straight up or down because `vup` becomes parall
 
 ## Technical Debt
 
-1. [ ] **Crash when camera enters an object**: The program sometimes crashes, likely when the camera position moves inside geometry. This may cause issues with ray-object intersection tests (e.g., negative t values, NaN from inside-surface calculations). Needs investigation.
+1. [ ] **Share types from `rtx-prim` with host**: The `rtx-prim` crate contains elementary types (`Vec3`, `Point3`, `Color`, etc.) that should be usable on both GPU and CPU. Currently `host/src/spline.rs` imports `Vec3` directly from `glam`, but ideally it would use the re-exports from `rtx-prim` to keep types consistent across the codebase. This requires making `rtx-prim` compilable for non-SPIR-V targets.
 
 2. [x] **Remove rejection sampling loops**: The `rand_unit()` function in `rtx-prim/src/traits.rs` uses rejection sampling with an unbounded loop. If the xorshift RNG state ever becomes 0 (which can happen for certain pixel coordinates), it stays 0 forever, causing an infinite loop. Replace with direct sampling methods (e.g., spherical coordinates) that don't require rejection. This is a potential cause of GPU hangs.
 
