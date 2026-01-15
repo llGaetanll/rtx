@@ -1,6 +1,11 @@
 use std::error::Error;
+use std::fs;
+use std::io::BufWriter;
+use std::io::Write;
+use std::path::PathBuf;
 use std::time::Instant;
 
+use chrono::Utc;
 use futures::executor::block_on;
 use glam::Vec3;
 use serde::Serialize;
@@ -40,6 +45,18 @@ pub struct FrameRecord {
     pub cam_vup: [f32; 3],
 }
 
+/// Benchmark metadata written as the first line of the JSONL output.
+#[derive(Serialize)]
+pub struct BenchmarkMetadata<'a> {
+    pub version: u32,
+    pub timestamp: String,
+    pub git_sha: &'a str,
+    pub scene: &'a str,
+    pub resolution: [u32; 2],
+    pub gpu: &'a GpuInfo,
+    pub camera_path: &'a CameraPath,
+}
+
 impl GpuInfo {
     /// Extract GPU info from a wgpu adapter.
     pub fn from_adapter(adapter: &wgpu::Adapter) -> Self {
@@ -67,6 +84,7 @@ pub struct BenchApp {
     camera_path: CameraPath,
     frame_records: Vec<FrameRecord>,
     frame_count: u32,
+    scene: String,
 }
 
 impl BenchApp {
@@ -113,6 +131,7 @@ impl BenchApp {
             camera_path,
             frame_records: Vec::new(),
             frame_count: 0,
+            scene: "two_spheres_fs".to_string(),
         }
     }
 
@@ -142,7 +161,7 @@ impl BenchApp {
 
         let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
-        let render_pipeline = gpu.create_pipeline(swapchain_format, "two_spheres_fs");
+        let render_pipeline = gpu.create_pipeline(swapchain_format, &self.scene);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -183,6 +202,10 @@ impl BenchApp {
 
         // Exit when camera path completes
         if elapsed >= duration {
+            match self.write_results() {
+                Ok(path) => log::info!("Benchmark results written to {}", path.display()),
+                Err(e) => log::error!("Failed to write benchmark results: {e}"),
+            }
             self.close_requested = true;
             return;
         }
@@ -264,6 +287,43 @@ impl BenchApp {
             cam_vup: cam_vup.into(),
         });
         self.frame_count += 1;
+    }
+
+    /// Write benchmark results to a JSONL file.
+    fn write_results(&self) -> Result<PathBuf, Box<dyn Error>> {
+        let gpu_info = self.gpu_info.as_ref().ok_or("No GPU info")?;
+        let config = self.config.as_ref().ok_or("No surface config")?;
+
+        // Create output directory: bench-results/<git-sha>/
+        let output_dir = PathBuf::from("bench-results").join(GIT_SHA);
+        fs::create_dir_all(&output_dir)?;
+
+        // Output file: bench-results/<git-sha>/<scene>.jsonl
+        let output_path = output_dir.join(format!("{}.jsonl", self.scene));
+        let file = fs::File::create(&output_path)?;
+        let mut writer = BufWriter::new(file);
+
+        // Write metadata as first line
+        let metadata = BenchmarkMetadata {
+            version: 1,
+            timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            git_sha: GIT_SHA,
+            scene: &self.scene,
+            resolution: [config.width, config.height],
+            gpu: gpu_info,
+            camera_path: &self.camera_path,
+        };
+        serde_json::to_writer(&mut writer, &metadata)?;
+        writeln!(writer)?;
+
+        // Write frame records
+        for record in &self.frame_records {
+            serde_json::to_writer(&mut writer, record)?;
+            writeln!(writer)?;
+        }
+
+        writer.flush()?;
+        Ok(output_path)
     }
 }
 

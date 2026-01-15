@@ -17,7 +17,7 @@ fn set_git_sha() {
     println!("cargo::rerun-if-changed=../../.git/HEAD");
 
     let sha = Command::new("git")
-        .args(["rev-parse", "HEAD"])
+        .args(["rev-parse", "--short=7", "HEAD"])
         .output()
         .ok()
         .filter(|o| o.status.success())
