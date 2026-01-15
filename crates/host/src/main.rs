@@ -21,6 +21,7 @@ use winit::window::Window;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
+mod camera_path;
 mod gpu;
 mod spline;
 
