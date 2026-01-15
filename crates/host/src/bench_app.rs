@@ -52,6 +52,9 @@ impl GpuInfo {
     }
 }
 
+/// Git SHA baked in at build time via build.rs.
+const GIT_SHA: &str = env!("GIT_SHA");
+
 /// Application for benchmark mode with animated camera path.
 pub struct BenchApp {
     gpu: Option<GpuContext>,
