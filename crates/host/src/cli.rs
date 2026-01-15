@@ -20,5 +20,9 @@ pub enum Commands {
     /// Render all test scenes to a grid image
     Test,
     /// Run benchmark with animated camera path
-    Bench,
+    Bench {
+        /// Which scene to render (fragment shader entry point)
+        #[arg(short, long, default_value = "two_spheres_fs")]
+        scene: String,
+    },
 }

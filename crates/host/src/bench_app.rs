@@ -88,7 +88,7 @@ pub struct BenchApp {
 }
 
 impl BenchApp {
-    pub fn new() -> Self {
+    pub fn new(scene: String) -> Self {
         // Hardcoded camera path for two_spheres scene
         // Camera orbits around the scene, looking at the origin
         let position_points = vec![
@@ -131,7 +131,7 @@ impl BenchApp {
             camera_path,
             frame_records: Vec::new(),
             frame_count: 0,
-            scene: "two_spheres_fs".to_string(),
+            scene,
         }
     }
 
@@ -388,9 +388,9 @@ impl ApplicationHandler for BenchApp {
     }
 }
 
-pub fn run_bench() -> Result<(), Box<dyn Error>> {
+pub fn run_bench(scene: String) -> Result<(), Box<dyn Error>> {
     log::debug!("Running benchmark with camera path");
     let event_loop = EventLoop::new()?;
-    let mut app = BenchApp::new();
+    let mut app = BenchApp::new(scene);
     event_loop.run_app(&mut app).map_err(Into::into)
 }

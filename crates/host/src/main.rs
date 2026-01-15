@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match cli.command {
         Some(Commands::Live { scene }) => live_app::run_live(&scene),
         Some(Commands::Test) => run_test(),
-        Some(Commands::Bench) => bench_app::run_bench(),
+        Some(Commands::Bench { scene }) => bench_app::run_bench(scene),
         None => live_app::run_live("cornell_box_fs"),
     }
 }
