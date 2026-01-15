@@ -298,8 +298,9 @@ impl BenchApp {
         let output_dir = PathBuf::from("bench-results").join(GIT_SHA);
         fs::create_dir_all(&output_dir)?;
 
-        // Output file: bench-results/<git-sha>/<scene>.jsonl
-        let output_path = output_dir.join(format!("{}.jsonl", self.scene));
+        // Output file: bench-results/<git-sha>/<datetime>-<scene>.jsonl
+        let datetime = Utc::now().format("%Y-%m-%d-%H-%M-%S");
+        let output_path = output_dir.join(format!("{}-{}.jsonl", datetime, self.scene));
         let file = fs::File::create(&output_path)?;
         let mut writer = BufWriter::new(file);
 
