@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use chrono::DateTime;
 use chrono::Utc;
 use futures::executor::block_on;
 use glam::Vec3;
@@ -136,10 +137,11 @@ pub struct BenchApp {
     frame_count: u32,
     name: String,
     scene: String,
+    timestamp: DateTime<Utc>,
 }
 
 impl BenchApp {
-    pub fn new(name: String, def: BenchmarkFile) -> Self {
+    pub fn new(name: String, def: BenchmarkFile, timestamp: DateTime<Utc>) -> Self {
         let camera_path =
             CameraPath::new(def.position_points(), def.look_at_points(), def.duration);
 
@@ -156,6 +158,7 @@ impl BenchApp {
             frame_count: 0,
             name,
             scene: def.scene,
+            timestamp,
         }
     }
 
@@ -323,15 +326,15 @@ impl BenchApp {
         fs::create_dir_all(&output_dir)?;
 
         // Output file: bench-results/<git-sha>/<datetime>-<name>.jsonl
-        let datetime = Utc::now().format("%Y-%m-%d-%H-%M-%S");
-        let output_path = output_dir.join(format!("{}-{}.jsonl", datetime, self.name));
+        let filename_timestamp = self.timestamp.format("%Y-%m-%d-%H-%M-%S");
+        let output_path = output_dir.join(format!("{}-{}.jsonl", filename_timestamp, self.name));
         let file = fs::File::create(&output_path)?;
         let mut writer = BufWriter::new(file);
 
         // Write metadata as first line
         let metadata = BenchmarkMetadata {
             version: 1,
-            timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            timestamp: self.timestamp.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             git_sha: GIT_SHA,
             scene: &self.scene,
             resolution: [config.width, config.height],
@@ -414,10 +417,14 @@ impl ApplicationHandler for BenchApp {
 }
 
 pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
+    run_bench_with_timestamp(name, Utc::now())
+}
+
+fn run_bench_with_timestamp(name: String, timestamp: DateTime<Utc>) -> Result<(), Box<dyn Error>> {
     let def = BenchmarkFile::load(&name)?;
     log::info!("Running benchmark '{}' (scene: {})", name, def.scene);
     let event_loop = EventLoop::new()?;
-    let mut app = BenchApp::new(name, def);
+    let mut app = BenchApp::new(name, def, timestamp);
     event_loop.run_app(&mut app).map_err(Into::into)
 }
 
@@ -448,8 +455,9 @@ pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
         benchmark_names.join(", ")
     );
 
+    let timestamp = Utc::now();
     for name in benchmark_names {
-        run_bench(name)?;
+        run_bench_with_timestamp(name, timestamp)?;
     }
 
     Ok(())
