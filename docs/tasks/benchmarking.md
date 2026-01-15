@@ -81,8 +81,9 @@ Single JSONL file per benchmark run: `bench-results/<git-sha>/<scene-name>.jsonl
 - Store name, driver, backend
 
 ### Step 3: Frame timing
-- Measure time between frame start and `frame.present()`
+- Measure wall-clock time between frame start and `frame.present()`
 - Store in `Vec<FrameRecord>` during benchmark run
+- Note: This measures CPU submission + GPU present latency, not pure GPU render time. For more accurate GPU-only timing, wgpu timestamp queries could be added later (see Future Considerations).
 
 ### Step 4: Git SHA
 - Run `git rev-parse HEAD` at startup

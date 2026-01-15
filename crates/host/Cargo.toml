@@ -21,6 +21,8 @@ bytemuck = { workspace = true }
 clap = { workspace = true }
 image = { workspace = true }
 glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 spirv-builder = { workspace = true }
