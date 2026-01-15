@@ -1,11 +1,5 @@
 # TODO
 
-## Benchmarking Infrastructure (Priority)
-
-**No optimization code changes until this is complete.**
-
-See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md) for detailed plan and status.
-
 ## Features (Ray Tracing in One Weekend series)
 
 1. [x] Lighting (emissive materials, diffuse lights)
