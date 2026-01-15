@@ -12,17 +12,28 @@ use spirv_std::glam::vec4;
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;
 
-/// Extract camera params from ShaderConstants, using defaults from a scene's camera constant
+/// Extract camera params from ShaderConstants, using defaults from a scene's camera constant.
+/// If cam_dir is zero (test mode), use the scene's default camera position.
 fn cam_params_from_constants(constants: &ShaderConstants, default: CameraParams) -> CameraParams {
-    let lookfrom = Vec3::new(
-        constants.cam_pos[0],
-        constants.cam_pos[1],
-        constants.cam_pos[2],
-    );
     let cam_dir = Vec3::new(
         constants.cam_dir[0],
         constants.cam_dir[1],
         constants.cam_dir[2],
+    );
+
+    // If cam_dir is zero, we're in test mode - use scene defaults
+    if cam_dir.x == 0.0 && cam_dir.y == 0.0 && cam_dir.z == 0.0 {
+        return CameraParams {
+            img_width: constants.width as usize,
+            img_height: constants.height as usize,
+            ..default
+        };
+    }
+
+    let lookfrom = Vec3::new(
+        constants.cam_pos[0],
+        constants.cam_pos[1],
+        constants.cam_pos[2],
     );
     let vup = Vec3::new(
         constants.cam_vup[0],
