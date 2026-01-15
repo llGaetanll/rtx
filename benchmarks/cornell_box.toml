@@ -1,0 +1,30 @@
+scene = "cornell_box_fs"
+duration = 10.0
+
+# Camera moves through the Cornell box, starting at the back and pushing in
+position = [
+    [278.0, 278.0, -800.0],   # Far back, centered
+    [278.0, 278.0, -600.0],   # Moving in
+    [278.0, 300.0, -400.0],   # Closer, slightly up
+    [200.0, 278.0, -200.0],   # Close, shifted left
+    [356.0, 278.0, -200.0],   # Close, shifted right
+    [278.0, 250.0, -300.0],   # Pulling back, lower
+    [278.0, 278.0, -500.0],   # Back to middle distance
+    [278.0, 278.0, -800.0],   # Return to start
+    [278.0, 278.0, -600.0],   # (duplicate for spline)
+    [278.0, 300.0, -400.0],   # (duplicate for spline)
+]
+
+# Looking at center of the box throughout
+look_at = [
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+    [278.0, 278.0, 0.0],
+]
