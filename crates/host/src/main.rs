@@ -22,6 +22,7 @@ use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
 mod gpu;
+mod spline;
 
 use gpu::GpuContext;
 
