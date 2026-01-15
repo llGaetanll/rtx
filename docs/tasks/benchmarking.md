@@ -4,29 +4,56 @@ Track rendering performance across commits to detect regressions.
 
 ## Relevant Files
 
-- `host/src/spline.rs` - `CatmullRomSpline` implementation
-- `host/src/camera_path.rs` - `CameraPath` and `CameraFrame` types (frame = position + look-at target)
-- `host/src/bench_app.rs` - Benchmark application with render loop
-- `host/src/cli.rs` - CLI definitions including `bench` subcommand
+- `crates/host/src/spline.rs` - `CatmullRomSpline` implementation
+- `crates/host/src/camera_path.rs` - `CameraPath` and `CameraFrame` types (frame = position + look-at target)
+- `crates/host/src/bench_app.rs` - Benchmark application with render loop
+- `crates/host/src/cli.rs` - CLI definitions including `bench` subcommand
 
 ## Overview
 
-Run `cargo run --release -- bench` to execute a benchmark. The camera follows a predefined spline path through a scene, recording frame timing data. Results are saved to `bench-results/<git-sha>/<scene-name>.json`.
+Run `cargo run --release -- bench` to execute a benchmark. The camera follows a predefined spline path through a scene, recording frame timing data. Results are saved to `bench-results/<git-sha>/<datetime>-<scene-name>.jsonl`.
 
 ## Status
 
 ### Completed
-- [x] `CatmullRomSpline` - interpolates through control points (`host/src/spline.rs`)
-- [x] `CameraPath` - combines position and look-at splines with duration (`host/src/camera_path.rs`)
+- [x] `CatmullRomSpline` - interpolates through control points
+- [x] `CameraPath` - combines position and look-at splines with duration
 - [x] `bench` CLI subcommand - runs benchmark with animated camera
-- [x] Hardcoded camera path for `two_spheres` scene
 - [x] Benchmark exits after camera path completes
-
-### In Progress
-- [ ] Benchmark output file
+- [x] Benchmark output file (JSONL format with metadata + per-frame records)
+- [x] `--scene` CLI argument
+- [x] Git SHA baked in at build time (7 characters)
+- [x] GPU info capture from wgpu adapter
+- [x] Frame timing (wall-clock)
+- [x] Datetime in output filename
 
 ### TODO
-- [ ] CLI arguments (`--scene`, `--output`)
+- [ ] Benchmark definition files in `benchmarks/` directory (TOML format with scene + camera path)
+
+## Benchmark Definition Format
+
+Benchmark definitions live in `benchmarks/<name>.toml`:
+
+```toml
+scene = "two_spheres_fs"
+duration = 10.0
+
+position = [
+    [5.0, 2.0, 5.0],
+    [5.0, 1.5, 0.0],
+    [5.0, 2.0, -5.0],
+    # ... more control points
+]
+
+look_at = [
+    [0.0, 0.5, 0.0],
+    [0.0, 0.3, 0.0],
+    [0.0, 0.5, 0.0],
+    # ... more control points
+]
+```
+
+Both `position` and `look_at` require at least 4 control points for the Catmull-Rom spline.
 
 ## Output Format
 
