@@ -8,29 +8,41 @@ Track rendering performance across commits to detect regressions.
 - `crates/host/src/camera_path.rs` - `CameraPath` and `CameraFrame` types (frame = position + look-at target)
 - `crates/host/src/bench_app.rs` - Benchmark application with render loop
 - `crates/host/src/cli.rs` - CLI definitions including `bench` subcommand
+- `benchmarks/*.toml` - Benchmark definition files
 
 ## Overview
 
-Run `cargo run --release -- bench` to execute a benchmark. The camera follows a predefined spline path through a scene, recording frame timing data. Results are saved to `bench-results/<git-sha>/<datetime>-<scene-name>.jsonl`.
+Run `cargo run --release -- bench` to execute all benchmarks. The camera follows a predefined spline path through a scene, recording frame timing data. Results are saved to `bench-results/<git-sha>/<datetime>-<benchmark-name>.jsonl`.
 
 ## Status
 
-### Completed
+### Core Infrastructure
+
 - [x] `CatmullRomSpline` - interpolates through control points
 - [x] `CameraPath` - combines position and look-at splines with duration
 - [x] `bench` CLI subcommand - runs benchmark with animated camera
 - [x] Benchmark exits after camera path completes
+
+### Output & Metadata
+
 - [x] Benchmark output file (JSONL format with metadata + per-frame records)
-- [x] `--scene` CLI argument
 - [x] Git SHA baked in at build time (7 characters)
 - [x] GPU info capture from wgpu adapter
 - [x] Frame timing (wall-clock)
 - [x] Datetime in output filename
 
-### Also Completed
+### Benchmark Definitions
+
 - [x] Benchmark definition files in `benchmarks/` directory (TOML format with scene + camera path)
+- [x] `--scene` CLI argument for single benchmark
 - [x] Output filename uses benchmark name (TOML filename) instead of scene name
-- [x] Run all benchmarks when no name specified (`cargo run --release -- bench`)
+- [x] Run all benchmarks when no name specified
+
+### Future Enhancements
+
+- [ ] Automated regression detection: compare results across commits
+- [ ] Warmup frames: discard first N frames to avoid startup costs
+- [ ] GPU timestamps: use wgpu timestamp queries for more accurate GPU timing
 
 ## Benchmark Definition Format
 
@@ -59,7 +71,7 @@ Both `position` and `look_at` require at least 4 control points for the Catmull-
 
 ## Output Format
 
-Single JSONL file per benchmark run: `bench-results/<git-sha>/<scene-name>.jsonl`
+Single JSONL file per benchmark run: `bench-results/<git-sha>/<datetime>-<benchmark-name>.jsonl`
 
 **Every line is a single JSON object, including the first line (metadata).** This allows streaming writes and easy parsing.
 
@@ -97,34 +109,3 @@ Single JSONL file per benchmark run: `bench-results/<git-sha>/<scene-name>.jsonl
 - `cam_pos` - camera position `[x, y, z]`
 - `cam_dir` - camera direction `[x, y, z]`
 - `cam_vup` - camera up vector `[x, y, z]`
-
-## Implementation Plan
-
-### Step 1: Add serde support
-- Add `serde` feature to `glam` dependency
-- Derive `Serialize` on `CameraPath`, `CatmullRomSpline`
-- Create metadata struct with GPU/CPU info
-
-### Step 2: Capture GPU info
-- Extract adapter info from wgpu (`adapter.get_info()`)
-- Store name, driver, backend
-
-### Step 3: Frame timing
-- Measure wall-clock time between frame start and `frame.present()`
-- Store in `Vec<FrameRecord>` during benchmark run
-- Note: This measures CPU submission + GPU present latency, not pure GPU render time. For more accurate GPU-only timing, wgpu timestamp queries could be added later (see Future Considerations).
-
-### Step 4: Git SHA
-- Run `git rev-parse HEAD` at startup
-- Create output directory `bench-results/<sha>/`
-
-### Step 5: Write output
-- After benchmark completes, write JSON file
-- Metadata on line 1, then one frame per line (JSONL)
-
-## Future Considerations
-
-- **Automated regression detection**: Compare results across commits
-- **Multiple runs**: Average multiple benchmark runs for stability
-- **Warmup frames**: Discard first N frames to avoid startup costs
-- **GPU timestamps**: Use wgpu timestamp queries for more accurate GPU timing
