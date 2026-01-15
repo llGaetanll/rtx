@@ -526,11 +526,17 @@ impl BenchApp {
             None => return,
         };
 
-        // Evaluate camera path based on elapsed time (loops)
+        // Evaluate camera path based on elapsed time
         let elapsed = self.start.elapsed().as_secs_f32();
         let duration = self.camera_path.duration();
-        let looped_time = elapsed % duration;
-        let pose = self.camera_path.evaluate(looped_time);
+
+        // Exit when camera path completes
+        if elapsed >= duration {
+            self.close_requested = true;
+            return;
+        }
+
+        let pose = self.camera_path.evaluate(elapsed);
 
         let cam_pos = pose.position;
         let cam_dir = pose.direction();
