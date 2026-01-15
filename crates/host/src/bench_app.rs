@@ -123,6 +123,12 @@ impl GpuInfo {
 /// Git SHA baked in at build time via build.rs.
 const GIT_SHA: &str = env!("GIT_SHA");
 
+/// A queued benchmark with its name and definition.
+struct QueuedBenchmark {
+    name: String,
+    def: BenchmarkFile,
+}
+
 /// Application for benchmark mode with animated camera path.
 pub struct BenchApp {
     gpu: Option<GpuContext>,
@@ -130,6 +136,7 @@ pub struct BenchApp {
     window_surface: Option<WindowSurface>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
+    swapchain_format: Option<wgpu::TextureFormat>,
     close_requested: bool,
     start: Instant,
     camera_path: CameraPath,
@@ -138,12 +145,23 @@ pub struct BenchApp {
     name: String,
     scene: String,
     timestamp: DateTime<Utc>,
+    queue: Vec<QueuedBenchmark>,
 }
 
 impl BenchApp {
-    pub fn new(name: String, def: BenchmarkFile, timestamp: DateTime<Utc>) -> Self {
-        let camera_path =
-            CameraPath::new(def.position_points(), def.look_at_points(), def.duration);
+    pub fn new(benchmarks: Vec<(String, BenchmarkFile)>, timestamp: DateTime<Utc>) -> Self {
+        let mut queue: Vec<QueuedBenchmark> = benchmarks
+            .into_iter()
+            .map(|(name, def)| QueuedBenchmark { name, def })
+            .collect();
+
+        // Pop the first benchmark to run immediately
+        let first = queue.remove(0);
+        let camera_path = CameraPath::new(
+            first.def.position_points(),
+            first.def.look_at_points(),
+            first.def.duration,
+        );
 
         Self {
             gpu: None,
@@ -151,15 +169,54 @@ impl BenchApp {
             window_surface: None,
             config: None,
             render_pipeline: None,
+            swapchain_format: None,
             close_requested: false,
             start: Instant::now(),
             camera_path,
             frame_records: Vec::new(),
             frame_count: 0,
-            name,
-            scene: def.scene,
+            name: first.name,
+            scene: first.def.scene,
             timestamp,
+            queue,
         }
+    }
+
+    /// Advance to the next benchmark in the queue. Returns false if queue is empty.
+    fn advance_to_next(&mut self) -> bool {
+        if self.queue.is_empty() {
+            return false;
+        }
+
+        let next = self.queue.remove(0);
+        log::info!(
+            "Running benchmark '{}' (scene: {})",
+            next.name,
+            next.def.scene
+        );
+
+        // Update camera path
+        self.camera_path = CameraPath::new(
+            next.def.position_points(),
+            next.def.look_at_points(),
+            next.def.duration,
+        );
+
+        // Reset frame tracking
+        self.frame_records.clear();
+        self.frame_count = 0;
+        self.start = Instant::now();
+
+        // Update scene info
+        self.name = next.name;
+        self.scene = next.def.scene.clone();
+
+        // Rebuild render pipeline for new scene
+        if let (Some(gpu), Some(format)) = (&self.gpu, self.swapchain_format) {
+            self.render_pipeline = Some(gpu.create_pipeline(format, &next.def.scene));
+        }
+
+        true
     }
 
     async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
@@ -207,7 +264,9 @@ impl BenchApp {
         self.window_surface = Some(window_surface);
         self.config = Some(config);
         self.render_pipeline = Some(render_pipeline);
+        self.swapchain_format = Some(swapchain_format);
         self.start = Instant::now();
+        log::info!("Running benchmark '{}' (scene: {})", self.name, self.scene);
         Ok(())
     }
 
@@ -227,13 +286,15 @@ impl BenchApp {
         let elapsed = self.start.elapsed().as_secs_f32();
         let duration = self.camera_path.duration();
 
-        // Exit when camera path completes
+        // When camera path completes, write results and advance to next benchmark
         if elapsed >= duration {
             match self.write_results() {
                 Ok(path) => log::info!("Benchmark results written to {}", path.display()),
                 Err(e) => log::error!("Failed to write benchmark results: {e}"),
             }
-            self.close_requested = true;
+            if !self.advance_to_next() {
+                self.close_requested = true;
+            }
             return;
         }
 
@@ -417,15 +478,9 @@ impl ApplicationHandler for BenchApp {
 }
 
 pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
-    run_bench_with_timestamp(name, Utc::now())
-}
-
-fn run_bench_with_timestamp(name: String, timestamp: DateTime<Utc>) -> Result<(), Box<dyn Error>> {
     let def = BenchmarkFile::load(&name)?;
-    log::info!("Running benchmark '{}' (scene: {})", name, def.scene);
-    let event_loop = EventLoop::new()?;
-    let mut app = BenchApp::new(name, def, timestamp);
-    event_loop.run_app(&mut app).map_err(Into::into)
+    let benchmarks = vec![(name, def)];
+    run_benchmarks(benchmarks)
 }
 
 pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
@@ -455,10 +510,17 @@ pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
         benchmark_names.join(", ")
     );
 
-    let timestamp = Utc::now();
+    let mut benchmarks = Vec::new();
     for name in benchmark_names {
-        run_bench_with_timestamp(name, timestamp)?;
+        let def = BenchmarkFile::load(&name)?;
+        benchmarks.push((name, def));
     }
 
-    Ok(())
+    run_benchmarks(benchmarks)
+}
+
+fn run_benchmarks(benchmarks: Vec<(String, BenchmarkFile)>) -> Result<(), Box<dyn Error>> {
+    let event_loop = EventLoop::new()?;
+    let mut app = BenchApp::new(benchmarks, Utc::now());
+    event_loop.run_app(&mut app).map_err(Into::into)
 }
