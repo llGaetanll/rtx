@@ -29,7 +29,7 @@ const CHART_HEIGHT: f64 = 250.0;
 const CHART_PADDING_LEFT: f64 = 40.0;
 const CHART_PADDING_RIGHT: f64 = 10.0;
 const CHART_PADDING_TOP: f64 = 40.0;
-const CHART_PADDING_BOTTOM: f64 = 30.0;
+const CHART_PADDING_BOTTOM: f64 = 40.0;
 const CHART_SPACING: f64 = 40.0;
 const LEGEND_WIDTH: f64 = 70.0;
 const LEGEND_LINE_HEIGHT: f64 = 20.0;
@@ -148,8 +148,8 @@ fn generate_benchmark_chart(
 
     let max_time_scaled = max_time as f64 / scale;
 
-    // Chart title with unit
-    let title = Text::new(format!("{} ({})", benchmark.name, unit))
+    // Chart title
+    let title = Text::new(benchmark.name.as_str())
         .set("id", format!("title-{}", chart_id))
         .set("data-base-name", benchmark.name.as_str())
         .set("data-unit", unit)
@@ -188,6 +188,32 @@ fn generate_benchmark_chart(
         .set("stroke", "#aaa")
         .set("stroke-width", 1);
     group = group.add(y_axis);
+
+    // X axis label (aligned left)
+    let x_label = Text::new("frame")
+        .set("x", plot_x)
+        .set("y", plot_y + plot_height + 32.0)
+        .set("font-family", "monospace")
+        .set("font-size", 11)
+        .set("font-weight", "bold")
+        .set("text-anchor", "start")
+        .set("fill", "#000");
+    group = group.add(x_label);
+
+    // Y axis label (rotated, aligned bottom)
+    let y_label = Text::new(unit)
+        .set("x", x_offset + 8.0)
+        .set("y", plot_y + plot_height)
+        .set("font-family", "monospace")
+        .set("font-size", 11)
+        .set("font-weight", "bold")
+        .set("text-anchor", "start")
+        .set("fill", "#000")
+        .set(
+            "transform",
+            format!("rotate(-90, {}, {})", x_offset + 8.0, plot_y + plot_height),
+        );
+    group = group.add(y_label);
 
     // Generate colors (oldest=lightest to newest=darkest)
     let colors = generate_shade_colors(base_hue, runs.len());
