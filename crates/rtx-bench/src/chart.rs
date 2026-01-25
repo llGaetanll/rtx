@@ -26,11 +26,12 @@ const BASE_HUES: &[f64] = &[
 /// Chart dimensions and layout.
 const CHART_WIDTH: f64 = 500.0;
 const CHART_HEIGHT: f64 = 250.0;
-const CHART_PADDING_LEFT: f64 = 80.0; // Extra space for y-axis labels
-const CHART_PADDING_RIGHT: f64 = 60.0;
-const CHART_PADDING_TOP: f64 = 60.0;
-const CHART_PADDING_BOTTOM: f64 = 40.0;
+const CHART_PADDING_LEFT: f64 = 40.0;
+const CHART_PADDING_RIGHT: f64 = 10.0;
+const CHART_PADDING_TOP: f64 = 40.0;
+const CHART_PADDING_BOTTOM: f64 = 30.0;
 const CHART_SPACING: f64 = 40.0;
+const LEGEND_WIDTH: f64 = 70.0;
 const LEGEND_LINE_HEIGHT: f64 = 20.0;
 
 /// Lightness range for color shades (oldest to newest).
@@ -88,7 +89,12 @@ fn generate_shade_colors(base_hue: f64, count: usize) -> Vec<String> {
 }
 
 /// Generate an SVG group for a single benchmark chart.
-fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: f64) -> Group {
+fn generate_benchmark_chart(
+    benchmark: &BenchmarkData,
+    base_hue: f64,
+    x_offset: f64,
+    y_offset: f64,
+) -> Group {
     let mut group = Group::new();
     let chart_id = &benchmark.name;
 
@@ -120,7 +126,7 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
 
     let plot_width = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
     let plot_height = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
-    let plot_x = CHART_PADDING_LEFT;
+    let plot_x = x_offset + CHART_PADDING_LEFT;
     let plot_y = y_offset + CHART_PADDING_TOP;
 
     // Create clip path for the plot area
@@ -338,9 +344,10 @@ const CHART_JS: &str = include_str!("../static/chart.js");
 ///
 /// Takes the output of `load_all_benchmarks`: a list of BenchmarkData.
 pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
-    // Calculate total dimensions
-    let total_height = benchmarks.len() as f64 * (CHART_HEIGHT + CHART_SPACING);
-    let total_width = CHART_WIDTH + 120.0; // Extra space for legend
+    // Calculate total dimensions (charts laid out horizontally)
+    let chart_total_width = CHART_WIDTH + LEGEND_WIDTH;
+    let total_width = benchmarks.len() as f64 * (chart_total_width + CHART_SPACING);
+    let total_height = CHART_HEIGHT;
 
     // Create document
     let mut document =
@@ -357,11 +364,12 @@ pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
         .set("fill", "#fafafa");
     document = document.add(background);
 
-    // Generate each chart
+    // Generate each chart (laid out horizontally)
     for (i, benchmark) in benchmarks.iter().enumerate() {
-        let y_offset = i as f64 * (CHART_HEIGHT + CHART_SPACING);
+        let x_offset = i as f64 * (chart_total_width + CHART_SPACING);
+        let y_offset = 0.0;
         let base_hue = BASE_HUES[i % BASE_HUES.len()];
-        let chart_group = generate_benchmark_chart(benchmark, base_hue, y_offset);
+        let chart_group = generate_benchmark_chart(benchmark, base_hue, x_offset, y_offset);
         document = document.add(chart_group);
     }
 
