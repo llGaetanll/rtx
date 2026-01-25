@@ -60,10 +60,12 @@ Example:
 
 During implementation, we often discover things that aren't ideal but are out of scope for the current task. Instead of losing these insights, add them to the **Future Work** section at the bottom of the task document.
 
+**Use checkboxes** for Future Work items too, so we can track which ones have been addressed later.
+
 It's the human's responsibility to notice these during review and suggest items to add. Examples:
-- "This function is getting long, could be refactored later"
-- "We're duplicating logic with X, could consolidate"
-- "Would be nice to add Y feature eventually"
+- [ ] "This function is getting long, could be refactored later"
+- [ ] "We're duplicating logic with X, could consolidate"
+- [ ] "Would be nice to add Y feature eventually"
 
 ## Resuming Work
 

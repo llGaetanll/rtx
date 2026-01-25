@@ -68,9 +68,9 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 
 ## Future Work
 
-- Axis labels and tick marks
-- Interactive HTML version with tooltips
-- Comparison mode (pick specific SHAs to compare)
-- Statistical summary (avg/p95/p99 per SHA)
-- **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Consider reorganizing into a single `bench/` directory with subdirectories (`bench/definitions/`, `bench/results/`, `bench/charts/`).
-- **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
+- [ ] Axis labels and tick marks
+- [ ] Interactive HTML version with tooltips
+- [ ] Comparison mode (pick specific SHAs to compare)
+- [ ] Statistical summary (avg/p95/p99 per SHA)
+- [ ] **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Consider reorganizing into a single `bench/` directory with subdirectories (`bench/definitions/`, `bench/results/`, `bench/charts/`).
+- [ ] **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
