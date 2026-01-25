@@ -10,6 +10,7 @@ use-compiled-tools = ["spirv-builder/use-compiled-tools"]
 
 [dependencies]
 shared = { path = "../shared" }
+rtx-bench = { path = "../rtx-bench" }
 
 log = { workspace = true }
 env_logger = { workspace = true }
