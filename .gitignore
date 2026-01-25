@@ -1,4 +1,4 @@
 target/
 renders/
-bench-results/
-bench-charts/
+bench/results/
+bench/charts/

@@ -104,7 +104,7 @@ fn parse_benchmark_filename(filename: &str) -> Option<BenchmarkFilename> {
     })
 }
 
-/// Load all benchmark data from bench-results directory.
+/// Load all benchmark data from bench/results directory.
 ///
 /// Returns a list of BenchmarkData, each containing runs sorted by timestamp (oldest first).
 /// Only includes the most recent run per SHA per benchmark.

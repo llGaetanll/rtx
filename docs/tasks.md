@@ -26,7 +26,7 @@ Example:
 
 - `crates/host/src/cli.rs` - CLI definitions
 - `crates/host/src/main.rs` - Command dispatch
-- `bench-results/` - Benchmark output directory
+- `bench/results/` - Benchmark output directory
 
 ## Phases
 

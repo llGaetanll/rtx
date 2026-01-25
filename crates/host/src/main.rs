@@ -108,14 +108,14 @@ fn run_test() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_chart() -> Result<(), Box<dyn Error>> {
-    let bench_results_dir = Path::new("bench-results");
+    let bench_results_dir = Path::new("bench/results");
     if !bench_results_dir.exists() {
-        return Err("bench-results/ directory not found. Run some benchmarks first.".into());
+        return Err("bench/results/ directory not found. Run some benchmarks first.".into());
     }
 
     let data = rtx_bench::load_all_benchmarks(bench_results_dir)?;
     if data.is_empty() {
-        return Err("No benchmark data found in bench-results/".into());
+        return Err("No benchmark data found in bench/results/".into());
     }
 
     log::debug!(
@@ -129,8 +129,8 @@ fn run_chart() -> Result<(), Box<dyn Error>> {
 
     let svg = rtx_bench::generate_svg(&data);
 
-    fs::create_dir_all("bench-charts")?;
-    let output_path = "bench-charts/chart.svg";
+    fs::create_dir_all("bench/charts")?;
+    let output_path = "bench/charts/chart.svg";
     fs::write(output_path, &svg)?;
 
     log::info!("Saved {}", output_path);

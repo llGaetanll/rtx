@@ -38,9 +38,9 @@ pub struct BenchmarkFile {
 }
 
 impl BenchmarkFile {
-    /// Load a benchmark definition from `benchmarks/<name>.toml`.
+    /// Load a benchmark definition from `bench/configs/<name>.toml`.
     pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from("benchmarks").join(format!("{}.toml", name));
+        let path = PathBuf::from("bench/configs").join(format!("{}.toml", name));
         let contents = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
         let def: BenchmarkFile = toml::from_str(&contents)
@@ -378,11 +378,11 @@ impl BenchApp {
         let gpu_info = self.gpu_info.as_ref().ok_or("No GPU info")?;
         let config = self.config.as_ref().ok_or("No surface config")?;
 
-        // Create output directory: bench-results/<git-sha>/
-        let output_dir = PathBuf::from("bench-results").join(GIT_SHA);
+        // Create output directory: bench/results/<git-sha>/
+        let output_dir = PathBuf::from("bench/results").join(GIT_SHA);
         fs::create_dir_all(&output_dir)?;
 
-        // Output file: bench-results/<git-sha>/<datetime>-<name>.jsonl
+        // Output file: bench/results/<git-sha>/<datetime>-<name>.jsonl
         let filename_timestamp = self.timestamp.format("%Y-%m-%d-%H-%M-%S");
         let output_path = output_dir.join(format!("{}-{}.jsonl", filename_timestamp, self.name));
         let file = fs::File::create(&output_path)?;
@@ -480,9 +480,9 @@ pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
-    let benchmarks_dir = PathBuf::from("benchmarks");
+    let benchmarks_dir = PathBuf::from("bench/configs");
     let mut benchmark_names: Vec<String> = fs::read_dir(&benchmarks_dir)
-        .map_err(|e| format!("Failed to read benchmarks directory: {}", e))?
+        .map_err(|e| format!("Failed to read bench/configs directory: {}", e))?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();
@@ -497,7 +497,7 @@ pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
     benchmark_names.sort();
 
     if benchmark_names.is_empty() {
-        return Err("No benchmark files found in benchmarks/ directory".into());
+        return Err("No benchmark files found in bench/configs/ directory".into());
     }
 
     log::info!(

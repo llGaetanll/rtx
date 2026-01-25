@@ -8,11 +8,11 @@ Track rendering performance across commits to detect regressions.
 - `crates/host/src/camera_path.rs` - `CameraPath` and `CameraFrame` types (frame = position + look-at target)
 - `crates/host/src/bench_app.rs` - Benchmark application with render loop
 - `crates/host/src/cli.rs` - CLI definitions including `bench` subcommand
-- `benchmarks/*.toml` - Benchmark definition files
+- `bench/configs/*.toml` - Benchmark definition files
 
 ## Overview
 
-Run `cargo run --release -- bench` to execute all benchmarks. The camera follows a predefined spline path through a scene, recording frame timing data. Results are saved to `bench-results/<git-sha>/<datetime>-<benchmark-name>.jsonl`.
+Run `cargo run --release -- bench` to execute all benchmarks. The camera follows a predefined spline path through a scene, recording frame timing data. Results are saved to `bench/results/<git-sha>/<datetime>-<benchmark-name>.jsonl`.
 
 ## Status
 
@@ -33,7 +33,7 @@ Run `cargo run --release -- bench` to execute all benchmarks. The camera follows
 
 ### Benchmark Definitions
 
-- [x] Benchmark definition files in `benchmarks/` directory (TOML format with scene + camera path)
+- [x] Benchmark definition files in `bench/configs/` directory (TOML format with scene + camera path)
 - [x] `--scene` CLI argument for single benchmark
 - [x] Output filename uses benchmark name (TOML filename) instead of scene name
 - [x] Run all benchmarks when no name specified
@@ -46,7 +46,7 @@ Run `cargo run --release -- bench` to execute all benchmarks. The camera follows
 
 ## Benchmark Definition Format
 
-Benchmark definitions live in `benchmarks/<name>.toml`. The `<name>` is used in the output filename (`bench-results/<git-sha>/<datetime>-<name>.jsonl`):
+Benchmark definitions live in `bench/configs/<name>.toml`. The `<name>` is used in the output filename (`bench/results/<git-sha>/<datetime>-<name>.jsonl`):
 
 ```toml
 scene = "two_spheres_fs"
@@ -71,7 +71,7 @@ Both `position` and `look_at` require at least 4 control points for the Catmull-
 
 ## Output Format
 
-Single JSONL file per benchmark run: `bench-results/<git-sha>/<datetime>-<benchmark-name>.jsonl`
+Single JSONL file per benchmark run: `bench/results/<git-sha>/<datetime>-<benchmark-name>.jsonl`
 
 **Every line is a single JSON object, including the first line (metadata).** This allows streaming writes and easy parsing.
 

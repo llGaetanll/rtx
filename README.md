@@ -41,7 +41,7 @@ cargo run --release -- test
 
 ### `bench` - Performance benchmarking
 
-Run benchmarks with an animated camera path. Results are saved to `bench-results/<git-sha>/<timestamp>-<name>.jsonl`.
+Run benchmarks with an animated camera path. Results are saved to `bench/results/<git-sha>/<timestamp>-<name>.jsonl`.
 
 Run a specific benchmark:
 
@@ -49,13 +49,13 @@ Run a specific benchmark:
 cargo run --release -- bench two_spheres
 ```
 
-Run all benchmarks in the `benchmarks/` directory:
+Run all benchmarks in the `bench/configs/` directory:
 
 ```sh
 cargo run --release -- bench
 ```
 
-Benchmark definitions are TOML files in `benchmarks/`. See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md) for details on the format and output.
+Benchmark definitions are TOML files in `bench/configs/`. See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md) for details on the format and output.
 
 ## Testing
 

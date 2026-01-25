@@ -6,18 +6,18 @@ Generate SVG charts from benchmark results to visualize frame times across commi
 
 - `crates/host/src/cli.rs` - CLI command definitions
 - `crates/host/src/main.rs` - Command dispatch
-- `bench-results/` - Benchmark output directory (JSONL files organized by git SHA)
+- `bench/results/` - Benchmark output directory (JSONL files organized by git SHA)
 - `docs/tasks/benchmarking.md` - Benchmark infrastructure docs (includes JSONL format spec)
 
 ## Overview
 
 A new CLI command `cargo run -- chart` that:
-1. Scans `bench-results/` for all JSONL files
+1. Scans `bench/results/` for all JSONL files
 2. Groups runs by benchmark name (e.g., `two_spheres`, `cornell_box`)
 3. Takes the most recent run per SHA for each benchmark
 4. Generates a single SVG file with one chart per benchmark
 
-Output: `bench-charts/chart.svg`
+Output: `bench/charts/chart.svg`
 
 ## Crate Structure
 
@@ -44,7 +44,7 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 
 - [x] Create `crates/rtx-bench/` crate with `Cargo.toml`
 - [x] Add `rtx-bench` to workspace and as dependency of `host`
-- [x] Implement directory scanning for `bench-results/`
+- [x] Implement directory scanning for `bench/results/`
 - [x] Parse JSONL metadata and frame records
 - [x] Group by benchmark name, filter to most recent run per SHA
 - [x] Export function returning `HashMap<String, HashMap<String, Vec<u64>>>`
@@ -62,14 +62,14 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 ### Phase 4: Wire it up
 
 - [x] Call `rtx-bench` from `Commands::Chart` handler
-- [x] Create `bench-charts/` directory if needed
+- [x] Create `bench/charts/` directory if needed
 - [x] Write `chart.svg` to disk
 - [x] Print path to stdout
 
 ## Future Work
 
 - [x] Axis labels and tick marks
-- [ ] **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Reorganize into a single `bench/` directory with subdirectories (`bench/configs/`, `bench/results/`, `bench/charts/`).
+- [x] **Consolidate benchmark directories**: Reorganized `benchmarks/`, `bench-results/`, and `bench-charts/` into a single `bench/` directory with subdirectories (`bench/configs/`, `bench/results/`, `bench/charts/`).
 - [ ] **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
 - [x] **Interactive SVG with JavaScript**: Embed JS in the SVG for browser-based interactivity:
   - [x] Toggle commits on/off by clicking legend items (simpler - add IDs to polylines, toggle visibility)

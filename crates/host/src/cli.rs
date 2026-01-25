@@ -21,8 +21,8 @@ pub enum Commands {
     Test,
     /// Run benchmark with animated camera path
     Bench {
-        /// Benchmark definition name (loads from benchmarks/<name>.toml).
-        /// If not specified, runs all benchmarks in the benchmarks/ directory.
+        /// Benchmark definition name (loads from bench/configs/<name>.toml).
+        /// If not specified, runs all benchmarks in the bench/configs/ directory.
         name: Option<String>,
     },
     /// Generate SVG charts from benchmark results
