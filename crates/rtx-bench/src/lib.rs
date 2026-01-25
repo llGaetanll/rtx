@@ -29,10 +29,17 @@ pub struct FrameRecord {
     pub time_us: u64,
 }
 
-/// A parsed benchmark run with metadata and frame times.
+/// A single frame's data: progress through benchmark (0-1) and render time.
+#[derive(Clone)]
+pub struct FrameData {
+    pub t: f32,
+    pub time_us: u64,
+}
+
+/// A parsed benchmark run with metadata and frame data.
 pub struct BenchmarkRun {
     pub metadata: BenchmarkMetadata,
-    pub frame_times: Vec<u64>,
+    pub frames: Vec<FrameData>,
 }
 
 /// Data for a single SHA's benchmark run, including timestamp for ordering.
@@ -40,7 +47,7 @@ pub struct BenchmarkRun {
 pub struct ShaRun {
     pub sha: String,
     pub timestamp: String,
-    pub frame_times: Vec<u64>,
+    pub frames: Vec<FrameData>,
 }
 
 /// All runs for a single benchmark, grouped by SHA.
@@ -62,17 +69,17 @@ pub fn load_benchmark_run(path: &Path) -> Result<BenchmarkRun> {
         serde_json::from_str(&metadata_line).context("Failed to parse benchmark metadata")?;
 
     // Remaining lines are frame records
-    let mut frame_times = Vec::new();
+    let mut frames = Vec::new();
     for line in lines {
         let line = line?;
         let record: FrameRecord = serde_json::from_str(&line)?;
-        frame_times.push(record.time_us);
+        frames.push(FrameData {
+            t: record.t,
+            time_us: record.time_us,
+        });
     }
 
-    Ok(BenchmarkRun {
-        metadata,
-        frame_times,
-    })
+    Ok(BenchmarkRun { metadata, frames })
 }
 
 /// Parsed benchmark filename components.
@@ -104,7 +111,7 @@ fn parse_benchmark_filename(filename: &str) -> Option<BenchmarkFilename> {
 pub fn load_all_benchmarks(bench_results_dir: &Path) -> Result<Vec<BenchmarkData>> {
     // First pass: collect all runs, grouped by (benchmark_name, sha)
     // Track timestamp to keep only most recent
-    let mut all_runs: HashMap<String, HashMap<String, (String, Vec<u64>)>> = HashMap::new();
+    let mut all_runs: HashMap<String, HashMap<String, (String, Vec<FrameData>)>> = HashMap::new();
 
     // Iterate over SHA directories
     for sha_entry in fs::read_dir(bench_results_dir)? {
@@ -143,12 +150,12 @@ pub fn load_all_benchmarks(bench_results_dir: &Path) -> Result<Vec<BenchmarkData
 
             match entry {
                 std::collections::hash_map::Entry::Vacant(v) => {
-                    v.insert((parsed.timestamp, run.frame_times));
+                    v.insert((parsed.timestamp, run.frames));
                 }
                 std::collections::hash_map::Entry::Occupied(mut o) => {
                     // Keep the more recent one (lexicographic comparison works for our timestamp format)
                     if parsed.timestamp > o.get().0 {
-                        o.insert((parsed.timestamp, run.frame_times));
+                        o.insert((parsed.timestamp, run.frames));
                     }
                 }
             }
@@ -161,10 +168,10 @@ pub fn load_all_benchmarks(bench_results_dir: &Path) -> Result<Vec<BenchmarkData
         .map(|(name, by_sha)| {
             let mut runs: Vec<ShaRun> = by_sha
                 .into_iter()
-                .map(|(sha, (timestamp, frame_times))| ShaRun {
+                .map(|(sha, (timestamp, frames))| ShaRun {
                     sha,
                     timestamp,
-                    frame_times,
+                    frames,
                 })
                 .collect();
             // Sort by timestamp (oldest first, so newer commits render on top)

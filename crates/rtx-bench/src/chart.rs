@@ -140,16 +140,17 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         return group;
     }
 
-    // Find bounds
-    let max_frames = runs.iter().map(|r| r.frame_times.len()).max().unwrap_or(0);
+    // Find bounds - max_time for y-axis scaling
     let max_time = runs
         .iter()
-        .flat_map(|r| r.frame_times.iter())
-        .copied()
+        .flat_map(|r| r.frames.iter())
+        .map(|f| f.time_us)
         .max()
         .unwrap_or(1);
 
-    if max_frames == 0 {
+    // Check we have frames
+    let has_frames = runs.iter().any(|r| !r.frames.is_empty());
+    if !has_frames {
         return group;
     }
 
@@ -231,17 +232,18 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         let color = &colors[i];
         let line_id = format!("line-{}-{}", benchmark.name, run.sha);
 
-        if run.frame_times.is_empty() {
+        if run.frames.is_empty() {
             continue;
         }
 
+        // Use t (0-1 progress) for x-axis, time_us for y-axis
         let points: Vec<(f64, f64)> = run
-            .frame_times
+            .frames
             .iter()
-            .enumerate()
-            .map(|(frame, &time_us)| {
-                let x = plot_x + (frame as f64 / max_frames as f64) * plot_width;
-                let y = plot_y + plot_height - (time_us as f64 / max_time as f64) * plot_height;
+            .map(|frame| {
+                let x = plot_x + (frame.t as f64) * plot_width;
+                let y =
+                    plot_y + plot_height - (frame.time_us as f64 / max_time as f64) * plot_height;
                 (x, y)
             })
             .collect();
