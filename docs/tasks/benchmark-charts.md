@@ -61,10 +61,10 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 
 ### Phase 4: Wire it up
 
-- [ ] Call `rtx-bench` from `Commands::Chart` handler
-- [ ] Create `bench-charts/` directory if needed
-- [ ] Write `chart.svg` to disk
-- [ ] Print path to stdout
+- [x] Call `rtx-bench` from `Commands::Chart` handler
+- [x] Create `bench-charts/` directory if needed
+- [x] Write `chart.svg` to disk
+- [x] Print path to stdout
 
 ## Future Work
 
