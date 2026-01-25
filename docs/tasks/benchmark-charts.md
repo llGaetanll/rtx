@@ -36,9 +36,9 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 
 ### Phase 1: CLI scaffolding
 
-- [ ] Add `Chart` variant to `Commands` enum in `crates/host/src/cli.rs`
-- [ ] Handle `Commands::Chart` in `main.rs` (placeholder that logs a message)
-- [ ] Verify it compiles
+- [x] Add `Chart` variant to `Commands` enum in `crates/host/src/cli.rs`
+- [x] Handle `Commands::Chart` in `main.rs` (placeholder that logs a message)
+- [x] Verify it compiles
 
 ### Phase 2: Create rtx-bench crate and data loading
 

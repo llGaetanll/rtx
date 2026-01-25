@@ -114,6 +114,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(Commands::Test) => run_test(),
         Some(Commands::Bench { name: Some(name) }) => bench_app::run_bench(name),
         Some(Commands::Bench { name: None }) => bench_app::run_all_benchmarks(),
+        Some(Commands::Chart) => {
+            log::info!("Chart generation not yet implemented");
+            Ok(())
+        }
         None => live_app::run_live("cornell_box_fs"),
     }
 }

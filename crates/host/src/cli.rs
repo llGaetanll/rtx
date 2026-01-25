@@ -25,4 +25,6 @@ pub enum Commands {
         /// If not specified, runs all benchmarks in the benchmarks/ directory.
         name: Option<String>,
     },
+    /// Generate SVG charts from benchmark results
+    Chart,
 }
