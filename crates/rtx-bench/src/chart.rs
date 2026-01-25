@@ -67,7 +67,7 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
         .set("y1", plot_y + plot_height)
         .set("x2", plot_x + plot_width)
         .set("y2", plot_y + plot_height)
-        .set("stroke", "#333")
+        .set("stroke", "#aaa")
         .set("stroke-width", 1);
     group = group.add(x_axis);
 
@@ -77,7 +77,7 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
         .set("y1", plot_y)
         .set("x2", plot_x)
         .set("y2", plot_y + plot_height)
-        .set("stroke", "#333")
+        .set("stroke", "#aaa")
         .set("stroke-width", 1);
     group = group.add(y_axis);
 
