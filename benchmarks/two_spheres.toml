@@ -1,5 +1,5 @@
 scene = "two_spheres_fs"
-duration = 10.0
+frame_count = 300
 
 # Camera orbits around the scene, looking at the origin
 position = [

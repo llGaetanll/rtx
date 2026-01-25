@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::spline::CatmullRomSpline;
 
-/// A camera path defined by position and look-at splines over time.
+/// A camera path defined by position and look-at splines.
 ///
 /// Interpolates camera position and look-at target along Catmull-Rom splines,
 /// allowing smooth camera motion through a scene.
@@ -11,8 +11,7 @@ use crate::spline::CatmullRomSpline;
 pub struct CameraPath {
     position: CatmullRomSpline,
     look_at: CatmullRomSpline,
-    #[serde(rename = "duration_secs")]
-    duration: f32,
+    frame_count: u32,
 }
 
 /// The result of evaluating a camera path at a point in time.
@@ -44,29 +43,42 @@ impl CameraPath {
     /// Create a new camera path from position and look-at control points.
     ///
     /// Both splines must have at least 4 control points.
-    /// Duration is in seconds.
-    pub fn new(position_points: Vec<Vec3>, look_at_points: Vec<Vec3>, duration: f32) -> Self {
+    /// Frame count must be at least 1.
+    pub fn new(position_points: Vec<Vec3>, look_at_points: Vec<Vec3>, frame_count: u32) -> Self {
         Self {
             position: CatmullRomSpline::new(position_points),
             look_at: CatmullRomSpline::new(look_at_points),
-            duration,
+            frame_count,
         }
     }
 
-    /// Duration of the camera path in seconds.
-    pub fn duration(&self) -> f32 {
-        self.duration
+    /// Number of frames in this camera path.
+    pub fn frame_count(&self) -> u32 {
+        self.frame_count
     }
 
-    /// Evaluate the camera path at time t (in seconds).
+    /// Evaluate the camera path at a specific frame.
     ///
-    /// Returns the camera position and look-at target at that time.
-    /// Times outside [0, duration] are clamped.
-    pub fn evaluate(&self, time: f32) -> CameraFrame {
-        let t = (time / self.duration).clamp(0.0, 1.0);
+    /// Returns the camera position and look-at target for that frame.
+    /// Frame indices outside [0, frame_count-1] are clamped.
+    pub fn evaluate_frame(&self, frame: u32) -> CameraFrame {
+        let t = if self.frame_count <= 1 {
+            0.0
+        } else {
+            (frame as f32 / (self.frame_count - 1) as f32).clamp(0.0, 1.0)
+        };
         CameraFrame {
             position: self.position.evaluate(t),
             look_at: self.look_at.evaluate(t),
+        }
+    }
+
+    /// Compute the normalized t value for a given frame index.
+    pub fn frame_t(&self, frame: u32) -> f32 {
+        if self.frame_count <= 1 {
+            0.0
+        } else {
+            (frame as f32 / (self.frame_count - 1) as f32).clamp(0.0, 1.0)
         }
     }
 }
@@ -93,9 +105,9 @@ mod tests {
             Vec3::new(0.0, 2.0, 0.0),
             Vec3::new(0.0, 3.0, 0.0),
         ];
-        let path = CameraPath::new(position_points, look_at_points, 10.0);
+        let path = CameraPath::new(position_points, look_at_points, 100);
 
-        let frame = path.evaluate(0.0);
+        let frame = path.evaluate_frame(0);
         assert!(
             approx_eq(frame.position, Vec3::new(0.0, 0.0, 5.0), 1e-6),
             "Expected position (0, 0, 5), got {:?}",
@@ -122,9 +134,10 @@ mod tests {
             Vec3::new(0.0, 2.0, 0.0),
             Vec3::new(0.0, 3.0, 0.0),
         ];
-        let path = CameraPath::new(position_points, look_at_points, 10.0);
+        let path = CameraPath::new(position_points, look_at_points, 100);
 
-        let frame = path.evaluate(10.0);
+        // Last frame is frame_count - 1
+        let frame = path.evaluate_frame(99);
         assert!(
             approx_eq(frame.position, Vec3::new(0.0, 0.0, 10.0), 1e-6),
             "Expected position (0, 0, 10), got {:?}",
@@ -151,9 +164,11 @@ mod tests {
             Vec3::new(0.0, 2.0, 0.0),
             Vec3::new(0.0, 3.0, 0.0),
         ];
-        let path = CameraPath::new(position_points, look_at_points, 10.0);
+        // Use odd frame count so middle frame is exactly at t=0.5
+        let path = CameraPath::new(position_points, look_at_points, 101);
 
-        let frame = path.evaluate(5.0);
+        // Frame 50 out of 101 frames (0-100) gives t = 50/100 = 0.5
+        let frame = path.evaluate_frame(50);
         assert!(
             approx_eq(frame.position, Vec3::new(0.0, 0.0, 7.5), 1e-6),
             "Expected position (0, 0, 7.5), got {:?}",
@@ -189,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn clamps_time_out_of_range() {
+    fn clamps_frame_out_of_range() {
         let position_points = vec![
             Vec3::new(0.0, 0.0, 0.0),
             Vec3::new(1.0, 0.0, 0.0),
@@ -202,20 +217,64 @@ mod tests {
             Vec3::new(0.0, 0.0, 2.0),
             Vec3::new(0.0, 0.0, 3.0),
         ];
-        let path = CameraPath::new(position_points, look_at_points, 5.0);
+        let path = CameraPath::new(position_points, look_at_points, 50);
 
-        let at_start = path.evaluate(0.0);
-        let before_start = path.evaluate(-1.0);
+        let at_start = path.evaluate_frame(0);
+        // Frame index past end should clamp
+        let at_end = path.evaluate_frame(49);
+        let past_end = path.evaluate_frame(100);
         assert!(
-            approx_eq(at_start.position, before_start.position, 1e-6),
-            "Negative time should clamp to start"
+            approx_eq(at_end.position, past_end.position, 1e-6),
+            "Frame past end should clamp to last frame"
         );
 
-        let at_end = path.evaluate(5.0);
-        let after_end = path.evaluate(10.0);
+        // Verify start and end are different
         assert!(
-            approx_eq(at_end.position, after_end.position, 1e-6),
-            "Time past duration should clamp to end"
+            !approx_eq(at_start.position, at_end.position, 1e-6),
+            "Start and end should be different positions"
         );
+    }
+
+    #[test]
+    fn frame_t_values() {
+        let position_points = vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(2.0, 0.0, 0.0),
+            Vec3::new(3.0, 0.0, 0.0),
+        ];
+        let look_at_points = vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 1.0),
+            Vec3::new(0.0, 0.0, 2.0),
+            Vec3::new(0.0, 0.0, 3.0),
+        ];
+        let path = CameraPath::new(position_points, look_at_points, 5);
+
+        assert!((path.frame_t(0) - 0.0).abs() < 1e-6);
+        assert!((path.frame_t(1) - 0.25).abs() < 1e-6);
+        assert!((path.frame_t(2) - 0.5).abs() < 1e-6);
+        assert!((path.frame_t(3) - 0.75).abs() < 1e-6);
+        assert!((path.frame_t(4) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn single_frame_path() {
+        let position_points = vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(2.0, 0.0, 0.0),
+            Vec3::new(3.0, 0.0, 0.0),
+        ];
+        let look_at_points = vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 1.0),
+            Vec3::new(0.0, 0.0, 2.0),
+            Vec3::new(0.0, 0.0, 3.0),
+        ];
+        let path = CameraPath::new(position_points, look_at_points, 1);
+
+        // Single frame should always give t=0
+        assert!((path.frame_t(0) - 0.0).abs() < 1e-6);
     }
 }

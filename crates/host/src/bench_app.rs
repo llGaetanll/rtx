@@ -32,7 +32,7 @@ use crate::window_surface::WindowSurfaceBuilder;
 #[derive(Deserialize)]
 pub struct BenchmarkFile {
     pub scene: String,
-    pub duration: f32,
+    pub frame_count: u32,
     pub position: Vec<[f32; 3]>,
     pub look_at: Vec<[f32; 3]>,
 }
@@ -46,6 +46,9 @@ impl BenchmarkFile {
         let def: BenchmarkFile = toml::from_str(&contents)
             .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
 
+        if def.frame_count < 1 {
+            return Err(format!("Benchmark {} needs at least 1 frame", name).into());
+        }
         if def.position.len() < 4 {
             return Err(format!(
                 "Benchmark {} needs at least 4 position points, got {}",
@@ -138,7 +141,6 @@ pub struct BenchApp {
     render_pipeline: Option<wgpu::RenderPipeline>,
     swapchain_format: Option<wgpu::TextureFormat>,
     close_requested: bool,
-    start: Instant,
     camera_path: CameraPath,
     frame_records: Vec<FrameRecord>,
     frame_count: u32,
@@ -160,7 +162,7 @@ impl BenchApp {
         let camera_path = CameraPath::new(
             first.def.position_points(),
             first.def.look_at_points(),
-            first.def.duration,
+            first.def.frame_count,
         );
 
         Self {
@@ -171,7 +173,6 @@ impl BenchApp {
             render_pipeline: None,
             swapchain_format: None,
             close_requested: false,
-            start: Instant::now(),
             camera_path,
             frame_records: Vec::new(),
             frame_count: 0,
@@ -199,13 +200,12 @@ impl BenchApp {
         self.camera_path = CameraPath::new(
             next.def.position_points(),
             next.def.look_at_points(),
-            next.def.duration,
+            next.def.frame_count,
         );
 
         // Reset frame tracking
         self.frame_records.clear();
         self.frame_count = 0;
-        self.start = Instant::now();
 
         // Update scene info
         self.name = next.name;
@@ -265,7 +265,6 @@ impl BenchApp {
         self.config = Some(config);
         self.render_pipeline = Some(render_pipeline);
         self.swapchain_format = Some(swapchain_format);
-        self.start = Instant::now();
         log::info!("Running benchmark '{}' (scene: {})", self.name, self.scene);
         Ok(())
     }
@@ -282,12 +281,8 @@ impl BenchApp {
             None => return,
         };
 
-        // Evaluate camera path based on elapsed time
-        let elapsed = self.start.elapsed().as_secs_f32();
-        let duration = self.camera_path.duration();
-
-        // When camera path completes, write results and advance to next benchmark
-        if elapsed >= duration {
+        // When all frames are rendered, write results and advance to next benchmark
+        if self.frame_count >= self.camera_path.frame_count() {
             match self.write_results() {
                 Ok(path) => log::info!("Benchmark results written to {}", path.display()),
                 Err(e) => log::error!("Failed to write benchmark results: {e}"),
@@ -298,8 +293,9 @@ impl BenchApp {
             return;
         }
 
-        let t = elapsed / duration;
-        let pose = self.camera_path.evaluate(elapsed);
+        // Evaluate camera path at current frame
+        let t = self.camera_path.frame_t(self.frame_count);
+        let pose = self.camera_path.evaluate_frame(self.frame_count);
 
         let cam_pos = pose.position;
         let cam_dir = pose.direction();
@@ -328,7 +324,7 @@ impl BenchApp {
         let push_constants = shared::ShaderConstants {
             width: current_size.width,
             height: current_size.height,
-            time: elapsed,
+            time: t,
             cursor_x: 0.0,
             cursor_y: 0.0,
             cam_pos: cam_pos.into(),

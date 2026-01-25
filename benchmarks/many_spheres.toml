@@ -1,5 +1,5 @@
 scene = "many_spheres_fs"
-duration = 15.0
+frame_count = 450
 
 # Sweeping camera over the field of spheres
 position = [

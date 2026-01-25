@@ -1,5 +1,5 @@
 scene = "cornell_box_fs"
-duration = 10.0
+frame_count = 300
 
 # Camera moves through the Cornell box, starting at the back and pushing in
 position = [
