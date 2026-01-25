@@ -51,13 +51,13 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 
 ### Phase 3: SVG generation
 
-- [ ] Add SVG generation module to `rtx-bench`
-- [ ] Calculate bounds for each benchmark (min/max frame time)
-- [ ] Scale frame times to pixel coordinates
-- [ ] Generate `<polyline>` for each SHA's data
-- [ ] Generate legend with SHA + color
-- [ ] Stack charts vertically in one SVG
-- [ ] Return SVG as `String`
+- [x] Add SVG generation module to `rtx-bench`
+- [x] Calculate bounds for each benchmark (min/max frame time)
+- [x] Scale frame times to pixel coordinates
+- [x] Generate `<polyline>` for each SHA's data
+- [x] Generate legend with SHA + color
+- [x] Stack charts vertically in one SVG
+- [x] Return SVG as `String`
 
 ### Phase 4: Wire it up
 
@@ -74,3 +74,4 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 - Statistical summary (avg/p95/p99 per SHA)
 - **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Consider reorganizing into a single `bench/` directory with subdirectories (`bench/definitions/`, `bench/results/`, `bench/charts/`).
 - **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
+- **Consider `svg` crate**: Currently using manual string building for SVG generation. The `svg` crate would make the code more readable and declarative, avoid escaping issues, and provide type-safe attribute setting. Worth revisiting if we iterate on chart styling.

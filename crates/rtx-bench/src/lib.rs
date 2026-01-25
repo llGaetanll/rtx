@@ -1,3 +1,5 @@
+mod chart;
+
 use std::collections::HashMap;
 use std::fs;
 use std::io::BufRead;
@@ -6,6 +8,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
+pub use chart::generate_svg;
 use serde::Deserialize;
 
 /// Metadata from the first line of a benchmark JSONL file.
