@@ -77,8 +77,8 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 - [ ] **Interactive SVG with JavaScript**: Embed JS in the SVG for browser-based interactivity:
   - [ ] Toggle commits on/off by clicking legend items (simpler - add IDs to polylines, toggle visibility)
   - [ ] Rectangular selection to zoom into a region (more complex - mouse tracking, selection box, viewBox transform, reset button)
-- [ ] **Color by recency**: Each benchmark gets a base color, with shades varying by commit age. Darker = newer, lighter = older. Draw older commits first so newer ones render on top. Requires:
-  - [ ] Preserve timestamps in data loading (currently discarded)
-  - [ ] Sort SHAs by timestamp before rendering
-  - [ ] Generate color shades from base hue (HSL with varying lightness)
-  - [ ] Cap lightness range so light shades are still visible against background
+- [x] **Color by recency**: Each benchmark gets a base color, with shades varying by commit age. Darker = newer, lighter = older. Draw older commits first so newer ones render on top. Requires:
+  - [x] Preserve timestamps in data loading (currently discarded)
+  - [x] Sort SHAs by timestamp before rendering
+  - [x] Generate color shades from base hue (HSL with varying lightness)
+  - [x] Cap lightness range so light shades are still visible against background

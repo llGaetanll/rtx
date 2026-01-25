@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use svg::Document;
 use svg::node::element::Group;
 use svg::node::element::Line;
@@ -7,16 +5,18 @@ use svg::node::element::Polyline;
 use svg::node::element::Rectangle;
 use svg::node::element::Text;
 
-/// Color palette for chart lines.
-const COLORS: &[&str] = &[
-    "#e41a1c", // red
-    "#377eb8", // blue
-    "#4daf4a", // green
-    "#984ea3", // purple
-    "#ff7f00", // orange
-    "#a65628", // brown
-    "#f781bf", // pink
-    "#999999", // gray
+use crate::BenchmarkData;
+
+/// Base hues for benchmarks (HSL hue values 0-360).
+const BASE_HUES: &[f64] = &[
+    210.0, // blue
+    120.0, // green
+    30.0,  // orange
+    280.0, // purple
+    0.0,   // red
+    180.0, // cyan
+    330.0, // pink
+    60.0,  // yellow
 ];
 
 /// Chart dimensions and layout.
@@ -29,6 +29,60 @@ const CHART_PADDING_BOTTOM: f64 = 40.0;
 const CHART_SPACING: f64 = 40.0;
 const LEGEND_LINE_HEIGHT: f64 = 20.0;
 const TARGET_TICKS: usize = 5;
+
+/// Lightness range for color shades (oldest to newest).
+const LIGHTNESS_MIN: f64 = 35.0; // darkest (newest)
+const LIGHTNESS_MAX: f64 = 70.0; // lightest (oldest)
+const SATURATION: f64 = 60.0;
+
+/// Convert HSL to RGB hex string.
+fn hsl_to_hex(h: f64, s: f64, l: f64) -> String {
+    let s = s / 100.0;
+    let l = l / 100.0;
+
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = l - c / 2.0;
+
+    let (r, g, b) = if h < 60.0 {
+        (c, x, 0.0)
+    } else if h < 120.0 {
+        (x, c, 0.0)
+    } else if h < 180.0 {
+        (0.0, c, x)
+    } else if h < 240.0 {
+        (0.0, x, c)
+    } else if h < 300.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+
+    let r = ((r + m) * 255.0).round() as u8;
+    let g = ((g + m) * 255.0).round() as u8;
+    let b = ((b + m) * 255.0).round() as u8;
+
+    format!("#{:02x}{:02x}{:02x}", r, g, b)
+}
+
+/// Generate colors for a series of runs, from lightest (oldest) to darkest (newest).
+fn generate_shade_colors(base_hue: f64, count: usize) -> Vec<String> {
+    if count == 0 {
+        return vec![];
+    }
+    if count == 1 {
+        return vec![hsl_to_hex(base_hue, SATURATION, LIGHTNESS_MIN)];
+    }
+
+    (0..count)
+        .map(|i| {
+            // i=0 is oldest (lightest), i=count-1 is newest (darkest)
+            let t = i as f64 / (count - 1) as f64;
+            let lightness = LIGHTNESS_MAX - t * (LIGHTNESS_MAX - LIGHTNESS_MIN);
+            hsl_to_hex(base_hue, SATURATION, lightness)
+        })
+        .collect()
+}
 
 /// Returns a list of "nice" tick mark positions for the given data range.
 fn compute_nice_ticks(min: f64, max: f64) -> Vec<f64> {
@@ -76,18 +130,19 @@ fn compute_nice_ticks(min: f64, max: f64) -> Vec<f64> {
 }
 
 /// Generate an SVG group for a single benchmark chart.
-fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offset: f64) -> Group {
+fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: f64) -> Group {
     let mut group = Group::new();
 
-    // Sort SHAs for consistent ordering
-    let mut shas: Vec<_> = data.keys().collect();
-    shas.sort();
+    let runs = &benchmark.runs;
+    if runs.is_empty() {
+        return group;
+    }
 
     // Find bounds
-    let max_frames = data.values().map(|v| v.len()).max().unwrap_or(0);
-    let max_time = data
-        .values()
-        .flat_map(|v| v.iter())
+    let max_frames = runs.iter().map(|r| r.frame_times.len()).max().unwrap_or(0);
+    let max_time = runs
+        .iter()
+        .flat_map(|r| r.frame_times.iter())
         .copied()
         .max()
         .unwrap_or(1);
@@ -114,7 +169,7 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
     let ticks = compute_nice_ticks(0.0, max_time_scaled);
 
     // Chart title with unit
-    let title = Text::new(format!("{} ({})", name, unit))
+    let title = Text::new(format!("{} ({})", benchmark.name, unit))
         .set("x", plot_x)
         .set("y", y_offset + 20.0)
         .set("font-family", "monospace")
@@ -166,16 +221,19 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
         .set("stroke-width", 1);
     group = group.add(y_axis);
 
-    // Draw data lines
-    for (i, sha) in shas.iter().enumerate() {
-        let color = COLORS[i % COLORS.len()];
-        let frame_times = &data[*sha];
+    // Generate colors (oldest=lightest to newest=darkest)
+    let colors = generate_shade_colors(base_hue, runs.len());
 
-        if frame_times.is_empty() {
+    // Draw data lines (oldest first so newest renders on top)
+    for (i, run) in runs.iter().enumerate() {
+        let color = &colors[i];
+
+        if run.frame_times.is_empty() {
             continue;
         }
 
-        let points: Vec<(f64, f64)> = frame_times
+        let points: Vec<(f64, f64)> = run
+            .frame_times
             .iter()
             .enumerate()
             .map(|(frame, &time_us)| {
@@ -194,17 +252,18 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
         let polyline = Polyline::new()
             .set("points", points_str)
             .set("fill", "none")
-            .set("stroke", color)
+            .set("stroke", color.as_str())
             .set("stroke-width", 1.5);
         group = group.add(polyline);
     }
 
-    // Draw legend
+    // Draw legend (newest first at top, matching visual prominence)
     let legend_x = plot_x + plot_width + 15.0;
     let legend_y = plot_y;
 
-    for (i, sha) in shas.iter().enumerate() {
-        let color = COLORS[i % COLORS.len()];
+    for (i, run) in runs.iter().rev().enumerate() {
+        let color_idx = runs.len() - 1 - i; // Map back to color index
+        let color = &colors[color_idx];
         let y = legend_y + (i as f64) * LEGEND_LINE_HEIGHT;
 
         // Color swatch
@@ -213,11 +272,11 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
             .set("y", y)
             .set("width", 12)
             .set("height", 12)
-            .set("fill", color);
+            .set("fill", color.as_str());
         group = group.add(swatch);
 
         // SHA label
-        let label = Text::new(*sha)
+        let label = Text::new(run.sha.as_str())
             .set("x", legend_x + 16.0)
             .set("y", y + 10.0)
             .set("font-family", "monospace")
@@ -230,14 +289,10 @@ fn generate_benchmark_chart(name: &str, data: &HashMap<String, Vec<u64>>, y_offs
 
 /// Generate a complete SVG with charts for all benchmarks.
 ///
-/// Takes the output of `load_all_benchmarks`: benchmark_name -> git_sha -> frame_times
-pub fn generate_svg(data: &HashMap<String, HashMap<String, Vec<u64>>>) -> String {
-    // Sort benchmark names for consistent ordering
-    let mut names: Vec<_> = data.keys().collect();
-    names.sort();
-
+/// Takes the output of `load_all_benchmarks`: a list of BenchmarkData.
+pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
     // Calculate total dimensions
-    let total_height = names.len() as f64 * (CHART_HEIGHT + CHART_SPACING);
+    let total_height = benchmarks.len() as f64 * (CHART_HEIGHT + CHART_SPACING);
     let total_width = CHART_WIDTH + 120.0; // Extra space for legend
 
     // Create document
@@ -252,10 +307,10 @@ pub fn generate_svg(data: &HashMap<String, HashMap<String, Vec<u64>>>) -> String
     document = document.add(background);
 
     // Generate each chart
-    for (i, name) in names.iter().enumerate() {
+    for (i, benchmark) in benchmarks.iter().enumerate() {
         let y_offset = i as f64 * (CHART_HEIGHT + CHART_SPACING);
-        let chart_data = &data[*name];
-        let chart_group = generate_benchmark_chart(name, chart_data, y_offset);
+        let base_hue = BASE_HUES[i % BASE_HUES.len()];
+        let chart_group = generate_benchmark_chart(benchmark, base_hue, y_offset);
         document = document.add(chart_group);
     }
 

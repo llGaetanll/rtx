@@ -121,7 +121,10 @@ fn run_chart() -> Result<(), Box<dyn Error>> {
     log::debug!(
         "Loaded {} benchmark(s): {}",
         data.len(),
-        data.keys().cloned().collect::<Vec<_>>().join(", ")
+        data.iter()
+            .map(|b| b.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
     );
 
     let svg = rtx_bench::generate_svg(&data);

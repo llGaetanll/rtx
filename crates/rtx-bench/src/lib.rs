@@ -35,6 +35,20 @@ pub struct BenchmarkRun {
     pub frame_times: Vec<u64>,
 }
 
+/// Data for a single SHA's benchmark run, including timestamp for ordering.
+#[derive(Clone)]
+pub struct ShaRun {
+    pub sha: String,
+    pub timestamp: String,
+    pub frame_times: Vec<u64>,
+}
+
+/// All runs for a single benchmark, grouped by SHA.
+pub struct BenchmarkData {
+    pub name: String,
+    pub runs: Vec<ShaRun>,
+}
+
 /// Load a benchmark run from a JSONL file.
 pub fn load_benchmark_run(path: &Path) -> Result<BenchmarkRun> {
     let file =
@@ -85,11 +99,9 @@ fn parse_benchmark_filename(filename: &str) -> Option<BenchmarkFilename> {
 
 /// Load all benchmark data from bench-results directory.
 ///
-/// Returns a nested HashMap: benchmark_name -> git_sha -> frame_times
+/// Returns a list of BenchmarkData, each containing runs sorted by timestamp (oldest first).
 /// Only includes the most recent run per SHA per benchmark.
-pub fn load_all_benchmarks(
-    bench_results_dir: &Path,
-) -> Result<HashMap<String, HashMap<String, Vec<u64>>>> {
+pub fn load_all_benchmarks(bench_results_dir: &Path) -> Result<Vec<BenchmarkData>> {
     // First pass: collect all runs, grouped by (benchmark_name, sha)
     // Track timestamp to keep only most recent
     let mut all_runs: HashMap<String, HashMap<String, (String, Vec<u64>)>> = HashMap::new();
@@ -143,17 +155,26 @@ pub fn load_all_benchmarks(
         }
     }
 
-    // Second pass: strip timestamps, just keep frame_times
-    let result = all_runs
+    // Second pass: convert to BenchmarkData with runs sorted by timestamp (oldest first)
+    let mut result: Vec<BenchmarkData> = all_runs
         .into_iter()
         .map(|(name, by_sha)| {
-            let by_sha_times = by_sha
+            let mut runs: Vec<ShaRun> = by_sha
                 .into_iter()
-                .map(|(sha, (_ts, times))| (sha, times))
+                .map(|(sha, (timestamp, frame_times))| ShaRun {
+                    sha,
+                    timestamp,
+                    frame_times,
+                })
                 .collect();
-            (name, by_sha_times)
+            // Sort by timestamp (oldest first, so newer commits render on top)
+            runs.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+            BenchmarkData { name, runs }
         })
         .collect();
+
+    // Sort benchmarks by name for consistent ordering
+    result.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(result)
 }
