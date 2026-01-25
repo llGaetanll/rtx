@@ -32,7 +32,6 @@ const CHART_PADDING_TOP: f64 = 60.0;
 const CHART_PADDING_BOTTOM: f64 = 40.0;
 const CHART_SPACING: f64 = 40.0;
 const LEGEND_LINE_HEIGHT: f64 = 20.0;
-const TARGET_TICKS: usize = 5;
 
 /// Lightness range for color shades (oldest to newest).
 const LIGHTNESS_MIN: f64 = 35.0; // darkest (newest)
@@ -88,51 +87,6 @@ fn generate_shade_colors(base_hue: f64, count: usize) -> Vec<String> {
         .collect()
 }
 
-/// Returns a list of "nice" tick mark positions for the given data range.
-fn compute_nice_ticks(min: f64, max: f64) -> Vec<f64> {
-    let range = max - min;
-    if range == 0.0 {
-        return vec![min];
-    }
-
-    // We want TARGET_TICKS intervals, which means TARGET_TICKS + 1 tick marks
-    let raw_step = range / TARGET_TICKS as f64;
-
-    // Find the magnitude (power of 10)
-    let magnitude = 10_f64.powf(raw_step.log10().floor());
-
-    // Normalize the step to be between 1 and 10
-    let normalized_step = raw_step / magnitude;
-
-    // Round to nearest "nice" number: 1, 2, 5, or 10
-    let nice_step = if normalized_step <= 1.0 {
-        1.0
-    } else if normalized_step <= 2.0 {
-        2.0
-    } else if normalized_step <= 5.0 {
-        5.0
-    } else {
-        10.0
-    };
-
-    let step = nice_step * magnitude;
-
-    // Find nice start and end points (stay within data bounds)
-    let nice_start = (min / step).floor() * step;
-    let nice_end = (max / step).floor() * step;
-
-    // Generate ticks
-    let mut ticks = Vec::new();
-    let mut current = nice_start;
-
-    while current <= nice_end + f64::EPSILON {
-        ticks.push(current);
-        current += step;
-    }
-
-    ticks
-}
-
 /// Generate an SVG group for a single benchmark chart.
 fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: f64) -> Group {
     let mut group = Group::new();
@@ -184,10 +138,12 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
     };
 
     let max_time_scaled = max_time as f64 / scale;
-    let ticks = compute_nice_ticks(0.0, max_time_scaled);
 
     // Chart title with unit
     let title = Text::new(format!("{} ({})", benchmark.name, unit))
+        .set("id", format!("title-{}", chart_id))
+        .set("data-base-name", benchmark.name.as_str())
+        .set("data-unit", unit)
         .set("x", plot_x)
         .set("y", y_offset + 20.0)
         .set("font-family", "monospace")
@@ -195,29 +151,14 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         .set("font-weight", "bold");
     group = group.add(title);
 
-    // Draw horizontal grid lines and y-axis labels
-    for &tick in &ticks {
-        let y = plot_y + plot_height - (tick / max_time_scaled) * plot_height;
-
-        // Grid line
-        let grid_line = Line::new()
-            .set("x1", plot_x)
-            .set("y1", y)
-            .set("x2", plot_x + plot_width)
-            .set("y2", y)
-            .set("stroke", "#ddd")
-            .set("stroke-width", 1);
-        group = group.add(grid_line);
-
-        // Tick label
-        let label = Text::new(format!("{}", tick as i64))
-            .set("x", plot_x - 8.0)
-            .set("y", y + 4.0)
-            .set("font-family", "monospace")
-            .set("font-size", 11)
-            .set("text-anchor", "end");
-        group = group.add(label);
-    }
+    // Empty group for ticks - will be populated by JavaScript
+    let ticks_group = Group::new()
+        .set("id", format!("ticks-{}", chart_id))
+        .set("data-plot-x", plot_x)
+        .set("data-plot-y", plot_y)
+        .set("data-plot-width", plot_width)
+        .set("data-plot-height", plot_height);
+    group = group.add(ticks_group);
 
     // X axis
     let x_axis = Line::new()
@@ -380,208 +321,10 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
 }
 
 /// CSS for interactive elements.
-const CHART_CSS: &str = r#"
-.legend-item { cursor: pointer; user-select: none; }
-.legend-item:hover { opacity: 0.8; }
-.reset-zoom { cursor: pointer; user-select: none; }
-.reset-zoom:hover { fill: #333 !important; }
-.plot-area { cursor: crosshair; }
-"#;
+const CHART_CSS: &str = include_str!("../static/chart.css");
 
-/// JavaScript for toggle and zoom functionality.
-const CHART_JS: &str = r#"
-// Toggle line visibility
-document.querySelectorAll('.legend-item').forEach(item => {
-    item.addEventListener('click', () => {
-        const lineId = item.getAttribute('data-line-id');
-        const swatchId = item.getAttribute('data-swatch-id');
-        const color = item.getAttribute('data-color');
-        const line = document.getElementById(lineId);
-        const swatch = document.getElementById(swatchId);
-
-        if (line.style.display === 'none') {
-            line.style.display = '';
-            swatch.setAttribute('fill', color);
-        } else {
-            line.style.display = 'none';
-            swatch.setAttribute('fill', 'none');
-        }
-    });
-});
-
-// Zoom functionality
-(function() {
-    let isDragging = false;
-    let startX, startY;
-    let currentChartId = null;
-    let selectionRect = null;
-
-    function getMousePos(svg, evt) {
-        const CTM = svg.getScreenCTM();
-        return {
-            x: (evt.clientX - CTM.e) / CTM.a,
-            y: (evt.clientY - CTM.f) / CTM.d
-        };
-    }
-
-    function updateLines(chartId, minT, maxT, minTime, maxTime) {
-        const linesGroup = document.getElementById('lines-' + chartId);
-        if (!linesGroup) return;
-
-        const plotX = parseFloat(linesGroup.getAttribute('data-plot-x'));
-        const plotY = parseFloat(linesGroup.getAttribute('data-plot-y'));
-        const plotWidth = parseFloat(linesGroup.getAttribute('data-plot-width'));
-        const plotHeight = parseFloat(linesGroup.getAttribute('data-plot-height'));
-
-        // Update stored zoom bounds
-        linesGroup.setAttribute('data-min-t', minT);
-        linesGroup.setAttribute('data-max-t', maxT);
-        linesGroup.setAttribute('data-min-time', minTime);
-        linesGroup.setAttribute('data-max-time', maxTime);
-
-        // Update each line
-        linesGroup.querySelectorAll('.data-line').forEach(line => {
-            const dataPoints = JSON.parse(line.getAttribute('data-points'));
-            const tRange = maxT - minT;
-            const timeRange = maxTime - minTime;
-
-            const points = dataPoints.map(p => {
-                const t = p[0];
-                const time = p[1];
-                const x = plotX + ((t - minT) / tRange) * plotWidth;
-                const y = plotY + plotHeight - ((time - minTime) / timeRange) * plotHeight;
-                return x.toFixed(1) + ',' + y.toFixed(1);
-            }).join(' ');
-
-            line.setAttribute('points', points);
-        });
-
-        // Show reset button
-        const resetBtn = document.getElementById('reset-' + chartId);
-        if (resetBtn) {
-            resetBtn.setAttribute('visibility', 'visible');
-        }
-    }
-
-    function resetZoom(chartId) {
-        const linesGroup = document.getElementById('lines-' + chartId);
-        if (!linesGroup) return;
-
-        // Get original bounds from the data
-        const lines = linesGroup.querySelectorAll('.data-line');
-        let maxTime = 0;
-        lines.forEach(line => {
-            const dataPoints = JSON.parse(line.getAttribute('data-points'));
-            dataPoints.forEach(p => {
-                if (p[1] > maxTime) maxTime = p[1];
-            });
-        });
-
-        updateLines(chartId, 0, 1, 0, maxTime);
-
-        // Hide reset button
-        const resetBtn = document.getElementById('reset-' + chartId);
-        if (resetBtn) {
-            resetBtn.setAttribute('visibility', 'hidden');
-        }
-    }
-
-    // Reset button click handlers
-    document.querySelectorAll('.reset-zoom').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const chartId = btn.getAttribute('data-chart-id');
-            resetZoom(chartId);
-        });
-    });
-
-    // Plot area mouse handlers
-    document.querySelectorAll('.plot-area').forEach(plotArea => {
-        const chartId = plotArea.getAttribute('data-chart-id');
-        const svg = plotArea.ownerSVGElement;
-
-        plotArea.addEventListener('mousedown', (evt) => {
-            isDragging = true;
-            currentChartId = chartId;
-            const pos = getMousePos(svg, evt);
-            startX = pos.x;
-            startY = pos.y;
-
-            selectionRect = document.getElementById('selection-' + chartId);
-            if (selectionRect) {
-                selectionRect.setAttribute('x', startX);
-                selectionRect.setAttribute('y', startY);
-                selectionRect.setAttribute('width', 0);
-                selectionRect.setAttribute('height', 0);
-                selectionRect.setAttribute('visibility', 'visible');
-            }
-
-            evt.preventDefault();
-        });
-    });
-
-    document.addEventListener('mousemove', (evt) => {
-        if (!isDragging || !selectionRect) return;
-
-        const svg = selectionRect.ownerSVGElement;
-        const pos = getMousePos(svg, evt);
-
-        const x = Math.min(startX, pos.x);
-        const y = Math.min(startY, pos.y);
-        const width = Math.abs(pos.x - startX);
-        const height = Math.abs(pos.y - startY);
-
-        selectionRect.setAttribute('x', x);
-        selectionRect.setAttribute('y', y);
-        selectionRect.setAttribute('width', width);
-        selectionRect.setAttribute('height', height);
-    });
-
-    document.addEventListener('mouseup', (evt) => {
-        if (!isDragging || !currentChartId) return;
-
-        isDragging = false;
-
-        if (selectionRect) {
-            selectionRect.setAttribute('visibility', 'hidden');
-
-            const x = parseFloat(selectionRect.getAttribute('x'));
-            const y = parseFloat(selectionRect.getAttribute('y'));
-            const width = parseFloat(selectionRect.getAttribute('width'));
-            const height = parseFloat(selectionRect.getAttribute('height'));
-
-            // Only zoom if selection is large enough
-            if (width > 5 && height > 5) {
-                const linesGroup = document.getElementById('lines-' + currentChartId);
-                if (linesGroup) {
-                    const plotX = parseFloat(linesGroup.getAttribute('data-plot-x'));
-                    const plotY = parseFloat(linesGroup.getAttribute('data-plot-y'));
-                    const plotWidth = parseFloat(linesGroup.getAttribute('data-plot-width'));
-                    const plotHeight = parseFloat(linesGroup.getAttribute('data-plot-height'));
-                    const currentMinT = parseFloat(linesGroup.getAttribute('data-min-t'));
-                    const currentMaxT = parseFloat(linesGroup.getAttribute('data-max-t'));
-                    const currentMinTime = parseFloat(linesGroup.getAttribute('data-min-time'));
-                    const currentMaxTime = parseFloat(linesGroup.getAttribute('data-max-time'));
-
-                    // Convert pixel coords to data coords
-                    const tRange = currentMaxT - currentMinT;
-                    const timeRange = currentMaxTime - currentMinTime;
-
-                    const newMinT = currentMinT + ((x - plotX) / plotWidth) * tRange;
-                    const newMaxT = currentMinT + ((x + width - plotX) / plotWidth) * tRange;
-                    // Y is inverted (top = high values)
-                    const newMaxTime = currentMaxTime - ((y - plotY) / plotHeight) * timeRange;
-                    const newMinTime = currentMaxTime - ((y + height - plotY) / plotHeight) * timeRange;
-
-                    updateLines(currentChartId, newMinT, newMaxT, newMinTime, newMaxTime);
-                }
-            }
-        }
-
-        currentChartId = null;
-        selectionRect = null;
-    });
-})();
-"#;
+/// JavaScript for toggle, zoom, and tick functionality.
+const CHART_JS: &str = include_str!("../static/chart.js");
 
 /// Generate a complete SVG with charts for all benchmarks.
 ///
