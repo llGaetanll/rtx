@@ -267,6 +267,43 @@ fn generate_benchmark_chart(
         .set("visibility", "hidden");
     group = group.add(selection_rect);
 
+    // Cursor line (vertical line that follows mouse, snaps to frames)
+    let cursor_line = Line::new()
+        .set("id", format!("cursor-line-{}", chart_id))
+        .set("class", "cursor-line")
+        .set("x1", 0)
+        .set("y1", plot_y)
+        .set("x2", 0)
+        .set("y2", plot_y + plot_height)
+        .set("stroke", "#ddd")
+        .set("stroke-width", 1)
+        .set("visibility", "hidden");
+    group = group.add(cursor_line);
+
+    // Cursor markers group (circles at line intersections)
+    let cursor_markers = Group::new()
+        .set("id", format!("cursor-markers-{}", chart_id))
+        .set("class", "cursor-markers");
+    group = group.add(cursor_markers);
+
+    // Cursor frame label (shows current frame number below x-axis)
+    let cursor_frame_label = Text::new("")
+        .set("id", format!("cursor-frame-{}", chart_id))
+        .set("class", "cursor-frame-label")
+        .set("x", 0)
+        .set("y", plot_y + plot_height + 15.0)
+        .set("font-family", "monospace")
+        .set("font-size", 11)
+        .set("text-anchor", "middle")
+        .set("visibility", "hidden");
+    group = group.add(cursor_frame_label);
+
+    // Cursor values group (list of values that follows cursor)
+    let cursor_values = Group::new()
+        .set("id", format!("cursor-values-{}", chart_id))
+        .set("class", "cursor-values");
+    group = group.add(cursor_values);
+
     // Draw legend (newest first at top, matching visual prominence)
     let legend_x = plot_x + plot_width + 15.0;
     let legend_y = plot_y;

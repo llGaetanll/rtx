@@ -135,6 +135,7 @@ document.querySelectorAll(".legend-item").forEach((item) => {
 
       // Tick label below x-axis
       const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("class", "x-tick-label");
       label.setAttribute("x", x);
       label.setAttribute("y", plotY + plotHeight + 15);
       label.setAttribute("font-family", "monospace");
@@ -373,4 +374,183 @@ document.querySelectorAll(".legend-item").forEach((item) => {
 
   // Initialize on load
   initializeAllCharts();
+
+  // Cursor line functionality
+  document.querySelectorAll(".plot-area").forEach((plotArea) => {
+    const chartId = plotArea.getAttribute("data-chart-id");
+    const svg = plotArea.ownerSVGElement;
+    const cursorLine = document.getElementById("cursor-line-" + chartId);
+    const cursorMarkers = document.getElementById("cursor-markers-" + chartId);
+    const cursorFrameLabel = document.getElementById("cursor-frame-" + chartId);
+    const cursorValues = document.getElementById("cursor-values-" + chartId);
+    const linesGroup = document.getElementById("lines-" + chartId);
+    const ticksGroup = document.getElementById("ticks-" + chartId);
+
+    if (
+      !cursorLine ||
+      !cursorMarkers ||
+      !cursorFrameLabel ||
+      !cursorValues ||
+      !linesGroup
+    )
+      return;
+
+    function hideXTickLabels() {
+      if (!ticksGroup) return;
+      ticksGroup.querySelectorAll(".x-tick-label").forEach((label) => {
+        label.setAttribute("visibility", "hidden");
+      });
+    }
+
+    function showXTickLabels() {
+      if (!ticksGroup) return;
+      ticksGroup.querySelectorAll(".x-tick-label").forEach((label) => {
+        label.setAttribute("visibility", "visible");
+      });
+    }
+
+    function hideCursor() {
+      cursorLine.setAttribute("visibility", "hidden");
+      cursorFrameLabel.setAttribute("visibility", "hidden");
+      while (cursorMarkers.firstChild) {
+        cursorMarkers.removeChild(cursorMarkers.firstChild);
+      }
+      while (cursorValues.firstChild) {
+        cursorValues.removeChild(cursorValues.firstChild);
+      }
+      showXTickLabels();
+    }
+
+    plotArea.addEventListener("mousemove", (evt) => {
+      // Don't show cursor while dragging (zoom selection)
+      if (isDragging) {
+        hideCursor();
+        return;
+      }
+
+      const pos = getMousePos(svg, evt);
+      const plotX = parseFloat(linesGroup.getAttribute("data-plot-x"));
+      const plotY = parseFloat(linesGroup.getAttribute("data-plot-y"));
+      const plotWidth = parseFloat(linesGroup.getAttribute("data-plot-width"));
+      const plotHeight = parseFloat(
+        linesGroup.getAttribute("data-plot-height"),
+      );
+      const minFrame = parseFloat(linesGroup.getAttribute("data-min-frame"));
+      const maxFrame = parseFloat(linesGroup.getAttribute("data-max-frame"));
+      const minTime = parseFloat(linesGroup.getAttribute("data-min-time"));
+      const maxTime = parseFloat(linesGroup.getAttribute("data-max-time"));
+
+      // Convert mouse x to frame number
+      const frameRange = maxFrame - minFrame;
+      const mouseFrame = minFrame + ((pos.x - plotX) / plotWidth) * frameRange;
+
+      // Snap to nearest integer frame
+      const snappedFrame = Math.round(mouseFrame);
+
+      // Check if snapped frame is in visible range
+      if (snappedFrame < minFrame || snappedFrame > maxFrame) {
+        hideCursor();
+        return;
+      }
+
+      // Calculate x position for snapped frame
+      const snappedX =
+        plotX + ((snappedFrame - minFrame) / frameRange) * plotWidth;
+
+      // Hide x-axis tick labels and show cursor frame label
+      hideXTickLabels();
+      cursorFrameLabel.setAttribute("x", snappedX);
+      cursorFrameLabel.textContent = snappedFrame.toString();
+      cursorFrameLabel.setAttribute("visibility", "visible");
+
+      // Update cursor line position
+      cursorLine.setAttribute("x1", snappedX);
+      cursorLine.setAttribute("x2", snappedX);
+      cursorLine.setAttribute("visibility", "visible");
+
+      // Clear existing markers and values
+      while (cursorMarkers.firstChild) {
+        cursorMarkers.removeChild(cursorMarkers.firstChild);
+      }
+      while (cursorValues.firstChild) {
+        cursorValues.removeChild(cursorValues.firstChild);
+      }
+
+      // Collect intersection points on each visible line
+      const timeRange = maxTime - minTime;
+      const intersections = [];
+
+      linesGroup.querySelectorAll(".data-line").forEach((line) => {
+        // Skip hidden lines
+        if (line.style.display === "none") return;
+
+        const dataPoints = JSON.parse(line.getAttribute("data-points"));
+        const color = line.getAttribute("stroke");
+
+        // Find the data point for this frame
+        const point = dataPoints.find((p) => p[0] === snappedFrame);
+        if (!point) return;
+
+        const time = point[1];
+        const y =
+          plotY + plotHeight - ((time - minTime) / timeRange) * plotHeight;
+
+        intersections.push({ y, time, color });
+
+        // Create marker circle
+        const marker = document.createElementNS(SVG_NS, "circle");
+        marker.setAttribute("cx", snappedX);
+        marker.setAttribute("cy", y);
+        marker.setAttribute("r", 3);
+        marker.setAttribute("fill", color);
+        marker.setAttribute("stroke", "#fff");
+        marker.setAttribute("stroke-width", 1);
+        cursorMarkers.appendChild(marker);
+      });
+
+      // Sort intersections by y position (top to bottom)
+      intersections.sort((a, b) => a.y - b.y);
+
+      // Render values as a list starting from the highest dot
+      const lineHeight = 14;
+      const startY = intersections.length > 0 ? intersections[0].y + 4 : plotY;
+      intersections.forEach((intersection, i) => {
+        // Format: use integers if possible, otherwise 1 decimal
+        const formatted =
+          intersection.time === Math.floor(intersection.time)
+            ? intersection.time.toString()
+            : intersection.time.toFixed(1);
+        const x = snappedX + 8;
+        const y = startY + i * lineHeight;
+
+        // Background stroke (renders first, behind the text)
+        const textBg = document.createElementNS(SVG_NS, "text");
+        textBg.setAttribute("x", x);
+        textBg.setAttribute("y", y);
+        textBg.setAttribute("font-family", "monospace");
+        textBg.setAttribute("font-size", "11");
+        textBg.setAttribute("font-weight", "bold");
+        textBg.setAttribute("fill", intersection.color);
+        textBg.setAttribute("stroke", "#fafafa");
+        textBg.setAttribute("stroke-width", 3);
+        textBg.textContent = formatted;
+        cursorValues.appendChild(textBg);
+
+        // Foreground text (renders on top)
+        const valueText = document.createElementNS(SVG_NS, "text");
+        valueText.setAttribute("x", x);
+        valueText.setAttribute("y", y);
+        valueText.setAttribute("font-family", "monospace");
+        valueText.setAttribute("font-size", "11");
+        valueText.setAttribute("font-weight", "bold");
+        valueText.setAttribute("fill", intersection.color);
+        valueText.textContent = formatted;
+        cursorValues.appendChild(valueText);
+      });
+    });
+
+    plotArea.addEventListener("mouseleave", () => {
+      hideCursor();
+    });
+  });
 })();
