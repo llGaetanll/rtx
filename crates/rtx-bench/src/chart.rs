@@ -94,6 +94,7 @@ fn generate_benchmark_chart(
     base_hue: f64,
     x_offset: f64,
     y_offset: f64,
+    global_max_time: u64,
 ) -> Group {
     let mut group = Group::new();
     let chart_id = &benchmark.name;
@@ -103,13 +104,8 @@ fn generate_benchmark_chart(
         return group;
     }
 
-    // Find bounds - max_time for y-axis scaling, max_frame for x-axis
-    let max_time = runs
-        .iter()
-        .flat_map(|r| r.frames.iter())
-        .map(|f| f.time_us)
-        .max()
-        .unwrap_or(1);
+    // Use global max_time for y-axis scaling (unified across all charts)
+    let max_time = global_max_time;
 
     let max_frame = runs
         .iter()
@@ -349,6 +345,15 @@ pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
     let total_width = benchmarks.len() as f64 * (chart_total_width + CHART_SPACING);
     let total_height = CHART_HEIGHT;
 
+    // Find global max time across all benchmarks for unified y-axis scale
+    let global_max_time = benchmarks
+        .iter()
+        .flat_map(|b| b.runs.iter())
+        .flat_map(|r| r.frames.iter())
+        .map(|f| f.time_us)
+        .max()
+        .unwrap_or(1);
+
     // Create document
     let mut document =
         Document::new().set("viewBox", (0, 0, total_width as i32, total_height as i32));
@@ -369,7 +374,8 @@ pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
         let x_offset = i as f64 * (chart_total_width + CHART_SPACING);
         let y_offset = 0.0;
         let base_hue = BASE_HUES[i % BASE_HUES.len()];
-        let chart_group = generate_benchmark_chart(benchmark, base_hue, x_offset, y_offset);
+        let chart_group =
+            generate_benchmark_chart(benchmark, base_hue, x_offset, y_offset, global_max_time);
         document = document.add(chart_group);
     }
 
