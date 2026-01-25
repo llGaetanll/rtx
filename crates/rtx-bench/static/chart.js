@@ -61,7 +61,10 @@ document.querySelectorAll(".legend-item").forEach((item) => {
 
     const ticks = [];
     for (let t = niceStart; t <= niceEnd + 1e-10; t += step) {
-      ticks.push(t);
+      // Only include ticks within the visible range
+      if (t >= min - 1e-10) {
+        ticks.push(t);
+      }
     }
     return ticks;
   }
