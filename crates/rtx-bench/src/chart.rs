@@ -24,8 +24,8 @@ const BASE_HUES: &[f64] = &[
 ];
 
 /// Chart dimensions and layout.
-const CHART_WIDTH: f64 = 800.0;
-const CHART_HEIGHT: f64 = 300.0;
+const CHART_WIDTH: f64 = 500.0;
+const CHART_HEIGHT: f64 = 250.0;
 const CHART_PADDING_LEFT: f64 = 80.0; // Extra space for y-axis labels
 const CHART_PADDING_RIGHT: f64 = 60.0;
 const CHART_PADDING_TOP: f64 = 60.0;
