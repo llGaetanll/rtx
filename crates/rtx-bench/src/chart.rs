@@ -97,11 +97,18 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         return group;
     }
 
-    // Find bounds - max_time for y-axis scaling
+    // Find bounds - max_time for y-axis scaling, max_frame for x-axis
     let max_time = runs
         .iter()
         .flat_map(|r| r.frames.iter())
         .map(|f| f.time_us)
+        .max()
+        .unwrap_or(1);
+
+    let max_frame = runs
+        .iter()
+        .flat_map(|r| r.frames.iter())
+        .map(|f| f.frame)
         .max()
         .unwrap_or(1);
 
@@ -192,8 +199,8 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         .set("data-plot-y", plot_y)
         .set("data-plot-width", plot_width)
         .set("data-plot-height", plot_height)
-        .set("data-min-t", 0.0)
-        .set("data-max-t", 1.0)
+        .set("data-min-frame", 0)
+        .set("data-max-frame", max_frame)
         .set("data-min-time", 0.0)
         .set("data-max-time", max_time_scaled);
 
@@ -207,19 +214,20 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         }
 
         // Store original data as JSON for zoom recalculation
-        let data_points: Vec<(f64, f64)> = run
+        // Format: [frame_number, time_scaled]
+        let data_points: Vec<(u32, f64)> = run
             .frames
             .iter()
-            .map(|frame| (frame.t as f64, frame.time_us as f64 / scale))
+            .map(|frame| (frame.frame, frame.time_us as f64 / scale))
             .collect();
         let data_json = serde_json::to_string(&data_points).unwrap_or_default();
 
-        // Use t (0-1 progress) for x-axis, time_us for y-axis
+        // Use frame number for x-axis, time_us for y-axis
         let points: Vec<(f64, f64)> = run
             .frames
             .iter()
             .map(|frame| {
-                let x = plot_x + (frame.t as f64) * plot_width;
+                let x = plot_x + (frame.frame as f64 / max_frame as f64) * plot_width;
                 let y =
                     plot_y + plot_height - (frame.time_us as f64 / max_time as f64) * plot_height;
                 (x, y)

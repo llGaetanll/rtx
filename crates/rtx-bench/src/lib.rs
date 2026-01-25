@@ -29,10 +29,10 @@ pub struct FrameRecord {
     pub time_us: u64,
 }
 
-/// A single frame's data: progress through benchmark (0-1) and render time.
+/// A single frame's data: frame number and render time.
 #[derive(Clone)]
 pub struct FrameData {
-    pub t: f32,
+    pub frame: u32,
     pub time_us: u64,
 }
 
@@ -74,7 +74,7 @@ pub fn load_benchmark_run(path: &Path) -> Result<BenchmarkRun> {
         let line = line?;
         let record: FrameRecord = serde_json::from_str(&line)?;
         frames.push(FrameData {
-            t: record.t,
+            frame: record.frame,
             time_us: record.time_us,
         });
     }

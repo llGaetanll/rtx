@@ -70,7 +70,7 @@ document.querySelectorAll(".legend-item").forEach((item) => {
   }
 
   // Update tick marks and labels for a chart
-  function updateTicks(chartId, minTime, maxTime) {
+  function updateTicks(chartId, minFrame, maxFrame, minTime, maxTime) {
     const ticksGroup = document.getElementById("ticks-" + chartId);
     if (!ticksGroup) return;
 
@@ -84,10 +84,11 @@ document.querySelectorAll(".legend-item").forEach((item) => {
       ticksGroup.removeChild(ticksGroup.firstChild);
     }
 
-    const ticks = computeNiceTicks(minTime, maxTime);
+    // Y-axis ticks (time)
+    const timeTicks = computeNiceTicks(minTime, maxTime);
     const timeRange = maxTime - minTime;
 
-    ticks.forEach((tick) => {
+    timeTicks.forEach((tick) => {
       const y =
         plotY + plotHeight - ((tick - minTime) / timeRange) * plotHeight;
 
@@ -114,9 +115,45 @@ document.querySelectorAll(".legend-item").forEach((item) => {
       label.textContent = labelText;
       ticksGroup.appendChild(label);
     });
+
+    // X-axis ticks (frame numbers)
+    const frameTicks = computeNiceTicks(minFrame, maxFrame);
+    const frameRange = maxFrame - minFrame;
+
+    frameTicks.forEach((tick) => {
+      const x = plotX + ((tick - minFrame) / frameRange) * plotWidth;
+
+      // Vertical grid line
+      const gridLine = document.createElementNS(SVG_NS, "line");
+      gridLine.setAttribute("x1", x);
+      gridLine.setAttribute("y1", plotY);
+      gridLine.setAttribute("x2", x);
+      gridLine.setAttribute("y2", plotY + plotHeight);
+      gridLine.setAttribute("stroke", "#ddd");
+      gridLine.setAttribute("stroke-width", "1");
+      ticksGroup.appendChild(gridLine);
+
+      // Tick label below x-axis
+      const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("x", x);
+      label.setAttribute("y", plotY + plotHeight + 15);
+      label.setAttribute("font-family", "monospace");
+      label.setAttribute("font-size", "11");
+      label.setAttribute("text-anchor", "middle");
+      // Frame numbers are always integers
+      label.textContent = Math.round(tick).toString();
+      ticksGroup.appendChild(label);
+    });
   }
 
-  function updateChart(chartId, minT, maxT, minTime, maxTime, isZoomed) {
+  function updateChart(
+    chartId,
+    minFrame,
+    maxFrame,
+    minTime,
+    maxTime,
+    isZoomed,
+  ) {
     const linesGroup = document.getElementById("lines-" + chartId);
     if (!linesGroup) return;
 
@@ -126,22 +163,22 @@ document.querySelectorAll(".legend-item").forEach((item) => {
     const plotHeight = parseFloat(linesGroup.getAttribute("data-plot-height"));
 
     // Update stored zoom bounds
-    linesGroup.setAttribute("data-min-t", minT);
-    linesGroup.setAttribute("data-max-t", maxT);
+    linesGroup.setAttribute("data-min-frame", minFrame);
+    linesGroup.setAttribute("data-max-frame", maxFrame);
     linesGroup.setAttribute("data-min-time", minTime);
     linesGroup.setAttribute("data-max-time", maxTime);
 
     // Update each line
     linesGroup.querySelectorAll(".data-line").forEach((line) => {
       const dataPoints = JSON.parse(line.getAttribute("data-points"));
-      const tRange = maxT - minT;
+      const frameRange = maxFrame - minFrame;
       const timeRange = maxTime - minTime;
 
       const points = dataPoints
         .map((p) => {
-          const t = p[0];
+          const frame = p[0];
           const time = p[1];
-          const x = plotX + ((t - minT) / tRange) * plotWidth;
+          const x = plotX + ((frame - minFrame) / frameRange) * plotWidth;
           const y =
             plotY + plotHeight - ((time - minTime) / timeRange) * plotHeight;
           return x.toFixed(1) + "," + y.toFixed(1);
@@ -152,7 +189,7 @@ document.querySelectorAll(".legend-item").forEach((item) => {
     });
 
     // Update ticks
-    updateTicks(chartId, minTime, maxTime);
+    updateTicks(chartId, minFrame, maxFrame, minTime, maxTime);
 
     // Show/hide reset button
     const resetBtn = document.getElementById("reset-" + chartId);
@@ -167,23 +204,26 @@ document.querySelectorAll(".legend-item").forEach((item) => {
 
     // Get original bounds from the data
     const lines = linesGroup.querySelectorAll(".data-line");
+    let maxFrame = 0;
     let maxTime = 0;
     lines.forEach((line) => {
       const dataPoints = JSON.parse(line.getAttribute("data-points"));
       dataPoints.forEach((p) => {
+        if (p[0] > maxFrame) maxFrame = p[0];
         if (p[1] > maxTime) maxTime = p[1];
       });
     });
 
-    updateChart(chartId, 0, 1, 0, maxTime, false);
+    updateChart(chartId, 0, maxFrame, 0, maxTime, false);
   }
 
   // Initialize ticks on page load
   function initializeAllCharts() {
     document.querySelectorAll('[id^="lines-"]').forEach((linesGroup) => {
       const chartId = linesGroup.id.replace("lines-", "");
+      const maxFrame = parseFloat(linesGroup.getAttribute("data-max-frame"));
       const maxTime = parseFloat(linesGroup.getAttribute("data-max-time"));
-      updateTicks(chartId, 0, maxTime);
+      updateTicks(chartId, 0, maxFrame, 0, maxTime);
     });
   }
 
@@ -287,8 +327,12 @@ document.querySelectorAll(".legend-item").forEach((item) => {
           const plotHeight = parseFloat(
             linesGroup.getAttribute("data-plot-height"),
           );
-          const currentMinT = parseFloat(linesGroup.getAttribute("data-min-t"));
-          const currentMaxT = parseFloat(linesGroup.getAttribute("data-max-t"));
+          const currentMinFrame = parseFloat(
+            linesGroup.getAttribute("data-min-frame"),
+          );
+          const currentMaxFrame = parseFloat(
+            linesGroup.getAttribute("data-max-frame"),
+          );
           const currentMinTime = parseFloat(
             linesGroup.getAttribute("data-min-time"),
           );
@@ -297,12 +341,13 @@ document.querySelectorAll(".legend-item").forEach((item) => {
           );
 
           // Convert pixel coords to data coords
-          const tRange = currentMaxT - currentMinT;
+          const frameRange = currentMaxFrame - currentMinFrame;
           const timeRange = currentMaxTime - currentMinTime;
 
-          const newMinT = currentMinT + ((x - plotX) / plotWidth) * tRange;
-          const newMaxT =
-            currentMinT + ((x + width - plotX) / plotWidth) * tRange;
+          const newMinFrame =
+            currentMinFrame + ((x - plotX) / plotWidth) * frameRange;
+          const newMaxFrame =
+            currentMinFrame + ((x + width - plotX) / plotWidth) * frameRange;
           // Y is inverted (top = high values)
           const newMaxTime =
             currentMaxTime - ((y - plotY) / plotHeight) * timeRange;
@@ -311,8 +356,8 @@ document.querySelectorAll(".legend-item").forEach((item) => {
 
           updateChart(
             currentChartId,
-            newMinT,
-            newMaxT,
+            newMinFrame,
+            newMaxFrame,
             newMinTime,
             newMaxTime,
             true,
