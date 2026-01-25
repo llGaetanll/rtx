@@ -3,6 +3,8 @@ use svg::node::element::Group;
 use svg::node::element::Line;
 use svg::node::element::Polyline;
 use svg::node::element::Rectangle;
+use svg::node::element::Script;
+use svg::node::element::Style;
 use svg::node::element::Text;
 
 use crate::BenchmarkData;
@@ -227,6 +229,7 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
     // Draw data lines (oldest first so newest renders on top)
     for (i, run) in runs.iter().enumerate() {
         let color = &colors[i];
+        let line_id = format!("line-{}-{}", benchmark.name, run.sha);
 
         if run.frame_times.is_empty() {
             continue;
@@ -250,6 +253,7 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
             .join(" ");
 
         let polyline = Polyline::new()
+            .set("id", line_id)
             .set("points", points_str)
             .set("fill", "none")
             .set("stroke", color.as_str())
@@ -265,18 +269,27 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
         let color_idx = runs.len() - 1 - i; // Map back to color index
         let color = &colors[color_idx];
         let y = legend_y + (i as f64) * LEGEND_LINE_HEIGHT;
+        let line_id = format!("line-{}-{}", benchmark.name, run.sha);
+        let swatch_id = format!("swatch-{}-{}", benchmark.name, run.sha);
 
-        // Color swatch
+        // Color swatch (not clickable)
         let swatch = Rectangle::new()
+            .set("id", swatch_id.clone())
             .set("x", legend_x)
             .set("y", y)
             .set("width", 12)
             .set("height", 12)
-            .set("fill", color.as_str());
+            .set("fill", color.as_str())
+            .set("stroke", color.as_str())
+            .set("stroke-width", 2);
         group = group.add(swatch);
 
-        // SHA label
+        // SHA label (clickable)
         let label = Text::new(run.sha.as_str())
+            .set("class", "legend-item")
+            .set("data-line-id", line_id)
+            .set("data-swatch-id", swatch_id)
+            .set("data-color", color.as_str())
             .set("x", legend_x + 16.0)
             .set("y", y + 10.0)
             .set("font-family", "monospace")
@@ -286,6 +299,33 @@ fn generate_benchmark_chart(benchmark: &BenchmarkData, base_hue: f64, y_offset: 
 
     group
 }
+
+/// CSS for interactive elements.
+const CHART_CSS: &str = r#"
+.legend-item { cursor: pointer; user-select: none; }
+.legend-item:hover { opacity: 0.8; }
+"#;
+
+/// JavaScript for toggle functionality.
+const CHART_JS: &str = r#"
+document.querySelectorAll('.legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const lineId = item.getAttribute('data-line-id');
+        const swatchId = item.getAttribute('data-swatch-id');
+        const color = item.getAttribute('data-color');
+        const line = document.getElementById(lineId);
+        const swatch = document.getElementById(swatchId);
+
+        if (line.style.display === 'none') {
+            line.style.display = '';
+            swatch.setAttribute('fill', color);
+        } else {
+            line.style.display = 'none';
+            swatch.setAttribute('fill', 'none');
+        }
+    });
+});
+"#;
 
 /// Generate a complete SVG with charts for all benchmarks.
 ///
@@ -298,6 +338,10 @@ pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
     // Create document
     let mut document =
         Document::new().set("viewBox", (0, 0, total_width as i32, total_height as i32));
+
+    // Add CSS
+    let style = Style::new(CHART_CSS);
+    document = document.add(style);
 
     // Background
     let background = Rectangle::new()
@@ -313,6 +357,10 @@ pub fn generate_svg(benchmarks: &[BenchmarkData]) -> String {
         let chart_group = generate_benchmark_chart(benchmark, base_hue, y_offset);
         document = document.add(chart_group);
     }
+
+    // Add JavaScript at the end
+    let script = Script::new(CHART_JS);
+    document = document.add(script);
 
     document.to_string()
 }
