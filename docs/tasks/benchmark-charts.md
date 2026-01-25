@@ -74,4 +74,3 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 - Statistical summary (avg/p95/p99 per SHA)
 - **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Consider reorganizing into a single `bench/` directory with subdirectories (`bench/definitions/`, `bench/results/`, `bench/charts/`).
 - **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
-- **Consider `svg` crate**: Currently using manual string building for SVG generation. The `svg` crate would make the code more readable and declarative, avoid escaping issues, and provide type-safe attribute setting. Worth revisiting if we iterate on chart styling.
