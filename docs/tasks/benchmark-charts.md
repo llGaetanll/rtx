@@ -69,14 +69,12 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 ## Future Work
 
 - [x] Axis labels and tick marks
-- [ ] Interactive HTML version with tooltips
-- [ ] Comparison mode (pick specific SHAs to compare)
-- [ ] Statistical summary (avg/p95/p99 per SHA)
-- [ ] **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Consider reorganizing into a single `bench/` directory with subdirectories (`bench/definitions/`, `bench/results/`, `bench/charts/`).
+- [ ] **Consolidate benchmark directories**: Currently we have `benchmarks/`, `bench-results/`, and `bench-charts/` at the repo root. Reorganize into a single `bench/` directory with subdirectories (`bench/configs/`, `bench/results/`, `bench/charts/`).
 - [ ] **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
-- [ ] **Interactive SVG with JavaScript**: Embed JS in the SVG for browser-based interactivity:
+- [x] **Interactive SVG with JavaScript**: Embed JS in the SVG for browser-based interactivity:
   - [x] Toggle commits on/off by clicking legend items (simpler - add IDs to polylines, toggle visibility)
-  - [ ] Rectangular selection to zoom into a region (more complex - mouse tracking, selection box, viewBox transform, reset button)
+  - [x] Rectangular selection to zoom into a region (mouse tracking, selection box, viewBox transform, reset button)
+  - [x] Cursor line snapping to frames with intersection markers and value display
 - [x] **Color by recency**: Each benchmark gets a base color, with shades varying by commit age. Darker = newer, lighter = older. Draw older commits first so newer ones render on top. Requires:
   - [x] Preserve timestamps in data loading (currently discarded)
   - [x] Sort SHAs by timestamp before rendering
