@@ -13,12 +13,6 @@
    - Reference: `ray-tracing-in-one-weekend/src/main.rs:cornell_box`
 5. [ ] Image textures
 6. [ ] Noise textures (Perlin noise)
-7. [ ] Bounding Volume Hierarchy (BVH)
-   - [ ] Implement AABB (Axis-Aligned Bounding Box) with ray intersection test
-   - [ ] Add `bbox()` method to hittable primitives (Sphere, Quad)
-   - [ ] Implement linearized BVH structure (flat array, no recursion/pointers for GPU)
-   - [ ] Build BVH on CPU, upload as buffer to GPU
-   - [ ] Iterative BVH traversal in shader (stack-based or stackless)
 
 ## Testing Infrastructure
 
@@ -41,6 +35,45 @@
    - [x] Shoot specific rays at specific materials, verify resulting scattered ray
    - [x] Test cases: Lambertian diffuse, Metal reflection, Dielectric refraction (entering/exiting)
    - [x] Helps catch regressions like the normal-flip bug from instance transforms
+
+## Optimizations
+
+1. [ ] Bounding Volume Hierarchy (BVH)
+   - [ ] Implement AABB (Axis-Aligned Bounding Box) with ray intersection test
+   - [ ] Add `bbox()` method to hittable primitives (Sphere, Quad)
+   - [ ] Implement linearized BVH structure (flat array, no recursion/pointers for GPU)
+   - [ ] Build BVH on CPU, upload as buffer to GPU
+   - [ ] Iterative BVH traversal in shader (stack-based or stackless)
+
+2. [ ] Sample accumulation in live mode
+   
+   When the camera is stationary, accumulate samples over multiple frames to progressively refine the image. This gives high-quality results without requiring many samples per frame. When the camera moves, reset the accumulator and start fresh.
+   
+   - [ ] Track camera position/direction, detect when it changes
+   - [ ] Accumulation buffer (separate from display buffer)
+   - [ ] Blend new samples with accumulated samples (running average)
+   - [ ] Reset accumulator on camera movement or scene change
+   - [ ] Display sample count somewhere (optional, for debugging)
+
+3. [ ] GPU coherence for ray tracing
+   
+   Currently, each GPU thread traces a single ray through its entire lifecycle: generate ray, intersect scene, scatter, repeat until max bounces. This is the simplest approach but can be inefficient on GPUs because threads in the same warp/wavefront diverge quickly—some rays hit nothing, others hit different materials, some bounce many times while others terminate early. This divergence means threads sit idle waiting for their neighbors.
+   
+   **Wavefront path tracing** is an alternative architecture that improves GPU utilization:
+   - Instead of one thread per ray, organize work into queues/buffers by operation type
+   - All rays needing intersection go into one queue, processed together
+   - All rays needing material evaluation go into another queue, grouped by material type
+   - This keeps threads in a warp doing the same work, reducing divergence
+   
+   **Trade-offs:**
+   - More complex implementation (multiple kernel launches, queue management)
+   - Memory overhead for intermediate buffers
+   - May not help for simple scenes where divergence is low
+   - Biggest wins come with complex scenes, many materials, and variable-depth paths
+   
+   **References:**
+   - "Megakernels Considered Harmful" (Laine et al., 2013) - foundational wavefront paper
+   - NVIDIA OptiX uses this approach internally
 
 ## Technical Debt
 
