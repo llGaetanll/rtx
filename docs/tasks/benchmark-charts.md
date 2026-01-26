@@ -70,7 +70,7 @@ Create a new crate `rtx-bench` (`crates/rtx-bench/`) for all charting logic. The
 
 - [x] Axis labels and tick marks
 - [x] **Consolidate benchmark directories**: Reorganized `benchmarks/`, `bench-results/`, and `bench-charts/` into a single `bench/` directory with subdirectories (`bench/configs/`, `bench/results/`, `bench/charts/`).
-- [ ] **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` are defined in `host/bench_app.rs` (Serialize, with lifetimes) and `rtx-bench` (Deserialize, owned). Consolidate into one set of owned types with `Serialize + Deserialize` in `rtx-bench`, and have `host` import them.
+- [x] **Unify benchmark types**: `BenchmarkMetadata`, `FrameRecord`, `GpuInfo`, `CameraPath`, and `CatmullRomSpline` are now defined in `rtx-bench` with owned types and `Serialize + Deserialize`. The `host` crate imports these types.
 - [x] **Interactive SVG with JavaScript**: Embed JS in the SVG for browser-based interactivity:
   - [x] Toggle commits on/off by clicking legend items (simpler - add IDs to polylines, toggle visibility)
   - [x] Rectangular selection to zoom into a region (mouse tracking, selection box, viewBox transform, reset button)

@@ -1,4 +1,7 @@
+mod camera_path;
 mod chart;
+mod spline;
+mod types;
 
 use std::collections::HashMap;
 use std::fs;
@@ -8,26 +11,13 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
+pub use camera_path::CameraFrame;
+pub use camera_path::CameraPath;
 pub use chart::generate_svg;
-use serde::Deserialize;
-
-/// Metadata from the first line of a benchmark JSONL file.
-#[derive(Deserialize)]
-pub struct BenchmarkMetadata {
-    pub version: u32,
-    pub timestamp: String,
-    pub git_sha: String,
-    pub scene: String,
-    pub resolution: [u32; 2],
-}
-
-/// Per-frame timing data from benchmark JSONL files.
-#[derive(Deserialize)]
-pub struct FrameRecord {
-    pub frame: u32,
-    pub t: f32,
-    pub time_us: u64,
-}
+pub use spline::CatmullRomSpline;
+pub use types::BenchmarkMetadata;
+pub use types::FrameRecord;
+pub use types::GpuInfo;
 
 /// A single frame's data: frame number and render time.
 #[derive(Clone)]

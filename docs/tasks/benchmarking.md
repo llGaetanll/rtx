@@ -4,8 +4,9 @@ Track rendering performance across commits to detect regressions.
 
 ## Relevant Files
 
-- `crates/host/src/spline.rs` - `CatmullRomSpline` implementation
-- `crates/host/src/camera_path.rs` - `CameraPath` and `CameraFrame` types (frame = position + look-at target)
+- `crates/rtx-bench/src/spline.rs` - `CatmullRomSpline` implementation
+- `crates/rtx-bench/src/camera_path.rs` - `CameraPath` and `CameraFrame` types (frame = position + look-at target)
+- `crates/rtx-bench/src/types.rs` - `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` types
 - `crates/host/src/bench_app.rs` - Benchmark application with render loop
 - `crates/host/src/cli.rs` - CLI definitions including `bench` subcommand
 - `bench/configs/*.toml` - Benchmark definition files

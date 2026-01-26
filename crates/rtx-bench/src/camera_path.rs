@@ -1,4 +1,5 @@
 use glam::Vec3;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::spline::CatmullRomSpline;
@@ -7,7 +8,7 @@ use crate::spline::CatmullRomSpline;
 ///
 /// Interpolates camera position and look-at target along Catmull-Rom splines,
 /// allowing smooth camera motion through a scene.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CameraPath {
     position: CatmullRomSpline,
     look_at: CatmullRomSpline,

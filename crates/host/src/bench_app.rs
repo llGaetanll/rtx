@@ -9,8 +9,11 @@ use chrono::DateTime;
 use chrono::Utc;
 use futures::executor::block_on;
 use glam::Vec3;
+use rtx_bench::BenchmarkMetadata;
+use rtx_bench::CameraPath;
+use rtx_bench::FrameRecord;
+use rtx_bench::GpuInfo;
 use serde::Deserialize;
-use serde::Serialize;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -23,7 +26,6 @@ use winit::keyboard::NamedKey;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
-use crate::camera_path::CameraPath;
 use crate::gpu::GpuContext;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
@@ -80,47 +82,10 @@ impl BenchmarkFile {
     }
 }
 
-/// GPU information captured from the wgpu adapter.
-#[derive(Serialize)]
-pub struct GpuInfo {
-    pub name: String,
-    pub driver: String,
-    pub backend: String,
-}
-
-/// Per-frame timing and camera data.
-#[derive(Serialize)]
-pub struct FrameRecord {
-    pub frame: u32,
-    pub t: f32,
-    pub time_us: u64,
-    pub cam_pos: [f32; 3],
-    pub cam_dir: [f32; 3],
-    pub cam_vup: [f32; 3],
-}
-
-/// Benchmark metadata written as the first line of the JSONL output.
-#[derive(Serialize)]
-pub struct BenchmarkMetadata<'a> {
-    pub version: u32,
-    pub timestamp: String,
-    pub git_sha: &'a str,
-    pub scene: &'a str,
-    pub resolution: [u32; 2],
-    pub gpu: &'a GpuInfo,
-    pub camera_path: &'a CameraPath,
-}
-
-impl GpuInfo {
-    /// Extract GPU info from a wgpu adapter.
-    pub fn from_adapter(adapter: &wgpu::Adapter) -> Self {
-        let info = adapter.get_info();
-        Self {
-            name: info.name,
-            driver: info.driver,
-            backend: format!("{:?}", info.backend),
-        }
-    }
+/// Extract GPU info from a wgpu adapter.
+fn gpu_info_from_adapter(adapter: &wgpu::Adapter) -> GpuInfo {
+    let info = adapter.get_info();
+    GpuInfo::new(info.name, info.driver, format!("{:?}", info.backend))
 }
 
 /// Git SHA baked in at build time via build.rs.
@@ -241,7 +206,7 @@ impl BenchApp {
         let surface = window_surface.borrow_surface();
 
         let gpu = GpuContext::new(instance, Some(surface)).await?;
-        let gpu_info = GpuInfo::from_adapter(&gpu.adapter);
+        let gpu_info = gpu_info_from_adapter(&gpu.adapter);
 
         let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
@@ -392,11 +357,11 @@ impl BenchApp {
         let metadata = BenchmarkMetadata {
             version: 1,
             timestamp: self.timestamp.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-            git_sha: GIT_SHA,
-            scene: &self.scene,
+            git_sha: GIT_SHA.to_string(),
+            scene: self.scene.clone(),
             resolution: [config.width, config.height],
-            gpu: gpu_info,
-            camera_path: &self.camera_path,
+            gpu: gpu_info.clone(),
+            camera_path: self.camera_path.clone(),
         };
         serde_json::to_writer(&mut writer, &metadata)?;
         writeln!(writer)?;

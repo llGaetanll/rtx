@@ -7,11 +7,9 @@ use clap::Parser;
 use futures::executor::block_on;
 
 mod bench_app;
-mod camera_path;
 mod cli;
 mod gpu;
 mod live_app;
-mod spline;
 mod window_surface;
 
 use cli::Cli;

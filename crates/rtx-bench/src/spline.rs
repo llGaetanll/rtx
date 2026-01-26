@@ -1,4 +1,5 @@
 use glam::Vec3;
+use serde::Deserialize;
 use serde::Serialize;
 
 /// A Catmull-Rom spline that interpolates through a series of control points.
@@ -6,7 +7,7 @@ use serde::Serialize;
 /// Catmull-Rom splines pass through all control points (except the first and last,
 /// which only influence the curve's tangents at the endpoints). The curve is C1
 /// continuous (smooth first derivative) at all interior points.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CatmullRomSpline {
     points: Vec<Vec3>,
 }
