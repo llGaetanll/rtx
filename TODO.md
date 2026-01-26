@@ -13,6 +13,8 @@
    - Reference: `ray-tracing-in-one-weekend/src/main.rs:cornell_box`
 5. [ ] Image textures
 6. [ ] Noise textures (Perlin noise)
+7. [ ] Volumes / participating media (smoke, fog)
+8. [ ] Importance sampling / PDF sampling for lights
 
 ## Testing Infrastructure
 
@@ -35,6 +37,24 @@
    - [x] Shoot specific rays at specific materials, verify resulting scattered ray
    - [x] Test cases: Lambertian diffuse, Metal reflection, Dielectric refraction (entering/exiting)
    - [x] Helps catch regressions like the normal-flip bug from instance transforms
+7. [ ] `render` command for high-quality image output
+   
+   A dedicated command for rendering publication-quality images with configurable quality settings. Unlike `live` (interactive, low samples) or `test` (grid comparison), this produces a single high-quality image.
+   
+   - [ ] `render --scene <name> --samples <n> --bounces <n> --output <path>`
+   - [ ] High sample counts (hundreds or thousands per pixel)
+   - [ ] Configurable max bounce depth
+   - [ ] Progress reporting (percentage complete, ETA)
+
+8. [ ] TOML-based scene definitions
+   
+   Move scene definitions from hardcoded shader code to TOML files. This decouples scene data from rendering logic, enabling faster iteration (no shader recompilation), easier scene sharing, and dynamic scene creation.
+   
+   - [ ] Define scene file format (primitives, materials, camera, render settings)
+   - [ ] Parse TOML on host, build scene data structures
+   - [ ] Upload scene data to GPU as buffers (replacing hardcoded arrays)
+   - [ ] Single generic shader entry point that reads scene from buffers
+   - [ ] Benchmark configs can reference scene files or define scenes inline
 
 ## Optimizations
 
