@@ -42,10 +42,14 @@ Run `cargo run --release -- bench` to execute all benchmarks. The camera follows
 ### Future Enhancements
 
 - [ ] Automated regression detection: compare results across commits
-- [x] Warmup frames: discard first N frames to avoid startup costs
 - [x] Present without vsync, and wait on the queue before recording, so frame times
       measure the render rather than the refresh interval
 - [ ] GPU timestamps: use wgpu timestamp queries for more accurate GPU timing
+
+Every frame is recorded, including the first ones that pay for pipeline compilation
+and a GPU still at idle clocks. Discarding them was tried and dropped: it hides real
+startup cost, and a spike at the head of a run is easy enough to read past in the
+per-frame chart. Expect the first run after a build to be slower than a repeat run.
 
 ## Benchmark Definition Format
 
