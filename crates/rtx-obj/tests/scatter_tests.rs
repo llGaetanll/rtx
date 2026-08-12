@@ -26,7 +26,7 @@ fn hit_instance(instance: &Instance, ray: &Ray) -> Option<HitRecord> {
     let mut t_range = Range::new(0.001, f32::MAX);
 
     if hit_unit_sphere(&obj_ray, &mut t_range, &mut rec) {
-        transform_hit_to_world(&mut rec, &instance.transform, &instance.inv_transform, ray);
+        transform_hit_to_world(&mut rec, &instance.inv_transform, ray);
         Some(rec)
     } else {
         None

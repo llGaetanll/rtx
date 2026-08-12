@@ -25,7 +25,6 @@ pub enum PrimitiveKind {
 #[repr(C)]
 pub struct Instance {
     pub kind: PrimitiveKind,
-    pub transform: Mat4,
     pub inv_transform: Mat4,
     pub material: MaterialInfo,
 }
@@ -34,7 +33,6 @@ impl Default for Instance {
     fn default() -> Self {
         Self {
             kind: PrimitiveKind::default(),
-            transform: Mat4::IDENTITY,
             inv_transform: Mat4::IDENTITY,
             material: MaterialInfo {
                 kind: MaterialKind::Lambertian,
@@ -46,11 +44,9 @@ impl Default for Instance {
 
 impl Instance {
     pub fn new(kind: PrimitiveKind, transform: Mat4, material: MaterialInfo) -> Self {
-        let inv_transform = transform.inverse();
         Self {
             kind,
-            transform,
-            inv_transform,
+            inv_transform: transform.inverse(),
             material,
         }
     }
@@ -216,14 +212,10 @@ pub fn transform_ray_to_object(ray: &Ray, inv_transform: &Mat4) -> Ray {
 }
 
 /// Transform a hit record from object space back to world space.
-pub fn transform_hit_to_world(
-    rec: &mut HitRecord,
-    transform: &Mat4,
-    inv_transform: &Mat4,
-    world_ray: &Ray,
-) {
-    // Transform hit point as a point (w=1)
-    rec.p = (*transform * rec.p.extend(1.0)).truncate();
+pub fn transform_hit_to_world(rec: &mut HitRecord, inv_transform: &Mat4, world_ray: &Ray) {
+    // The object ray is the world ray under an affine map, and its direction is
+    // left unnormalized, so both rays reach the surface at the same t.
+    rec.p = world_ray.at(rec.t);
 
     // Transform normal using transpose of inverse
     // Since we have inv_transform, its transpose transforms normals correctly

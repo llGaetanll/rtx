@@ -60,7 +60,7 @@ impl Hit for Scene {
             if hit {
                 hit_anything = true;
                 // Transform hit back to world space
-                transform_hit_to_world(&mut obj_rec, &inst.transform, &inst.inv_transform, ray);
+                transform_hit_to_world(&mut obj_rec, &inst.inv_transform, ray);
                 obj_rec.mat = inst.material;
                 closest = obj_rec.t;
                 *rec = obj_rec;
