@@ -92,6 +92,11 @@ fn gpu_info_from_adapter(adapter: &wgpu::Adapter) -> GpuInfo {
 /// Git SHA baked in at build time via build.rs.
 const GIT_SHA: &str = env!("GIT_SHA");
 
+/// Frames rendered and thrown away before recording starts. The first frames of a
+/// run pay for pipeline compilation and swapchain setup, which would otherwise
+/// show up as a spike at the head of every result file.
+const WARMUP_FRAMES: u32 = 10;
+
 /// A queued benchmark with its name and definition.
 struct QueuedBenchmark {
     name: String,
@@ -110,6 +115,7 @@ pub struct BenchApp {
     camera_path: CameraPath,
     frame_records: Vec<FrameRecord>,
     frame_count: u32,
+    warmup_remaining: u32,
     name: String,
     scene: String,
     timestamp: DateTime<Utc>,
@@ -142,6 +148,7 @@ impl BenchApp {
             camera_path,
             frame_records: Vec::new(),
             frame_count: 0,
+            warmup_remaining: WARMUP_FRAMES,
             name: first.name,
             scene: first.def.scene,
             timestamp,
@@ -172,6 +179,7 @@ impl BenchApp {
         // Reset frame tracking
         self.frame_records.clear();
         self.frame_count = 0;
+        self.warmup_remaining = WARMUP_FRAMES;
 
         // Update scene info
         self.name = next.name;
@@ -218,7 +226,9 @@ impl BenchApp {
             format: swapchain_format,
             width: window_size.width,
             height: window_size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            // Vsync would clamp every frame time to the refresh interval, hiding
+            // any improvement that takes a frame below it
+            present_mode: wgpu::PresentMode::AutoNoVsync,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: Default::default(),
@@ -331,10 +341,21 @@ impl BenchApp {
         }
 
         gpu.queue.submit(Some(encoder.finish()));
+
+        // Without vsync the CPU would otherwise race ahead and the elapsed time
+        // would measure queue submission rather than the render itself
+        gpu.device.poll(wgpu::PollType::Wait).ok();
+
+        let frame_time_us = frame_start.elapsed().as_micros() as u64;
+
         frame.present();
 
-        // Record frame timing
-        let frame_time_us = frame_start.elapsed().as_micros() as u64;
+        // Warmup frames re-render frame 0 and are thrown away
+        if self.warmup_remaining > 0 {
+            self.warmup_remaining -= 1;
+            return;
+        }
+
         self.frame_records.push(FrameRecord {
             frame: self.frame_count,
             t,
