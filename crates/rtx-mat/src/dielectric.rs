@@ -1,3 +1,5 @@
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::RandState;
@@ -10,7 +12,7 @@ use spirv_std::num_traits::Float;
 use crate::HitRecord;
 use crate::Material;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Dielectric {
     /// The refraction index of the material
@@ -41,7 +43,7 @@ impl Material for Dielectric {
     fn scatter(
         &self,
         state: &mut RandState,
-        _tex_table: &TextureTable,
+        _tex_table: &TextureTable<'_>,
         incoming: &Ray,
         hit: &HitRecord,
         scattered: &mut Ray,

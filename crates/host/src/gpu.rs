@@ -12,9 +12,10 @@ const ACCUM_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba32Float;
 /// A multi-pass render request. Each pass draws `samples_per_pass` rays per pixel
 /// with a distinct RNG seed, and the passes are averaged into one image.
 pub struct AccumulatedRender<'a> {
+    /// The scene to trace, already resident on the GPU.
+    pub scene: &'a SceneBuffers,
     pub width: u32,
     pub height: u32,
-    pub entry_point: &'a str,
     pub passes: u32,
     pub samples_per_pass: u32,
     /// Camera and bounce settings. `width`, `height`, `px_samples` and `seed`
@@ -22,11 +23,47 @@ pub struct AccumulatedRender<'a> {
     pub constants: shared::ShaderConstants,
 }
 
+/// The one fragment entry point. Scenes are data now, not code, so there is no
+/// longer an entry point per scene.
+pub const FRAGMENT_ENTRY: &str = "trace_fs";
+
+/// The scene buffers bound to a pipeline, in binding order.
+const SCENE_BINDINGS: u32 = 6;
+
 pub struct GpuContext {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub shader_module: wgpu::ShaderModule,
+    pub scene_layout: wgpu::BindGroupLayout,
+}
+
+/// A scene resident on the GPU. The buffers are kept alive alongside the bind
+/// group that refers to them.
+pub struct SceneBuffers {
+    pub bind_group: wgpu::BindGroup,
+    _buffers: Vec<wgpu::Buffer>,
+}
+
+/// Upload one array as a read-only storage buffer.
+///
+/// An empty array becomes a single zeroed element: a scene need not use every
+/// material kind, but a zero sized binding is not allowed.
+fn storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    device: &wgpu::Device,
+    label: &str,
+    data: &[T],
+) -> wgpu::Buffer {
+    use wgpu::util::DeviceExt;
+
+    let fallback = [T::zeroed()];
+    let contents = if data.is_empty() { &fallback[..] } else { data };
+
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(label),
+        contents: bytemuck::cast_slice(contents),
+        usage: wgpu::BufferUsages::STORAGE,
+    })
 }
 
 impl GpuContext {
@@ -110,25 +147,64 @@ impl GpuContext {
             device.create_shader_module(include_spirv!(env!("shader.spv")))
         };
 
+        let scene_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("scene_layout"),
+            entries: &(0..SCENE_BINDINGS)
+                .map(|binding| wgpu::BindGroupLayoutEntry {
+                    binding,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                })
+                .collect::<Vec<_>>(),
+        });
+
         Ok(Self {
             adapter,
             device,
             queue,
             shader_module,
+            scene_layout,
         })
     }
 
+    /// Upload a scene and build the bind group the shader reads it through.
+    pub fn upload_scene(&self, scene: &crate::scene_data::SceneData) -> SceneBuffers {
+        let buffers = vec![
+            storage_buffer(&self.device, "instances", &scene.instances),
+            storage_buffer(&self.device, "lambertians", &scene.lambertians),
+            storage_buffer(&self.device, "metals", &scene.metals),
+            storage_buffer(&self.device, "dielectrics", &scene.dielectrics),
+            storage_buffer(&self.device, "diffuse_lights", &scene.diffuse_lights),
+            storage_buffer(&self.device, "solids", &scene.solids),
+        ];
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("scene"),
+            layout: &self.scene_layout,
+            entries: &buffers
+                .iter()
+                .enumerate()
+                .map(|(i, buffer)| wgpu::BindGroupEntry {
+                    binding: i as u32,
+                    resource: buffer.as_entire_binding(),
+                })
+                .collect::<Vec<_>>(),
+        });
+
+        SceneBuffers {
+            bind_group,
+            _buffers: buffers,
+        }
+    }
+
     /// Create a render pipeline for the given texture format and fragment entry point.
-    pub fn create_pipeline(
-        &self,
-        format: wgpu::TextureFormat,
-        fragment_entry_point: &str,
-    ) -> wgpu::RenderPipeline {
-        self.create_pipeline_with_blend(
-            format,
-            fragment_entry_point,
-            Some(wgpu::BlendState::REPLACE),
-        )
+    pub fn create_pipeline(&self, format: wgpu::TextureFormat) -> wgpu::RenderPipeline {
+        self.create_pipeline_with_blend(format, Some(wgpu::BlendState::REPLACE))
     }
 
     /// Create a render pipeline with an explicit blend state. Formats that are
@@ -136,14 +212,13 @@ impl GpuContext {
     pub fn create_pipeline_with_blend(
         &self,
         format: wgpu::TextureFormat,
-        fragment_entry_point: &str,
         blend: Option<wgpu::BlendState>,
     ) -> wgpu::RenderPipeline {
         let pipeline_layout = self
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&self.scene_layout],
                 push_constant_ranges: &[wgpu::PushConstantRange {
                     stages: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     range: 0..std::mem::size_of::<shared::ShaderConstants>() as u32,
@@ -162,7 +237,7 @@ impl GpuContext {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &self.shader_module,
-                    entry_point: Some(fragment_entry_point),
+                    entry_point: Some(FRAGMENT_ENTRY),
                     targets: &[Some(wgpu::ColorTargetState {
                         format,
                         blend,
@@ -184,7 +259,7 @@ impl GpuContext {
     /// Render the scene in a single pass and return the pixel data as RGBA bytes.
     pub async fn render_to_image(
         &self,
-        fragment_entry_point: &str,
+        scene: &SceneBuffers,
         constants: shared::ShaderConstants,
     ) -> Vec<u8> {
         let width = constants.width;
@@ -210,7 +285,7 @@ impl GpuContext {
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         // Create pipeline for this format
-        let pipeline = self.create_pipeline(format, fragment_entry_point);
+        let pipeline = self.create_pipeline(format);
 
         // Bytes per row must be aligned to 256
         let bytes_per_pixel = 4u32;
@@ -250,6 +325,7 @@ impl GpuContext {
             });
 
             rpass.set_pipeline(&pipeline);
+            rpass.set_bind_group(0, &scene.bind_group, &[]);
             rpass.set_push_constants(
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
                 0,
@@ -332,7 +408,6 @@ impl GpuContext {
         };
         let pipeline = self.create_pipeline_with_blend(
             ACCUM_FORMAT,
-            req.entry_point,
             Some(wgpu::BlendState {
                 color: additive,
                 alpha: additive,
@@ -404,6 +479,7 @@ impl GpuContext {
                 });
 
                 rpass.set_pipeline(&pipeline);
+                rpass.set_bind_group(0, &req.scene.bind_group, &[]);
                 rpass.set_push_constants(
                     wgpu::ShaderStages::VERTEX_FRAGMENT,
                     0,

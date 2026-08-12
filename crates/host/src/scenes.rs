@@ -114,7 +114,13 @@ impl Scene {
     }
 
     /// Push constants viewing this scene from its own camera at the given size.
-    pub fn constants(&self, width: u32, height: u32) -> shared::ShaderConstants {
+    /// The background belongs to the scene, so it is passed in alongside.
+    pub fn constants(
+        &self,
+        width: u32,
+        height: u32,
+        background: [f32; 3],
+    ) -> shared::ShaderConstants {
         shared::ShaderConstants {
             width,
             height,
@@ -130,6 +136,7 @@ impl Scene {
             px_samples: SAMPLES,
             max_ray_bounce: BOUNCES,
             seed: 0,
+            background,
         }
     }
 }

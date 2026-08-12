@@ -13,7 +13,7 @@ pub struct Percentiles {
 }
 
 impl Percentiles {
-    /// Summarise a run. Returns `None` for a run with no frames.
+    /// Summarize a run. Returns `None` for a run with no frames.
     pub fn from_frames(frames: &[FrameData]) -> Option<Self> {
         if frames.is_empty() {
             return None;

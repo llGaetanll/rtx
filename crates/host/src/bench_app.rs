@@ -27,6 +27,8 @@ use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
 use crate::gpu::GpuContext;
+use crate::gpu::SceneBuffers;
+use crate::scene_data;
 use crate::scenes;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
@@ -147,6 +149,8 @@ pub struct BenchApp {
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     swapchain_format: Option<wgpu::TextureFormat>,
+    scene_buffers: Option<SceneBuffers>,
+    background: [f32; 3],
     /// Declared after everything holding a GPU handle. Fields drop in declaration
     /// order, and the surface has to go before the window it borrows.
     window_surface: Option<WindowSurface>,
@@ -186,6 +190,8 @@ impl BenchApp {
             config: None,
             render_pipeline: None,
             swapchain_format: None,
+            scene_buffers: None,
+            background: [0.; 3],
             close_requested: false,
             camera_path,
             frame_records: Vec::new(),
@@ -240,9 +246,16 @@ impl BenchApp {
                 .request_inner_size(PhysicalSize::new(self.width, self.height));
         }
 
-        // Rebuild render pipeline for new scene
-        if let (Some(gpu), Some(format)) = (&self.gpu, self.swapchain_format) {
-            self.render_pipeline = Some(gpu.create_pipeline(format, &next.def.scene));
+        // Upload the new scene. The pipeline is shared across scenes now, so only
+        // the buffers behind it change
+        if let Some(gpu) = &self.gpu {
+            match scene_data::build(&self.scene) {
+                Some(scene) => {
+                    self.background = scene.background;
+                    self.scene_buffers = Some(gpu.upload_scene(&scene));
+                }
+                None => log::error!("Scene {} has no scene data", self.scene),
+            }
         }
 
         true
@@ -274,7 +287,12 @@ impl BenchApp {
 
         let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
-        let render_pipeline = gpu.create_pipeline(swapchain_format, &self.scene);
+        let render_pipeline = gpu.create_pipeline(swapchain_format);
+
+        let scene = scene_data::build(&self.scene)
+            .ok_or_else(|| format!("Scene {} has no scene data", self.scene))?;
+        self.background = scene.background;
+        let scene_buffers = gpu.upload_scene(&scene);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -296,6 +314,7 @@ impl BenchApp {
         self.config = Some(config);
         self.render_pipeline = Some(render_pipeline);
         self.swapchain_format = Some(swapchain_format);
+        self.scene_buffers = Some(scene_buffers);
         log::info!("Running benchmark '{}' (scene: {})", self.name, self.scene);
         Ok(())
     }
@@ -368,6 +387,7 @@ impl BenchApp {
             px_samples: self.samples,
             max_ray_bounce: self.bounces,
             seed: 0,
+            background: self.background,
         };
 
         {
@@ -387,6 +407,7 @@ impl BenchApp {
             });
 
             rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());
+            rpass.set_bind_group(0, &self.scene_buffers.as_ref().unwrap().bind_group, &[]);
             rpass.set_push_constants(
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
                 0,

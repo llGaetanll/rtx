@@ -4,10 +4,9 @@ use rtx_prim::Ray;
 use rtx_prim::Vec3;
 
 use crate::MaterialInfo;
-use crate::MaterialKind;
 
 /// Contains information about a `Ray` hitting a surface
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[repr(C)]
 pub struct HitRecord {
     /// The point at which there is a hit
@@ -36,22 +35,5 @@ impl HitRecord {
     pub fn set_norm(&mut self, ray: &Ray, norm: Vec3) {
         self.front_face = ray.dir().dot(norm) < 0.;
         self.norm = if self.front_face { norm } else { -norm };
-    }
-}
-
-impl Default for HitRecord {
-    fn default() -> Self {
-        Self {
-            p: Point3::default(),
-            norm: Vec3::default(),
-            mat: MaterialInfo {
-                kind: MaterialKind::Lambertian,
-                index: 0,
-            },
-            t: Default::default(),
-            u: Default::default(),
-            v: Default::default(),
-            front_face: Default::default(),
-        }
     }
 }

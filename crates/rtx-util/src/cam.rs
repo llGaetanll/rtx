@@ -164,9 +164,9 @@ impl Camera {
         state: &mut RandState,
         i: usize,
         j: usize,
-        mat_table: &MaterialTable,
-        tex_table: &TextureTable,
-        world: &Scene,
+        mat_table: &MaterialTable<'_>,
+        tex_table: &TextureTable<'_>,
+        world: &Scene<'_>,
     ) -> Color {
         let mut color = Color::new(0., 0., 0.);
 
@@ -182,10 +182,10 @@ impl Camera {
     pub fn ray_color(
         &self,
         state: &mut RandState,
-        mat_table: &MaterialTable,
-        tex_table: &TextureTable,
+        mat_table: &MaterialTable<'_>,
+        tex_table: &TextureTable<'_>,
         mut ray: Ray,
-        world: &Scene,
+        world: &Scene<'_>,
         mut depth: u32,
     ) -> Color {
         // Start of range is not zero to avoid floating point errors

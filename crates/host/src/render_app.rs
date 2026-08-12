@@ -10,6 +10,7 @@ use serde::Deserialize;
 
 use crate::gpu::AccumulatedRender;
 use crate::gpu::GpuContext;
+use crate::scene_data;
 use crate::scenes;
 
 /// Samples per accumulation pass. Small enough that a single draw call stays well
@@ -93,7 +94,7 @@ impl RenderFile {
 
     /// Build the push constants for this render. Per-pass fields (resolution,
     /// samples, seed) are filled in by the GPU layer.
-    fn constants(&self) -> shared::ShaderConstants {
+    fn constants(&self, background: [f32; 3]) -> shared::ShaderConstants {
         let position = self.camera.position;
         let look_at = self.camera.look_at;
 
@@ -116,6 +117,7 @@ impl RenderFile {
             px_samples: 0,
             max_ray_bounce: self.quality.bounces,
             seed: 0,
+            background,
         }
     }
 }
@@ -197,13 +199,17 @@ pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
         def.quality.bounces
     );
 
+    let scene = scene_data::build(&def.scene)
+        .ok_or_else(|| format!("Scene {} has no scene data", def.scene))?;
+    let buffers = gpu.upload_scene(&scene);
+
     let request = AccumulatedRender {
+        scene: &buffers,
         width,
         height,
-        entry_point: &def.scene,
         passes,
         samples_per_pass,
-        constants: def.constants(),
+        constants: def.constants(scene.background),
     };
 
     let pixels_per_pass = (width as u64) * (height as u64) * (samples_per_pass as u64);

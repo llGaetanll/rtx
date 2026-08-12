@@ -17,6 +17,8 @@ use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
 use crate::gpu::GpuContext;
+use crate::gpu::SceneBuffers;
+use crate::scene_data;
 use crate::scenes;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
@@ -37,6 +39,8 @@ pub struct LiveApp {
     gpu: Option<GpuContext>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
+    scene_buffers: Option<SceneBuffers>,
+    background: [f32; 3],
     /// Declared after everything holding a GPU handle. Fields drop in declaration
     /// order, and the surface has to go before the window it borrows.
     window_surface: Option<WindowSurface>,
@@ -70,6 +74,8 @@ impl LiveApp {
             window_surface: None,
             config: None,
             render_pipeline: None,
+            scene_buffers: None,
+            background: [0.; 3],
             close_requested: false,
             start: Instant::now(),
             cursor_x: 0.0,
@@ -200,7 +206,12 @@ impl LiveApp {
 
         let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
 
-        let render_pipeline = gpu.create_pipeline(swapchain_format, &self.scene);
+        let render_pipeline = gpu.create_pipeline(swapchain_format);
+
+        let scene = scene_data::build(&self.scene)
+            .ok_or_else(|| format!("Scene {} has no scene data", self.scene))?;
+        self.background = scene.background;
+        let scene_buffers = gpu.upload_scene(&scene);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -218,6 +229,7 @@ impl LiveApp {
         self.window_surface = Some(window_surface);
         self.config = Some(config);
         self.render_pipeline = Some(render_pipeline);
+        self.scene_buffers = Some(scene_buffers);
         self.start = Instant::now();
         Ok(())
     }
@@ -273,6 +285,7 @@ impl LiveApp {
             px_samples: scenes::SAMPLES,
             max_ray_bounce: scenes::BOUNCES,
             seed: 0,
+            background: self.background,
         };
 
         {
@@ -292,6 +305,7 @@ impl LiveApp {
             });
 
             rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());
+            rpass.set_bind_group(0, &self.scene_buffers.as_ref().unwrap().bind_group, &[]);
             rpass.set_push_constants(
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
                 0,

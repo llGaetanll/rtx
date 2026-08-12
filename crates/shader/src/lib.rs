@@ -1,9 +1,16 @@
 #![no_std]
 
-mod scene;
-
+use rtx_mat::Dielectric;
+use rtx_mat::DiffuseLight;
+use rtx_mat::Lambertian;
+use rtx_mat::MaterialTable;
+use rtx_mat::Metal;
+use rtx_obj::Instance;
+use rtx_obj::Scene;
 use rtx_prim::Color;
 use rtx_prim::Vec3;
+use rtx_tex::SolidTexture;
+use rtx_tex::TextureTable;
 use rtx_util::CameraParams;
 use shared::ShaderConstants;
 use spirv_std::glam::Vec4;
@@ -12,8 +19,8 @@ use spirv_std::glam::vec4;
 use spirv_std::spirv;
 
 /// Build camera params from ShaderConstants. The host supplies every camera and
-/// quality setting; the scene only contributes its background.
-fn cam_params_from_constants(constants: &ShaderConstants, background: Color) -> CameraParams {
+/// quality setting, along with the scene's background.
+fn cam_params_from_constants(constants: &ShaderConstants) -> CameraParams {
     let lookfrom = Vec3::new(
         constants.cam_pos[0],
         constants.cam_pos[1],
@@ -40,7 +47,11 @@ fn cam_params_from_constants(constants: &ShaderConstants, background: Color) -> 
         max_ray_bounce: constants.max_ray_bounce,
         img_width: constants.width as usize,
         img_height: constants.height as usize,
-        background,
+        background: Color::new(
+            constants.background[0],
+            constants.background[1],
+            constants.background[2],
+        ),
     }
 }
 
@@ -64,147 +75,35 @@ pub fn main_vs(#[spirv(vertex_index)] vert_id: i32, #[spirv(position)] out_pos: 
     *out_pos = vec4(pos.x, pos.y, 0.0, 1.0);
 }
 
+/// The one entry point for every scene.
+///
+/// Scenes used to be Rust code with an entry point each, which meant every pixel
+/// rebuilt the whole scene before tracing a single ray. They are now data the host
+/// builds once and uploads, so this shader only reads them.
 #[spirv(fragment)]
-pub fn cornell_box_fs(
+// Each argument is a binding the shader needs, not a parameter list to shorten
+#[allow(clippy::too_many_arguments)]
+pub fn trace_fs(
     #[spirv(frag_coord)] frag_coord: Vec4,
     #[spirv(push_constant)] constants: &ShaderConstants,
+    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)] instances: &[Instance],
+    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)] lambertians: &[Lambertian],
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] metals: &[Metal],
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)] dielectrics: &[Dielectric],
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)] diffuse_lights: &[DiffuseLight],
+    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)] solids: &[SolidTexture],
     output: &mut Vec4,
 ) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_CORNELL_BOX);
-    let (cam, mat_table, tex_table, world) = scene::cornell_box(cam_params);
+    let cam = rtx_util::Camera::new(cam_params_from_constants(constants));
 
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn quads_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_QUADS);
-    let (cam, mat_table, tex_table, world) = scene::quads(cam_params);
-
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn metal_test_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_METAL_TEST);
-    let (cam, mat_table, tex_table, world) = scene::metal_test(cam_params);
-
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn dielectric_test_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_DIELECTRIC_TEST);
-    let (cam, mat_table, tex_table, world) = scene::dielectric_test(cam_params);
-
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn two_spheres_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_TWO_SPHERES);
-    let (cam, mat_table, tex_table, world) = scene::two_spheres(cam_params);
-
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn glass_debug_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_GLASS_DEBUG);
-    let (cam, mat_table, tex_table, world) = scene::glass_debug(cam_params);
-
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn three_spheres_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_THREE_SPHERES);
-    let (cam, mat_table, tex_table, world) = scene::three_spheres(cam_params);
-
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
-
-    let mut state = gen_state(frag_coord, constants.seed);
-
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
-
-    *output = vec4(color.x, color.y, color.z, 1.0);
-}
-
-#[spirv(fragment)]
-pub fn many_spheres_fs(
-    #[spirv(frag_coord)] frag_coord: Vec4,
-    #[spirv(push_constant)] constants: &ShaderConstants,
-    output: &mut Vec4,
-) {
-    let cam_params = cam_params_from_constants(constants, scene::BACKGROUND_MANY_SPHERES);
-    let (cam, mat_table, tex_table, world) = scene::many_spheres(cam_params);
+    let world = Scene::new(instances);
+    let mat_table = MaterialTable {
+        lambertians,
+        metals,
+        dielectrics,
+        diffuse_lights,
+    };
+    let tex_table = TextureTable { solids };
 
     let i = frag_coord.y as usize;
     let j = frag_coord.x as usize;

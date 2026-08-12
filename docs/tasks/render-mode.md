@@ -37,7 +37,7 @@ Camera and quality settings reach the shader through `ShaderConstants`, which
 grew fields for field of view, defocus angle, focus distance, sample count,
 bounce depth and an RNG seed. The shader holds no camera defaults: the host
 supplies every setting on every draw, and the scene contributes only its
-background colour. The cameras `live`, `test` and `bench` view each scene from
+background color. The cameras `live`, `test` and `bench` view each scene from
 live in `crates/host/src/scenes.rs`, and render definitions must state theirs in
 full.
 

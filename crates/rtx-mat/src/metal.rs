@@ -1,3 +1,5 @@
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::RandState;
@@ -12,13 +14,26 @@ use crate::Material;
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct Metal {
-    albedo: Color,
+    /// Plain floats rather than a `Vec3`, so the host and the shader agree on the
+    /// layout. See `SolidTexture` for the reason.
+    albedo: [F; 3],
     fuzz: F,
 }
 
+// SAFETY: `repr(C)` over three floats of color and one of fuzz, so every bit
+// pattern is valid and there is no implicit padding. See `Instance` for why this
+// is not derived.
+unsafe impl Zeroable for Metal {}
+unsafe impl Pod for Metal {}
+
+const _: () = assert!(core::mem::size_of::<Metal>() == 16);
+
 impl Metal {
     pub fn new(albedo: Color, fuzz: F) -> Self {
-        Self { albedo, fuzz }
+        Self {
+            albedo: [albedo.x, albedo.y, albedo.z],
+            fuzz,
+        }
     }
 }
 
@@ -26,7 +41,7 @@ impl Material for Metal {
     fn scatter(
         &self,
         state: &mut RandState,
-        _tex_table: &TextureTable,
+        _tex_table: &TextureTable<'_>,
         incoming: &Ray,
         hit: &HitRecord,
         scattered: &mut Ray,
@@ -36,7 +51,7 @@ impl Material for Metal {
         let reflected = reflected.normalize() + self.fuzz * Vec3::rand_unit(state);
 
         *scattered = Ray::new(hit.p, reflected, incoming.time());
-        *attenuation = self.albedo;
+        *attenuation = Color::new(self.albedo[0], self.albedo[1], self.albedo[2]);
 
         scattered.dir().dot(hit.norm) > 0.
     }

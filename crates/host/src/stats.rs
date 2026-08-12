@@ -111,7 +111,10 @@ pub fn run_stats() -> Result<(), Box<dyn Error>> {
     // cannot place have no position in that order, so they go above all of it.
     rows.sort_by(|a, b| match (a.age, b.age) {
         (Some(x), Some(y)) => y.cmp(&x).then_with(|| a.benchmark.cmp(&b.benchmark)),
-        (None, None) => a.sha.cmp(&b.sha).then_with(|| a.benchmark.cmp(&b.benchmark)),
+        (None, None) => a
+            .sha
+            .cmp(&b.sha)
+            .then_with(|| a.benchmark.cmp(&b.benchmark)),
         (None, Some(_)) => std::cmp::Ordering::Less,
         (Some(_), None) => std::cmp::Ordering::Greater,
     });

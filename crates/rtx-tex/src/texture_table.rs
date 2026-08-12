@@ -1,4 +1,5 @@
-use rtx_prim::Array;
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::Point3;
@@ -6,45 +7,39 @@ use rtx_prim::Point3;
 use crate::SolidTexture;
 use crate::Texture;
 
-pub const LEN_TEX_TBL: usize = 32;
-
-#[repr(C)]
-pub struct TextureTable {
-    pub solids: Array<SolidTexture, LEN_TEX_TBL>,
+/// Discriminants for `TextureInfo::kind`.
+///
+/// Plain integers rather than an enum: this type is uploaded to the GPU, and only
+/// types where every bit pattern is valid can be reinterpreted as bytes.
+pub mod texture_kind {
+    pub const SOLID: u32 = 0;
 }
 
-impl TextureTable {
-    pub fn new() -> Self {
-        Self {
-            solids: Array::new(),
-        }
-    }
-}
-
-impl Default for TextureTable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Texture for TextureTable {
-    fn value(&self, info: TextureInfo, u: F, v: F, point: Point3) -> Color {
-        match info.kind {
-            TextureKind::Solid => self.solids[info.index].value(info, u, v, point),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[repr(C)]
 pub struct TextureInfo {
-    pub kind: TextureKind,
-    pub index: usize,
+    pub kind: u32,
+    pub index: u32,
 }
 
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
-pub enum TextureKind {
-    #[default]
-    Solid,
+impl TextureInfo {
+    pub const fn solid(index: u32) -> Self {
+        Self {
+            kind: texture_kind::SOLID,
+            index,
+        }
+    }
+}
+
+/// Every texture in a scene, grouped by kind. The host builds these and uploads
+/// them; the shader only reads them.
+#[derive(Default)]
+pub struct TextureTable<'a> {
+    pub solids: &'a [SolidTexture],
+}
+
+impl Texture for TextureTable<'_> {
+    fn value(&self, info: TextureInfo, u: F, v: F, point: Point3) -> Color {
+        self.solids[info.index as usize].value(info, u, v, point)
+    }
 }

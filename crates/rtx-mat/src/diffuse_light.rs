@@ -1,3 +1,5 @@
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use rtx_prim::Color;
 use rtx_prim::F;
 use rtx_prim::Point3;
@@ -8,7 +10,7 @@ use rtx_tex::TextureTable;
 
 use crate::Material;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[repr(C)]
 pub struct DiffuseLight {
     tex: TextureInfo,
@@ -25,7 +27,7 @@ impl DiffuseLight {
         Self { tex }
     }
 
-    fn emitted_impl(&self, tex_table: &TextureTable, u: F, v: F, point: Point3) -> Color {
+    fn emitted_impl(&self, tex_table: &TextureTable<'_>, u: F, v: F, point: Point3) -> Color {
         tex_table.value(self.tex, u, v, point)
     }
 }
@@ -34,7 +36,7 @@ impl Material for DiffuseLight {
     fn emitted(
         &self,
         _state: &mut RandState,
-        tex_table: &TextureTable,
+        tex_table: &TextureTable<'_>,
         _rec: &crate::HitRecord,
         u: F,
         v: F,

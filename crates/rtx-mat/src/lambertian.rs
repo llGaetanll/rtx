@@ -1,3 +1,5 @@
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use rtx_prim::Color;
 use rtx_prim::RandState;
 use rtx_prim::Ray;
@@ -10,7 +12,7 @@ use rtx_tex::TextureTable;
 use crate::HitRecord;
 use crate::Material;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[repr(C)]
 pub struct Lambertian {
     tex: TextureInfo,
@@ -32,7 +34,7 @@ impl Material for Lambertian {
     fn scatter(
         &self,
         state: &mut RandState,
-        tex_table: &TextureTable,
+        tex_table: &TextureTable<'_>,
         incoming: &Ray,
         hit: &HitRecord,
         scattered: &mut Ray,

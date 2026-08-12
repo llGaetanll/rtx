@@ -32,7 +32,7 @@ pub enum Commands {
     },
     /// Generate SVG charts from benchmark results
     Chart,
-    /// Summarise benchmark results as a table
+    /// Summarize benchmark results as a table
     ///
     /// One row per recorded run, ordered by git history with the newest commit
     /// last. The first columns identify the run: the commit it was built from, the

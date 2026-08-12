@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bytemuck = { workspace = true }
 spirv-std = { workspace = true }
 
 rtx-prim = { path = "../rtx-prim" }

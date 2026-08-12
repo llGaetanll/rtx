@@ -33,4 +33,9 @@ pub struct ShaderConstants {
     /// Mixed into the per-pixel RNG seed so repeated passes over the same pixel
     /// produce different noise. Used to accumulate samples across draw calls.
     pub seed: u32,
+
+    /// Color of a ray that escapes the scene. Travels with the camera settings
+    /// rather than the scene buffers because it is a single value the shader
+    /// needs on every miss.
+    pub background: [f32; 3],
 }

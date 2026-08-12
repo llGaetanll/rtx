@@ -11,6 +11,7 @@ mod cli;
 mod gpu;
 mod live_app;
 mod render_app;
+mod scene_data;
 mod scenes;
 mod stats;
 mod window_surface;
@@ -64,8 +65,11 @@ fn run_test() -> Result<(), Box<dyn Error>> {
         let row = (i as u32) / grid_cols;
 
         let start = Instant::now();
-        let constants = scene.constants(scene_width, scene_height);
-        let pixels = block_on(gpu.render_to_image(scene.name, constants));
+        let scene_data = scene_data::build(scene.name)
+            .ok_or_else(|| format!("Scene {} has no scene data", scene.name))?;
+        let buffers = gpu.upload_scene(&scene_data);
+        let constants = scene.constants(scene_width, scene_height, scene_data.background);
+        let pixels = block_on(gpu.render_to_image(&buffers, constants));
         let elapsed = start.elapsed();
 
         log::debug!(

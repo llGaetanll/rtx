@@ -1,6 +1,7 @@
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use rtx_mat::HitRecord;
 use rtx_mat::MaterialInfo;
-use rtx_mat::MaterialKind;
 use rtx_prim::F;
 use rtx_prim::Mat4;
 use rtx_prim::PI;
@@ -11,50 +12,69 @@ use rtx_prim::Vec3;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-/// The kind of unit primitive an instance refers to.
-#[derive(Clone, Copy, Default)]
-#[repr(u32)]
-pub enum PrimitiveKind {
-    #[default]
-    Sphere,
-    Quad,
+/// Discriminants for `Instance::kind`.
+///
+/// Plain integers rather than an enum: instances are uploaded to the GPU, and
+/// only types where every bit pattern is valid can be reinterpreted as bytes.
+pub mod primitive_kind {
+    pub const SPHERE: u32 = 0;
+    pub const QUAD: u32 = 1;
 }
 
 /// An instance of a unit primitive with a transform.
+/// The matrix comes first and the tags last so the type is 80 bytes with nothing
+/// implicit between the fields, which is what lets an array of them be handed to
+/// the GPU as raw bytes.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Instance {
-    pub kind: PrimitiveKind,
     pub inv_transform: Mat4,
     pub material: MaterialInfo,
+    pub kind: u32,
+    /// Rust adds these four bytes whether or not they are written down: the
+    /// matrix aligns the struct to sixteen, so its 76 bytes of fields round up to
+    /// 80 either way. Spelling the padding out as a field is what keeps those
+    /// bytes initialized, and reading uninitialized bytes is what would make
+    /// handing the type to the GPU unsound.
+    pub _pad: u32,
 }
+
+// SAFETY: `repr(C)` over a matrix of sixteen floats, two `u32`s of material
+// reference, a `u32` tag and an explicit tail pad. Every field is a float or an
+// integer, so all bit patterns are valid, and the assertion below pins the size
+// so a new field cannot silently introduce padding. Not derived because the
+// shader builds glam without its bytemuck feature, which cannot be enabled there.
+unsafe impl Zeroable for Instance {}
+unsafe impl Pod for Instance {}
+
+const _: () = assert!(core::mem::size_of::<Mat4>() == 64);
+const _: () = assert!(core::mem::size_of::<Instance>() == 80);
 
 impl Default for Instance {
     fn default() -> Self {
         Self {
-            kind: PrimitiveKind::default(),
             inv_transform: Mat4::IDENTITY,
-            material: MaterialInfo {
-                kind: MaterialKind::Lambertian,
-                index: 0,
-            },
+            material: MaterialInfo::default(),
+            kind: primitive_kind::SPHERE,
+            _pad: 0,
         }
     }
 }
 
 impl Instance {
-    pub fn new(kind: PrimitiveKind, transform: Mat4, material: MaterialInfo) -> Self {
+    pub fn new(kind: u32, transform: Mat4, material: MaterialInfo) -> Self {
         Self {
-            kind,
             inv_transform: transform.inverse(),
             material,
+            kind,
+            _pad: 0,
         }
     }
 
     /// Create a sphere instance from center and radius.
     pub fn sphere(center: Point3, radius: F, material: MaterialInfo) -> Self {
         let transform = Mat4::from_translation(center) * Mat4::from_scale(Vec3::splat(radius));
-        Self::new(PrimitiveKind::Sphere, transform, material)
+        Self::new(primitive_kind::SPHERE, transform, material)
     }
 
     /// Create a quad instance from corner point and two edge vectors.
@@ -85,7 +105,7 @@ impl Instance {
             normal.extend(0.0),
             q.extend(1.0),
         );
-        Self::new(PrimitiveKind::Quad, xform * basis, material)
+        Self::new(primitive_kind::QUAD, xform * basis, material)
     }
 }
 

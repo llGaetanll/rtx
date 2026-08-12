@@ -14,8 +14,8 @@ use rtx_prim::Range;
 use rtx_prim::Ray;
 use rtx_prim::Vec3;
 use rtx_prim::rand;
+use rtx_tex::SolidTexture;
 use rtx_tex::TextureInfo;
-use rtx_tex::TextureKind;
 use rtx_tex::TextureTable;
 
 /// Helper to perform a hit test on an instance and return the hit record.
@@ -71,7 +71,8 @@ fn test_metal_reflection_45_degrees() {
     );
 
     let metal = Metal::new(Color::new(1.0, 1.0, 1.0), 0.0);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = rand::init_state();
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -123,7 +124,8 @@ fn test_metal_reflection_grazing_angle() {
     );
 
     let metal = Metal::new(Color::new(1.0, 1.0, 1.0), 0.0);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = rand::init_state();
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -173,7 +175,8 @@ fn test_metal_fuzz_affects_direction() {
 
     // Scatter with fuzz = 0
     let metal_smooth = Metal::new(Color::new(1.0, 1.0, 1.0), 0.0);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state1 = rand::init_state();
     let mut scattered1 = Ray::default();
     let mut attenuation1 = Color::default();
@@ -256,7 +259,8 @@ fn test_dielectric_refraction_entering_glass() {
     );
 
     let glass = Dielectric::new(1.5);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = 12345u32;
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -312,7 +316,8 @@ fn test_dielectric_refraction_exiting_glass() {
     );
 
     let glass = Dielectric::new(1.5);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = 12345u32;
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -365,7 +370,8 @@ fn test_dielectric_total_internal_reflection() {
     );
 
     let glass = Dielectric::new(1.5);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = 12345u32;
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -412,7 +418,8 @@ fn test_dielectric_normal_incidence() {
     );
 
     let glass = Dielectric::new(1.5);
-    let tex_table = TextureTable::default();
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = 12345u32;
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -462,11 +469,9 @@ fn test_lambertian_scatters_in_hemisphere() {
         rec.norm
     );
 
-    let lambertian = Lambertian::from_texture(TextureInfo {
-        kind: TextureKind::Solid,
-        index: 0,
-    });
-    let tex_table = TextureTable::default();
+    let lambertian = Lambertian::from_texture(TextureInfo::solid(0));
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = rand::init_state();
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();
@@ -496,11 +501,9 @@ fn test_lambertian_deterministic_with_seed() {
 
     let rec = hit_instance(&instance, &ray).expect("Ray should hit sphere");
 
-    let lambertian = Lambertian::from_texture(TextureInfo {
-        kind: TextureKind::Solid,
-        index: 0,
-    });
-    let tex_table = TextureTable::default();
+    let lambertian = Lambertian::from_texture(TextureInfo::solid(0));
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
 
     // First scatter with seed 42
     let mut state1 = 42u32;
@@ -574,11 +577,9 @@ fn test_lambertian_grazing_angle() {
         rec.norm
     );
 
-    let lambertian = Lambertian::from_texture(TextureInfo {
-        kind: TextureKind::Solid,
-        index: 0,
-    });
-    let tex_table = TextureTable::default();
+    let lambertian = Lambertian::from_texture(TextureInfo::solid(0));
+    let solids = [SolidTexture::from_color(Color::new(0.5, 0.5, 0.5))];
+    let tex_table = TextureTable { solids: &solids };
     let mut state = rand::init_state();
     let mut scattered = Ray::default();
     let mut attenuation = Color::default();

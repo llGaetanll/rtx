@@ -13,7 +13,7 @@ pub trait Material {
     fn scatter(
         &self,
         _state: &mut RandState,
-        _tex_table: &TextureTable,
+        _tex_table: &TextureTable<'_>,
         _incoming: &Ray,
         _rec: &HitRecord,
         _scattered: &mut Ray,
@@ -26,7 +26,7 @@ pub trait Material {
     fn emitted(
         &self,
         _state: &mut RandState,
-        _tex_table: &TextureTable,
+        _tex_table: &TextureTable<'_>,
         _rec: &HitRecord,
         _u: F,
         _v: F,
