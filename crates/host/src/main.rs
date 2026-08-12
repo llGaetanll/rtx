@@ -12,6 +12,7 @@ mod gpu;
 mod live_app;
 mod render_app;
 mod scenes;
+mod stats;
 mod window_surface;
 
 use cli::Cli;
@@ -139,6 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(Commands::Bench { name: Some(name) }) => bench_app::run_bench(name),
         Some(Commands::Bench { name: None }) => bench_app::run_all_benchmarks(),
         Some(Commands::Chart) => run_chart(),
+        Some(Commands::Stats) => stats::run_stats(),
         None => live_app::run_live("cornell_box_fs"),
     }
 }

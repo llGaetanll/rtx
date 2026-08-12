@@ -32,4 +32,21 @@ pub enum Commands {
     },
     /// Generate SVG charts from benchmark results
     Chart,
+    /// Summarise benchmark results as a table
+    ///
+    /// One row per recorded run, ordered by git history with the newest commit
+    /// last. The first columns identify the run: the commit it was built from, the
+    /// benchmark name, and the settings that decide how much work a frame is
+    /// (resolution, samples per pixel, maximum bounces, frames recorded). Two rows
+    /// are only comparable when those settings match.
+    ///
+    /// The remaining columns are frame times in microseconds: the fastest frame,
+    /// the 1st, 25th, 50th, 75th and 99th percentile, and the slowest. Each is an
+    /// observed frame rather than an interpolated value. Startup cost is recorded
+    /// like any other frame, so the slowest frames of a run are usually shader
+    /// compilation and a GPU still at idle clocks rather than the renderer.
+    ///
+    /// Runs built from a commit that is not in this repository's history cannot be
+    /// placed in the ordering; they are listed first and dimmed.
+    Stats,
 }
