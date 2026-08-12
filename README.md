@@ -2,6 +2,13 @@
 
 A ray tracing sandbox written in Rust, compiled to SPIR-V shaders using [rust-gpu](https://github.com/rust-gpu/rust-gpu). The ray tracing logic runs entirely on the GPU as a compute shader.
 
+## Requirements
+
+A Vulkan-capable driver (for example `vulkan-intel` or `vulkan-radeon` on Arch
+derivatives). Without one, wgpu falls back to its GL backend, where the shader
+is translated by naga instead of being passed through as SPIR-V - on that path
+most scene entry points silently misrender or hang the GPU.
+
 ## Crates
 
 - **host** - The host application that sets up the GPU, manages buffers, and displays the rendered image.
@@ -38,6 +45,43 @@ Render all scenes to a 4x4 grid image saved to `renders/render.png`.
 ```sh
 cargo run --release -- test
 ```
+
+### `render` - High-quality still images
+
+Render a single image from a definition file, accumulating samples over many
+passes. Output is saved to `renders/<name>-<timestamp>.png`.
+
+```sh
+cargo run --release -- render cornell_box
+```
+
+Render definitions are TOML files in `renders/configs/`. Every setting is
+required - the shader has no defaults of its own:
+
+```toml
+scene = "cornell_box_fs"
+
+[camera]
+position = [278.0, 278.0, -800.0]
+look_at = [278.0, 278.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0           # vertical field of view in degrees
+defocus_angle = 0.0  # aperture angle in degrees, 0 disables depth of field
+focus_dist = 10.0
+
+[quality]
+samples = 500     # rays per pixel
+bounces = 50      # maximum ray bounce depth
+
+[output]
+width = 1920
+height = 1080
+```
+
+Samples are split into passes of 8 so no single draw call runs long enough to
+trip the GPU watchdog, which means the requested sample count rounds up to the
+next multiple of the pass size. Progress is logged per pass with throughput and
+an ETA.
 
 ### `bench` - Performance benchmarking
 

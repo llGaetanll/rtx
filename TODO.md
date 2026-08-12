@@ -37,14 +37,16 @@
    - [x] Shoot specific rays at specific materials, verify resulting scattered ray
    - [x] Test cases: Lambertian diffuse, Metal reflection, Dielectric refraction (entering/exiting)
    - [x] Helps catch regressions like the normal-flip bug from instance transforms
-7. [ ] `render` command for high-quality image output
+7. [x] `render` command for high-quality image output
    
    A dedicated command for rendering publication-quality images with configurable quality settings. Unlike `live` (interactive, low samples) or `test` (grid comparison), this produces a single high-quality image.
    
-   - [ ] `render --scene <name> --samples <n> --bounces <n> --output <path>`
-   - [ ] High sample counts (hundreds or thousands per pixel)
-   - [ ] Configurable max bounce depth
-   - [ ] Progress reporting (percentage complete, ETA)
+   - [x] `render <name>` loading TOML definitions from `renders/configs/`
+   - [x] High sample counts (hundreds or thousands per pixel), accumulated over multiple passes
+   - [x] Configurable max bounce depth
+   - [x] Camera overrides (position, look_at, vup, fov, defocus angle, focus distance)
+   - [x] Progress reporting (percentage complete, throughput, ETA)
+   - [ ] Video output via animated camera paths (reuse `CameraPath` from benchmarking)
 
 8. [ ] TOML-based scene definitions
    
@@ -101,4 +103,6 @@
 
 2. [x] **Remove rejection sampling loops**: The `rand_unit()` function in `rtx-prim/src/traits.rs` uses rejection sampling with an unbounded loop. If the xorshift RNG state ever becomes 0 (which can happen for certain pixel coordinates), it stays 0 forever, causing an infinite loop. Replace with direct sampling methods (e.g., spherical coordinates) that don't require rejection. This is a potential cause of GPU hangs.
 
-3. [ ] `Array<T, N>` currently requires `T: Copy + Default` because we use `[Default::default(); N]` for initialization. This is overly restrictive. Ideally, `T` would only need to be "zeroable" (all zero bytes is a valid default). This would allow types like `Sphere` that aren't `Copy` but can be safely zero-initialized. The goal is something like `core::array::from_fn(|_| Default::default())` but in a form rust-gpu accepts.
+3. [ ] **Detect and warn when SPIR-V passthrough is unavailable**: without a Vulkan driver, wgpu falls back to the GL backend and the shader goes through naga instead of being passed through as SPIR-V. On that path only the first couple of fragment entry points render correctly - the rest silently reuse an earlier program or hang the GPU (`test` produced six byte-identical grid tiles). Installing a Vulkan driver fixes it, but nothing warns the user, so the output just looks wrong. `render` now fails with a clear error because it needs an `Rgba32Float` target the GL backend does not offer; `live`, `test` and `bench` still fail silently.
+
+4. [ ] `Array<T, N>` currently requires `T: Copy + Default` because we use `[Default::default(); N]` for initialization. This is overly restrictive. Ideally, `T` would only need to be "zeroable" (all zero bytes is a valid default). This would allow types like `Sphere` that aren't `Copy` but can be safely zero-initialized. The goal is something like `core::array::from_fn(|_| Default::default())` but in a form rust-gpu accepts.

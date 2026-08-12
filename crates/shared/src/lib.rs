@@ -14,4 +14,23 @@ pub struct ShaderConstants {
     pub cam_pos: [f32; 3],
     pub cam_dir: [f32; 3],
     pub cam_vup: [f32; 3],
+
+    /// Vertical field of view in degrees
+    pub fov_v: f32,
+
+    /// Defocus (aperture) angle in degrees
+    pub defocus_angle: f32,
+
+    /// Distance to the plane of perfect focus
+    pub focus_dist: f32,
+
+    /// Rays per pixel
+    pub px_samples: u32,
+
+    /// Maximum ray bounce depth
+    pub max_ray_bounce: u32,
+
+    /// Mixed into the per-pixel RNG seed so repeated passes over the same pixel
+    /// produce different noise. Used to accumulate samples across draw calls.
+    pub seed: u32,
 }

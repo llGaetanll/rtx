@@ -19,6 +19,11 @@ pub enum Commands {
     },
     /// Render all test scenes to a grid image
     Test,
+    /// Render a high-quality still image from a render definition
+    Render {
+        /// Render definition name (loads from renders/configs/<name>.toml)
+        name: String,
+    },
     /// Run benchmark with animated camera path
     Bench {
         /// Benchmark definition name (loads from bench/configs/<name>.toml).

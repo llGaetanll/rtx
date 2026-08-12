@@ -1,0 +1,17 @@
+scene = "cornell_box_fs"
+
+[camera]
+position = [278.0, 278.0, -800.0]
+look_at = [278.0, 278.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 10.0
+
+[quality]
+samples = 500
+bounces = 50
+
+[output]
+width = 1920
+height = 1080

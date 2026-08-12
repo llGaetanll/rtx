@@ -1,4 +1,5 @@
 target/
-renders/
+renders/*
+!renders/configs/
 bench/results/
 bench/charts/

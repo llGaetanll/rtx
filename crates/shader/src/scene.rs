@@ -17,22 +17,7 @@ use rtx_tex::TextureTable;
 use rtx_util::Camera;
 use rtx_util::CameraParams;
 
-const PX_SAMPLES: u32 = 40;
-const MAX_RAY_BOUNCE: u32 = 10;
-
-pub const CAMERA_CORNELL_BOX: CameraParams = CameraParams {
-    lookfrom: Point3::new(278., 278., -800.),
-    lookat: Point3::new(278., 278., 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 40.0,
-    defocus_angle: 0.0,
-    focus_dist: 10.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0., 0., 0.),
-};
+pub const BACKGROUND_CORNELL_BOX: Color = Color::new(0., 0., 0.);
 
 pub fn cornell_box(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -141,19 +126,7 @@ pub fn cornell_box(cam_params: CameraParams) -> (Camera, MaterialTable, TextureT
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_MANY_SPHERES: CameraParams = CameraParams {
-    lookfrom: Point3::new(13., 2., 3.),
-    lookat: Point3::new(0., 0., 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 20.0,
-    defocus_angle: 0.6,
-    focus_dist: 10.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_MANY_SPHERES: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn many_spheres(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -316,19 +289,7 @@ pub fn many_spheres(cam_params: CameraParams) -> (Camera, MaterialTable, Texture
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_QUADS: CameraParams = CameraParams {
-    lookfrom: Point3::new(0., 0., 9.),
-    lookat: Point3::new(0., 0., 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 80.0,
-    defocus_angle: 0.0,
-    focus_dist: 10.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_QUADS: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn quads(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -421,19 +382,7 @@ pub fn quads(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, 
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_METAL_TEST: CameraParams = CameraParams {
-    lookfrom: Point3::new(0., 1., 5.),
-    lookat: Point3::new(0., 0., 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 40.0,
-    defocus_angle: 0.0,
-    focus_dist: 5.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_METAL_TEST: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn metal_test(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -488,19 +437,7 @@ pub fn metal_test(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTa
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_DIELECTRIC_TEST: CameraParams = CameraParams {
-    lookfrom: Point3::new(0., 1., 5.),
-    lookat: Point3::new(0., 0., 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 40.0,
-    defocus_angle: 0.0,
-    focus_dist: 5.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_DIELECTRIC_TEST: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn dielectric_test(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -553,19 +490,7 @@ pub fn dielectric_test(cam_params: CameraParams) -> (Camera, MaterialTable, Text
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_TWO_SPHERES: CameraParams = CameraParams {
-    lookfrom: Point3::new(0.0, 1.0, 5.0),
-    lookat: Point3::new(0.0, 0.0, 0.0),
-    vup: Vec3::new(0.0, 1.0, 0.0),
-    fov_v: 40.0,
-    defocus_angle: 0.0,
-    focus_dist: 5.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_TWO_SPHERES: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn two_spheres(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -616,19 +541,7 @@ pub fn two_spheres(cam_params: CameraParams) -> (Camera, MaterialTable, TextureT
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_GLASS_DEBUG: CameraParams = CameraParams {
-    lookfrom: Point3::new(0., 2., 5.),
-    lookat: Point3::new(0., 0.5, 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 40.0,
-    defocus_angle: 0.0,
-    focus_dist: 5.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_GLASS_DEBUG: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn glass_debug(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();
@@ -665,19 +578,7 @@ pub fn glass_debug(cam_params: CameraParams) -> (Camera, MaterialTable, TextureT
     (cam, mat_table, tex_table, world)
 }
 
-pub const CAMERA_THREE_SPHERES: CameraParams = CameraParams {
-    lookfrom: Point3::new(13., 2., 3.),
-    lookat: Point3::new(0., 0., 0.),
-    vup: Vec3::new(0., 1., 0.),
-    fov_v: 20.0,
-    defocus_angle: 0.6,
-    focus_dist: 10.0,
-    px_samples: PX_SAMPLES,
-    max_ray_bounce: MAX_RAY_BOUNCE,
-    img_width: 0,
-    img_height: 0,
-    background: Color::new(0.7, 0.8, 1.0),
-};
+pub const BACKGROUND_THREE_SPHERES: Color = Color::new(0.7, 0.8, 1.0);
 
 pub fn three_spheres(cam_params: CameraParams) -> (Camera, MaterialTable, TextureTable, Scene) {
     let mut tex_table = TextureTable::new();

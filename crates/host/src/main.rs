@@ -10,6 +10,8 @@ mod bench_app;
 mod cli;
 mod gpu;
 mod live_app;
+mod render_app;
+mod scenes;
 mod window_surface;
 
 use cli::Cli;
@@ -22,17 +24,7 @@ fn run_test() -> Result<(), Box<dyn Error>> {
     let instance = GpuContext::create_instance();
     let gpu = block_on(GpuContext::new(instance, None))?;
 
-    // All available scenes (fragment shader entry points)
-    let scenes = [
-        "cornell_box_fs",
-        "quads_fs",
-        "metal_test_fs",
-        "dielectric_test_fs",
-        "two_spheres_fs",
-        "glass_debug_fs",
-        "three_spheres_fs",
-        "many_spheres_fs",
-    ];
+    let scenes = &scenes::SCENES;
 
     // 720p per scene
     let scene_width = 1280u32;
@@ -71,12 +63,13 @@ fn run_test() -> Result<(), Box<dyn Error>> {
         let row = (i as u32) / grid_cols;
 
         let start = Instant::now();
-        let pixels = block_on(gpu.render_to_image(scene_width, scene_height, scene));
+        let constants = scene.constants(scene_width, scene_height);
+        let pixels = block_on(gpu.render_to_image(scene.name, constants));
         let elapsed = start.elapsed();
 
         log::debug!(
             "Rendered {} ({}/{}) in {:.2?}",
-            scene,
+            scene.name,
             i + 1,
             scenes.len(),
             elapsed
@@ -142,6 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match cli.command {
         Some(Commands::Live { scene }) => live_app::run_live(&scene),
         Some(Commands::Test) => run_test(),
+        Some(Commands::Render { name }) => render_app::run_render(name),
         Some(Commands::Bench { name: Some(name) }) => bench_app::run_bench(name),
         Some(Commands::Bench { name: None }) => bench_app::run_all_benchmarks(),
         Some(Commands::Chart) => run_chart(),

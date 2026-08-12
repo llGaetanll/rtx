@@ -11,20 +11,48 @@ Generate high-quality images (and eventually videos) from scene definitions.
 
 ## Overview
 
-Run `cargo run --release -- render [name]` to generate an image. Without a name, renders all definitions in `renders/`. Output saved to `renders/<name>.png`.
+Run `cargo run --release -- render <name>` to generate an image from `renders/configs/<name>.toml`. Output saved to `renders/<name>-<timestamp>.png`.
 
 ## Status
 
-- [ ] Basic render subcommand
-- [ ] TOML definition parsing
-- [ ] Single image output
-- [ ] Pass quality settings to shader
+- [x] Basic render subcommand
+- [x] TOML definition parsing
+- [x] Single image output
+- [x] Pass quality settings to shader
+- [x] Progress indicator for long renders
 
 ### Future Enhancements
 
 - [ ] Video output (frame sequence or encoded video)
 - [ ] Camera animation via spline paths (reuse `CameraPath` from benchmarking)
-- [ ] Progress indicator for long renders
+- [ ] Tiled rendering for output larger than the maximum texture dimension
+
+## Implementation Notes
+
+Definitions live in `renders/configs/<name>.toml` and images are written to
+`renders/<name>-<timestamp>.png`. Definitions are tracked in git; rendered
+images are not.
+
+Camera and quality settings reach the shader through `ShaderConstants`, which
+grew fields for field of view, defocus angle, focus distance, sample count,
+bounce depth and an RNG seed. The shader holds no camera defaults: the host
+supplies every setting on every draw, and the scene contributes only its
+background colour. The cameras `live`, `test` and `bench` view each scene from
+live in `crates/host/src/scenes.rs`, and render definitions must state theirs in
+full.
+
+High sample counts cannot run in a single draw call without tripping the GPU
+watchdog, so a render is split into passes of `SAMPLES_PER_PASS` rays per pixel.
+Each pass uses a different seed and adds its samples into an `Rgba32Float`
+target with additive blending, so the image stays on the GPU until every pass is
+done and is read back exactly once. The WebGPU spec forbids blending 32 bit
+float targets, so this needs the `TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES`
+feature, which tells wgpu validation to consult the real adapter capabilities;
+`render` fails with a clear error where that is unavailable. Summing each pass on
+the CPU instead cost about 10% of total render time.
+
+The float target is also why the sRGB transfer is applied by hand when the PNG is
+written, while `test` gets it free from its `Rgba8UnormSrgb` target.
 
 ## Render Definition Format
 

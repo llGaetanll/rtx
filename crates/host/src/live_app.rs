@@ -17,6 +17,7 @@ use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
 use crate::gpu::GpuContext;
+use crate::scenes;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
 
@@ -254,6 +255,7 @@ impl LiveApp {
 
         let cam_dir = self.cam_dir();
         let cam_vup = self.cam_vup();
+        let scene = scenes::Scene::find(&self.scene).expect("Unknown scene");
         let push_constants = shared::ShaderConstants {
             width: current_size.width,
             height: current_size.height,
@@ -263,6 +265,12 @@ impl LiveApp {
             cam_pos: self.cam_pos.into(),
             cam_dir: cam_dir.into(),
             cam_vup: cam_vup.into(),
+            fov_v: scene.fov,
+            defocus_angle: scene.defocus_angle,
+            focus_dist: scene.focus_dist,
+            px_samples: scenes::SAMPLES,
+            max_ray_bounce: scenes::BOUNCES,
+            seed: 0,
         };
 
         {

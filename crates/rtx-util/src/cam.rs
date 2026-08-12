@@ -189,7 +189,7 @@ impl Camera {
         mut depth: u32,
     ) -> Color {
         // Start of range is not zero to avoid floating point errors
-        let mut range = Range::new(0.001, F::INFINITY);
+        let mut range = Range::new(0.001, F::MAX);
         let mut rec: HitRecord = Default::default();
 
         let mut accumulated = Color::new(0., 0., 0.);

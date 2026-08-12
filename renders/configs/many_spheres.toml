@@ -1,0 +1,17 @@
+scene = "many_spheres_fs"
+
+[camera]
+position = [13.0, 2.0, 3.0]
+look_at = [0.0, 0.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 20.0
+defocus_angle = 0.6
+focus_dist = 10.0
+
+[quality]
+samples = 200
+bounces = 20
+
+[output]
+width = 1920
+height = 1080
