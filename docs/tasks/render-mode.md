@@ -59,7 +59,7 @@ written, while `test` gets it free from its `Rgba8UnormSrgb` target.
 Render definitions live in `renders/<name>.toml`:
 
 ```toml
-scene = "cornell_box_fs"
+scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]
@@ -79,7 +79,7 @@ height = 1080
 Benchmarks and renders share similar structure. A unified format could support both use cases:
 
 ```toml
-scene = "cornell_box_fs"
+scene = "cornell_box"
 
 [camera]
 # Static camera (render) - just position + look_at

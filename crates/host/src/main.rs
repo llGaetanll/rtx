@@ -145,6 +145,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(Commands::Bench { name: None }) => bench_app::run_all_benchmarks(),
         Some(Commands::Chart) => run_chart(),
         Some(Commands::Stats) => stats::run_stats(),
-        None => live_app::run_live("cornell_box_fs"),
+        None => live_app::run_live("cornell_box"),
     }
 }

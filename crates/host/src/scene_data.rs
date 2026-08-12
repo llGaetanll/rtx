@@ -73,14 +73,14 @@ const DARK: [f32; 3] = [0.0, 0.0, 0.0];
 /// Build a scene by name. Names match the entries in `scenes::SCENES`.
 pub fn build(name: &str) -> Option<SceneData> {
     let scene = match name {
-        "cornell_box_fs" => cornell_box(),
-        "quads_fs" => quads(),
-        "metal_test_fs" => metal_test(),
-        "dielectric_test_fs" => dielectric_test(),
-        "two_spheres_fs" => two_spheres(),
-        "glass_debug_fs" => glass_debug(),
-        "three_spheres_fs" => three_spheres(),
-        "many_spheres_fs" => many_spheres(),
+        "cornell_box" => cornell_box(),
+        "quads" => quads(),
+        "metal_test" => metal_test(),
+        "dielectric_test" => dielectric_test(),
+        "two_spheres" => two_spheres(),
+        "glass_debug" => glass_debug(),
+        "three_spheres" => three_spheres(),
+        "many_spheres" => many_spheres(),
         _ => return None,
     };
 

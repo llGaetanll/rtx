@@ -56,7 +56,7 @@ per-frame chart. Expect the first run after a build to be slower than a repeat r
 Benchmark definitions live in `bench/configs/<name>.toml`. The `<name>` is used in the output filename (`bench/results/<git-sha>/<datetime>-<name>.jsonl`):
 
 ```toml
-scene = "two_spheres_fs"
+scene = "two_spheres"
 frame_count = 60
 
 # Workload settings. Optional, but set them explicitly: they decide how long a run

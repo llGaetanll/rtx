@@ -14,7 +14,7 @@ pub enum Commands {
     /// Open a window and render the scene live
     Live {
         /// Which scene to render (fragment shader entry point)
-        #[arg(short, long, default_value = "cornell_box_fs")]
+        #[arg(short, long, default_value = "cornell_box")]
         scene: String,
     },
     /// Render all test scenes to a grid image

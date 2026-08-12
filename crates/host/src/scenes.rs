@@ -25,7 +25,7 @@ const ORIGIN: [f32; 3] = [0.0, 0.0, 0.0];
 
 pub const SCENES: [Scene; 8] = [
     Scene {
-        name: "cornell_box_fs",
+        name: "cornell_box",
         position: [278.0, 278.0, -800.0],
         look_at: [278.0, 278.0, 0.0],
         vup: UP,
@@ -34,7 +34,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 10.0,
     },
     Scene {
-        name: "quads_fs",
+        name: "quads",
         position: [0.0, 0.0, 9.0],
         look_at: ORIGIN,
         vup: UP,
@@ -43,7 +43,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 10.0,
     },
     Scene {
-        name: "metal_test_fs",
+        name: "metal_test",
         position: [0.0, 1.0, 5.0],
         look_at: ORIGIN,
         vup: UP,
@@ -52,7 +52,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 5.0,
     },
     Scene {
-        name: "dielectric_test_fs",
+        name: "dielectric_test",
         position: [0.0, 1.0, 5.0],
         look_at: ORIGIN,
         vup: UP,
@@ -61,7 +61,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 5.0,
     },
     Scene {
-        name: "two_spheres_fs",
+        name: "two_spheres",
         position: [0.0, 1.0, 5.0],
         look_at: ORIGIN,
         vup: UP,
@@ -70,7 +70,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 5.0,
     },
     Scene {
-        name: "glass_debug_fs",
+        name: "glass_debug",
         position: [0.0, 2.0, 5.0],
         look_at: [0.0, 0.5, 0.0],
         vup: UP,
@@ -79,7 +79,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 5.0,
     },
     Scene {
-        name: "three_spheres_fs",
+        name: "three_spheres",
         position: [13.0, 2.0, 3.0],
         look_at: ORIGIN,
         vup: UP,
@@ -88,7 +88,7 @@ pub const SCENES: [Scene; 8] = [
         focus_dist: 10.0,
     },
     Scene {
-        name: "many_spheres_fs",
+        name: "many_spheres",
         position: [13.0, 2.0, 3.0],
         look_at: ORIGIN,
         vup: UP,

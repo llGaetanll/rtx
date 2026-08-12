@@ -27,10 +27,10 @@ most scene entry points silently misrender or hang the GPU.
 Open a window and render a scene in real-time with interactive camera controls.
 
 ```sh
-cargo run --release -- live --scene cornell_box_fs
+cargo run --release -- live --scene cornell_box
 ```
 
-Available scenes: `cornell_box_fs`, `quads_fs`, `metal_test_fs`, `dielectric_test_fs`, `two_spheres_fs`, `three_spheres_fs`, `many_spheres_fs`
+Available scenes: `cornell_box`, `quads`, `metal_test`, `dielectric_test`, `two_spheres`, `three_spheres`, `many_spheres`
 
 Controls:
 - **WASD** - Move horizontally (forward/back/strafe)
@@ -59,7 +59,7 @@ Render definitions are TOML files in `renders/configs/`. Every setting is
 required - the shader has no defaults of its own:
 
 ```toml
-scene = "cornell_box_fs"
+scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]

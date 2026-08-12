@@ -1,4 +1,4 @@
-scene = "two_spheres_fs"
+scene = "two_spheres"
 frame_count = 60
 
 width = 400

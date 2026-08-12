@@ -1,4 +1,4 @@
-scene = "cornell_box_fs"
+scene = "cornell_box"
 frame_count = 60
 
 # Samples match the per-pass sample count the render command uses, so a frame here

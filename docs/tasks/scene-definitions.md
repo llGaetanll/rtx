@@ -11,7 +11,7 @@ Define scenes in TOML files instead of hardcoded shaders.
 
 ## Overview
 
-Currently scenes are hardcoded as shader entry points (`cornell_box_fs`, `two_spheres_fs`, etc.). Each scene function builds primitives, materials, and textures at shader runtime. This works but:
+Currently scenes are hardcoded as shader entry points (`cornell_box`, `two_spheres`, etc.). Each scene function builds primitives, materials, and textures at shader runtime. This works but:
 - Adding a scene requires recompiling the shader
 - Scene parameters can't be tweaked without code changes
 - Benchmarks and renders must reference shader entry point names

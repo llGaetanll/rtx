@@ -277,7 +277,9 @@ impl GpuContext {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: ACCUM_FORMAT,
+            // Must match the pipeline below, and the readback assumes the four
+            // bytes per pixel this format has
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });

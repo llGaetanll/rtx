@@ -1,4 +1,4 @@
-scene = "cornell_box_fs"
+scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]
