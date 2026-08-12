@@ -15,7 +15,7 @@ use rtx_bench::FrameRecord;
 use rtx_bench::GpuInfo;
 use serde::Deserialize;
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
+use winit::dpi::PhysicalSize;
 use winit::event::ElementState;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
@@ -32,12 +32,40 @@ use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
 
 /// Benchmark definition loaded from a TOML file.
+///
+/// The workload settings all have defaults so existing definitions keep working,
+/// but every benchmark should set them explicitly: they decide how long a run
+/// takes, and comparing runs across commits is only meaningful when they match.
 #[derive(Deserialize)]
 pub struct BenchmarkFile {
     pub scene: String,
     pub frame_count: u32,
+    #[serde(default = "default_width")]
+    pub width: u32,
+    #[serde(default = "default_height")]
+    pub height: u32,
+    #[serde(default = "default_samples")]
+    pub samples: u32,
+    #[serde(default = "default_bounces")]
+    pub bounces: u32,
     pub position: Vec<[f32; 3]>,
     pub look_at: Vec<[f32; 3]>,
+}
+
+fn default_width() -> u32 {
+    800
+}
+
+fn default_height() -> u32 {
+    600
+}
+
+fn default_samples() -> u32 {
+    scenes::SAMPLES
+}
+
+fn default_bounces() -> u32 {
+    scenes::BOUNCES
 }
 
 impl BenchmarkFile {
@@ -51,6 +79,15 @@ impl BenchmarkFile {
 
         if def.frame_count < 1 {
             return Err(format!("Benchmark {name} needs at least 1 frame").into());
+        }
+        if def.width < 1 || def.height < 1 {
+            return Err(format!("Benchmark {name} needs a non-zero resolution").into());
+        }
+        if def.samples < 1 {
+            return Err(format!("Benchmark {name} needs at least 1 sample").into());
+        }
+        if def.bounces < 1 {
+            return Err(format!("Benchmark {name} needs at least 1 bounce").into());
         }
         if def.position.len() < 4 {
             return Err(format!(
@@ -97,6 +134,11 @@ const GIT_SHA: &str = env!("GIT_SHA");
 /// show up as a spike at the head of every result file.
 const WARMUP_FRAMES: u32 = 10;
 
+/// How often to report progress. A benchmark otherwise prints nothing between
+/// its start and its results, which is indistinguishable from a hang when a
+/// frame takes seconds.
+const PROGRESS_INTERVAL: u32 = 10;
+
 /// A queued benchmark with its name and definition.
 struct QueuedBenchmark {
     name: String,
@@ -118,6 +160,10 @@ pub struct BenchApp {
     warmup_remaining: u32,
     name: String,
     scene: String,
+    width: u32,
+    height: u32,
+    samples: u32,
+    bounces: u32,
     timestamp: DateTime<Utc>,
     queue: Vec<QueuedBenchmark>,
 }
@@ -150,6 +196,10 @@ impl BenchApp {
             frame_count: 0,
             warmup_remaining: WARMUP_FRAMES,
             name: first.name,
+            width: first.def.width,
+            height: first.def.height,
+            samples: first.def.samples,
+            bounces: first.def.bounces,
             scene: first.def.scene,
             timestamp,
             queue,
@@ -184,6 +234,17 @@ impl BenchApp {
         // Update scene info
         self.name = next.name;
         self.scene = next.def.scene.clone();
+        self.width = next.def.width;
+        self.height = next.def.height;
+        self.samples = next.def.samples;
+        self.bounces = next.def.bounces;
+
+        // Benchmarks may render at different sizes, so resize before the next one
+        if let Some(ws) = &self.window_surface {
+            let _ = ws
+                .borrow_window()
+                .request_inner_size(PhysicalSize::new(self.width, self.height));
+        }
 
         // Rebuild render pipeline for new scene
         if let (Some(gpu), Some(format)) = (&self.gpu, self.swapchain_format) {
@@ -196,7 +257,7 @@ impl BenchApp {
     async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
         let window_attributes = WindowAttributes::default()
             .with_title("RTX Benchmark")
-            .with_inner_size(LogicalSize::new(800.0, 600.0));
+            .with_inner_size(PhysicalSize::new(self.width, self.height));
         let window_box = event_loop.create_window(window_attributes)?;
 
         let instance = GpuContext::create_instance();
@@ -310,8 +371,8 @@ impl BenchApp {
             fov_v: scene.fov,
             defocus_angle: scene.defocus_angle,
             focus_dist: scene.focus_dist,
-            px_samples: scenes::SAMPLES,
-            max_ray_bounce: scenes::BOUNCES,
+            px_samples: self.samples,
+            max_ray_bounce: self.bounces,
             seed: 0,
         };
 
@@ -353,6 +414,14 @@ impl BenchApp {
         // Warmup frames re-render frame 0 and are thrown away
         if self.warmup_remaining > 0 {
             self.warmup_remaining -= 1;
+            if self.warmup_remaining == 0 {
+                log::info!(
+                    "{}: warmed up over {} frames, last took {:.1}s",
+                    self.name,
+                    WARMUP_FRAMES,
+                    frame_time_us as f64 / 1e6
+                );
+            }
             return;
         }
 
@@ -365,6 +434,23 @@ impl BenchApp {
             cam_vup: cam_vup.into(),
         });
         self.frame_count += 1;
+
+        let total = self.camera_path.frame_count();
+        if self.frame_count % PROGRESS_INTERVAL == 0 || self.frame_count == total {
+            let sum: u64 = self.frame_records.iter().map(|r| r.time_us).sum();
+            let mean = sum as f64 / self.frame_records.len() as f64;
+            let eta = mean * (total - self.frame_count) as f64 / 1e6;
+
+            log::info!(
+                "{}: frame {}/{}  {:.1} ms  mean {:.1} ms  eta {:.0}s",
+                self.name,
+                self.frame_count,
+                total,
+                frame_time_us as f64 / 1e3,
+                mean / 1e3,
+                eta
+            );
+        }
     }
 
     /// Write benchmark results to a JSONL file.
@@ -389,6 +475,8 @@ impl BenchApp {
             git_sha: GIT_SHA.to_string(),
             scene: self.scene.clone(),
             resolution: [config.width, config.height],
+            samples: self.samples,
+            bounces: self.bounces,
             gpu: gpu_info.clone(),
             camera_path: self.camera_path.clone(),
         };

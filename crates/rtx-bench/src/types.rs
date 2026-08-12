@@ -30,6 +30,8 @@ pub struct BenchmarkMetadata {
     pub git_sha: String,
     pub scene: String,
     pub resolution: [u32; 2],
+    pub samples: u32,
+    pub bounces: u32,
     pub gpu: GpuInfo,
     pub camera_path: CameraPath,
 }

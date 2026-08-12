@@ -53,7 +53,14 @@ Benchmark definitions live in `bench/configs/<name>.toml`. The `<name>` is used 
 
 ```toml
 scene = "two_spheres_fs"
-duration = 10.0
+frame_count = 60
+
+# Workload settings. Optional, but set them explicitly: they decide how long a run
+# takes, and results are only comparable across commits when they match.
+width = 400
+height = 300
+samples = 8
+bounces = 10
 
 position = [
     [5.0, 2.0, 5.0],
