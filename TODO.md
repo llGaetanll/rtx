@@ -9,7 +9,7 @@
    - [x] Create test scene with emissive quad (Cornell box)
 2. [x] Quads (axis-aligned and arbitrary)
 3. [x] Transforms (translate, rotate, scale)
-4. [ ] Finish Cornell box scene - add the two rotated boxes inside
+4. [x] Finish Cornell box scene - add the two rotated boxes inside
    - Reference: `ray-tracing-in-one-weekend/src/main.rs:cornell_box`
 5. [ ] Image textures
 6. [ ] Noise textures (Perlin noise)

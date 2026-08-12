@@ -7,7 +7,10 @@ use rtx_mat::MaterialTable;
 use rtx_mat::Metal;
 use rtx_obj::Instance;
 use rtx_obj::Scene;
+use rtx_obj::make_box;
 use rtx_prim::Color;
+use rtx_prim::Mat4;
+use rtx_prim::PI;
 use rtx_prim::Point3;
 use rtx_prim::Vec3;
 use rtx_tex::SolidTexture;
@@ -122,6 +125,30 @@ pub fn cornell_box(cam_params: CameraParams) -> (Camera, MaterialTable, TextureT
         Vec3::new(0., 0., -105.),
         light_mat,
     ));
+
+    // Tall box, rotated 15 degrees about Y
+    let tall = make_box(
+        Point3::ZERO,
+        Point3::new(165., 330., 165.),
+        Mat4::from_translation(Vec3::new(265., 0., 295.))
+            * Mat4::from_rotation_y(15. * PI / 180.),
+        white_mat,
+    );
+    for i in 0..tall.len() {
+        world.push(tall[i]);
+    }
+
+    // Short box, rotated -18 degrees about Y
+    let short = make_box(
+        Point3::ZERO,
+        Point3::new(165., 165., 165.),
+        Mat4::from_translation(Vec3::new(130., 0., 65.))
+            * Mat4::from_rotation_y(-18. * PI / 180.),
+        white_mat,
+    );
+    for i in 0..short.len() {
+        world.push(short[i]);
+    }
 
     (cam, mat_table, tex_table, world)
 }

@@ -64,6 +64,18 @@ impl Instance {
     /// Create a quad instance from corner point and two edge vectors.
     /// This matches the current Quad constructor signature.
     pub fn quad(q: Point3, u: Vec3, v: Vec3, material: MaterialInfo) -> Self {
+        Self::quad_transformed(Mat4::IDENTITY, q, u, v, material)
+    }
+
+    /// Create a quad instance from corner point and two edge vectors, with an
+    /// extra transform applied on top (rotation, translation, scaling).
+    pub fn quad_transformed(
+        xform: Mat4,
+        q: Point3,
+        u: Vec3,
+        v: Vec3,
+        material: MaterialInfo,
+    ) -> Self {
         // The unit quad has corners at (0,0,0) and (1,1,0) with edges (1,0,0) and (0,1,0).
         // We need a matrix that maps:
         //   (1,0,0) -> u
@@ -71,14 +83,40 @@ impl Instance {
         //   (0,0,1) -> normal direction (for consistent handedness)
         //   origin  -> q
         let normal = u.cross(v).normalize();
-        let transform = Mat4::from_cols(
+        let basis = Mat4::from_cols(
             u.extend(0.0),
             v.extend(0.0),
             normal.extend(0.0),
             q.extend(1.0),
         );
-        Self::new(PrimitiveKind::Quad, transform, material)
+        Self::new(PrimitiveKind::Quad, xform * basis, material)
     }
+}
+
+/// The six quads of a box spanning the two opposite corners `a` and `b`, with
+/// `xform` applied on top so the box can be rotated, translated or scaled.
+pub fn make_box(a: Point3, b: Point3, xform: Mat4, material: MaterialInfo) -> [Instance; 6] {
+    let min = a.min(b);
+    let max = a.max(b);
+
+    let dx = Vec3::new(max.x - min.x, 0., 0.);
+    let dy = Vec3::new(0., max.y - min.y, 0.);
+    let dz = Vec3::new(0., 0., max.z - min.z);
+
+    [
+        // Front (+z)
+        Instance::quad_transformed(xform, Point3::new(min.x, min.y, max.z), dx, dy, material),
+        // Right (+x)
+        Instance::quad_transformed(xform, Point3::new(max.x, min.y, max.z), -dz, dy, material),
+        // Back (-z)
+        Instance::quad_transformed(xform, Point3::new(max.x, min.y, min.z), -dx, dy, material),
+        // Left (-x)
+        Instance::quad_transformed(xform, Point3::new(min.x, min.y, min.z), dz, dy, material),
+        // Top (+y)
+        Instance::quad_transformed(xform, Point3::new(min.x, max.y, max.z), dx, -dz, material),
+        // Bottom (-y)
+        Instance::quad_transformed(xform, Point3::new(min.x, min.y, min.z), dx, dz, material),
+    ]
 }
 
 /// Hit test against a unit sphere (radius 1, centered at origin).
