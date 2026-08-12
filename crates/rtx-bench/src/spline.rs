@@ -96,8 +96,7 @@ mod tests {
         let result = spline.evaluate(0.0);
         assert!(
             approx_eq(result, Vec3::new(1.0, 0.0, 0.0), 1e-6),
-            "Expected (1, 0, 0), got {:?}",
-            result
+            "Expected (1, 0, 0), got {result:?}"
         );
     }
 
@@ -114,8 +113,7 @@ mod tests {
         let result = spline.evaluate(1.0);
         assert!(
             approx_eq(result, Vec3::new(2.0, 0.0, 0.0), 1e-6),
-            "Expected (2, 0, 0), got {:?}",
-            result
+            "Expected (2, 0, 0), got {result:?}"
         );
     }
 
@@ -137,10 +135,7 @@ mod tests {
             let expected_x = 1.0 + t; // Linear from 1.0 to 2.0
             assert!(
                 approx_eq(result, Vec3::new(expected_x, 0.0, 0.0), 1e-5),
-                "At t={}, expected x={}, got {:?}",
-                t,
-                expected_x,
-                result
+                "At t={t}, expected x={expected_x}, got {result:?}"
             );
         }
     }
@@ -158,8 +153,7 @@ mod tests {
         let result = spline.evaluate(0.5);
         assert!(
             approx_eq(result, Vec3::new(1.5, 0.0, 0.0), 1e-6),
-            "Expected (1.5, 0, 0), got {:?}",
-            result
+            "Expected (1.5, 0, 0), got {result:?}"
         );
     }
 
@@ -179,24 +173,21 @@ mod tests {
         let at_start = spline.evaluate(0.0);
         assert!(
             approx_eq(at_start, Vec3::new(1.0, 0.0, 0.0), 1e-6),
-            "Expected (1, 0, 0) at t=0, got {:?}",
-            at_start
+            "Expected (1, 0, 0) at t=0, got {at_start:?}"
         );
 
         // t=1 should be at points[3]
         let at_end = spline.evaluate(1.0);
         assert!(
             approx_eq(at_end, Vec3::new(3.0, 0.0, 0.0), 1e-6),
-            "Expected (3, 0, 0) at t=1, got {:?}",
-            at_end
+            "Expected (3, 0, 0) at t=1, got {at_end:?}"
         );
 
         // t=0.5 should be at points[2] (middle control point)
         let at_mid = spline.evaluate(0.5);
         assert!(
             approx_eq(at_mid, Vec3::new(2.0, 1.0, 0.0), 1e-6),
-            "Expected (2, 1, 0) at t=0.5, got {:?}",
-            at_mid
+            "Expected (2, 1, 0) at t=0.5, got {at_mid:?}"
         );
     }
 

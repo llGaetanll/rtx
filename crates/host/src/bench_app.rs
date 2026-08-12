@@ -43,14 +43,14 @@ pub struct BenchmarkFile {
 impl BenchmarkFile {
     /// Load a benchmark definition from `bench/configs/<name>.toml`.
     pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from("bench/configs").join(format!("{}.toml", name));
+        let path = PathBuf::from("bench/configs").join(format!("{name}.toml"));
         let contents = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
         let def: BenchmarkFile = toml::from_str(&contents)
             .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
 
         if def.frame_count < 1 {
-            return Err(format!("Benchmark {} needs at least 1 frame", name).into());
+            return Err(format!("Benchmark {name} needs at least 1 frame").into());
         }
         if def.position.len() < 4 {
             return Err(format!(
@@ -455,7 +455,7 @@ pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
 pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
     let benchmarks_dir = PathBuf::from("bench/configs");
     let mut benchmark_names: Vec<String> = fs::read_dir(&benchmarks_dir)
-        .map_err(|e| format!("Failed to read bench/configs directory: {}", e))?
+        .map_err(|e| format!("Failed to read bench/configs directory: {e}"))?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();

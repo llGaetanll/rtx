@@ -9,8 +9,6 @@ use shared::ShaderConstants;
 use spirv_std::glam::Vec4;
 use spirv_std::glam::vec2;
 use spirv_std::glam::vec4;
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
 use spirv_std::spirv;
 
 /// Build camera params from ShaderConstants. The host supplies every camera and

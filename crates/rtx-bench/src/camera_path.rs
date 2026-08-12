@@ -192,15 +192,13 @@ mod tests {
         let dir = frame.direction();
         assert!(
             approx_eq(dir, Vec3::new(0.0, 0.0, -1.0), 1e-6),
-            "Expected direction (0, 0, -1), got {:?}",
-            dir
+            "Expected direction (0, 0, -1), got {dir:?}"
         );
 
         let up = frame.up(Vec3::Y);
         assert!(
             approx_eq(up, Vec3::new(0.0, 1.0, 0.0), 1e-6),
-            "Expected up (0, 1, 0), got {:?}",
-            up
+            "Expected up (0, 1, 0), got {up:?}"
         );
     }
 

@@ -66,7 +66,7 @@ fn hsl_to_hex(h: f64, s: f64, l: f64) -> String {
     let g = ((g + m) * 255.0).round() as u8;
     let b = ((b + m) * 255.0).round() as u8;
 
-    format!("#{:02x}{:02x}{:02x}", r, g, b)
+    format!("#{r:02x}{g:02x}{b:02x}")
 }
 
 /// Generate colors for a series of runs, from lightest (oldest) to darkest (newest).
@@ -132,7 +132,7 @@ fn generate_benchmark_chart(
         .set("width", plot_width)
         .set("height", plot_height);
     let clip_path = ClipPath::new()
-        .set("id", format!("clip-{}", chart_id))
+        .set("id", format!("clip-{chart_id}"))
         .add(clip_rect);
     let defs = Definitions::new().add(clip_path);
     group = group.add(defs);
@@ -150,7 +150,7 @@ fn generate_benchmark_chart(
 
     // Chart title
     let title = Text::new(benchmark.name.as_str())
-        .set("id", format!("title-{}", chart_id))
+        .set("id", format!("title-{chart_id}"))
         .set("data-base-name", benchmark.name.as_str())
         .set("data-unit", unit)
         .set("x", plot_x)
@@ -162,7 +162,7 @@ fn generate_benchmark_chart(
 
     // Empty group for ticks - will be populated by JavaScript
     let ticks_group = Group::new()
-        .set("id", format!("ticks-{}", chart_id))
+        .set("id", format!("ticks-{chart_id}"))
         .set("data-plot-x", plot_x)
         .set("data-plot-y", plot_y)
         .set("data-plot-width", plot_width)
@@ -221,8 +221,8 @@ fn generate_benchmark_chart(
     // Create a group for all data lines with clip path applied
     // Store plot bounds as data attributes for zoom calculations
     let mut lines_group = Group::new()
-        .set("id", format!("lines-{}", chart_id))
-        .set("clip-path", format!("url(#clip-{})", chart_id))
+        .set("id", format!("lines-{chart_id}"))
+        .set("clip-path", format!("url(#clip-{chart_id})"))
         .set("data-plot-x", plot_x)
         .set("data-plot-y", plot_y)
         .set("data-plot-width", plot_width)
@@ -264,7 +264,7 @@ fn generate_benchmark_chart(
 
         let points_str: String = points
             .iter()
-            .map(|(x, y)| format!("{:.1},{:.1}", x, y))
+            .map(|(x, y)| format!("{x:.1},{y:.1}"))
             .collect::<Vec<_>>()
             .join(" ");
 
@@ -282,7 +282,7 @@ fn generate_benchmark_chart(
 
     // Selection rectangle (hidden by default)
     let selection_rect = Rectangle::new()
-        .set("id", format!("selection-{}", chart_id))
+        .set("id", format!("selection-{chart_id}"))
         .set("class", "selection-rect")
         .set("x", 0)
         .set("y", 0)
@@ -295,7 +295,7 @@ fn generate_benchmark_chart(
 
     // Cursor line (vertical line that follows mouse, snaps to frames)
     let cursor_line = Line::new()
-        .set("id", format!("cursor-line-{}", chart_id))
+        .set("id", format!("cursor-line-{chart_id}"))
         .set("class", "cursor-line")
         .set("x1", 0)
         .set("y1", plot_y)
@@ -308,13 +308,13 @@ fn generate_benchmark_chart(
 
     // Cursor markers group (circles at line intersections)
     let cursor_markers = Group::new()
-        .set("id", format!("cursor-markers-{}", chart_id))
+        .set("id", format!("cursor-markers-{chart_id}"))
         .set("class", "cursor-markers");
     group = group.add(cursor_markers);
 
     // Cursor frame label (shows current frame number below x-axis)
     let cursor_frame_label = Text::new("")
-        .set("id", format!("cursor-frame-{}", chart_id))
+        .set("id", format!("cursor-frame-{chart_id}"))
         .set("class", "cursor-frame-label")
         .set("x", 0)
         .set("y", plot_y + plot_height + 15.0)
@@ -326,7 +326,7 @@ fn generate_benchmark_chart(
 
     // Cursor values group (list of values that follows cursor)
     let cursor_values = Group::new()
-        .set("id", format!("cursor-values-{}", chart_id))
+        .set("id", format!("cursor-values-{chart_id}"))
         .set("class", "cursor-values");
     group = group.add(cursor_values);
 
@@ -336,7 +336,7 @@ fn generate_benchmark_chart(
 
     // Reset zoom button (above legend, aligned with SHA text)
     let reset_btn = Text::new("[reset zoom]")
-        .set("id", format!("reset-{}", chart_id))
+        .set("id", format!("reset-{chart_id}"))
         .set("class", "reset-zoom")
         .set("data-chart-id", chart_id.as_str())
         .set("x", legend_x + 16.0)

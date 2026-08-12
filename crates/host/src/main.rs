@@ -91,10 +91,10 @@ fn run_test() -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all("renders")?;
     let path = "renders/render.png";
 
-    log::debug!("Saving {}x{} grid to {}...", grid_width, grid_height, path);
+    log::debug!("Saving {grid_width}x{grid_height} grid to {path}...");
     grid_img.save(path)?;
 
-    log::info!("Saved {}", path);
+    log::info!("Saved {path}");
     Ok(())
 }
 
@@ -124,7 +124,7 @@ fn run_chart() -> Result<(), Box<dyn Error>> {
     let output_path = "bench/charts/chart.svg";
     fs::write(output_path, &svg)?;
 
-    log::info!("Saved {}", output_path);
+    log::info!("Saved {output_path}");
     Ok(())
 }
 

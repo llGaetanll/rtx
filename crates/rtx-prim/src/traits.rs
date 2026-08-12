@@ -71,8 +71,7 @@ mod tests {
             let len_squared = p.x * p.x + p.y * p.y + p.z * p.z;
             assert!(
                 (len_squared - 1.0).abs() < 1e-6,
-                "Point not on unit sphere: length^2 = {}",
-                len_squared
+                "Point not on unit sphere: length^2 = {len_squared}"
             );
         }
     }
@@ -91,8 +90,7 @@ mod tests {
             let r_squared = p.x * p.x + p.y * p.y;
             assert!(
                 r_squared <= 1.0,
-                "Point outside unit disk: r^2 = {}",
-                r_squared
+                "Point outside unit disk: r^2 = {r_squared}"
             );
 
             // Check point is not at origin (would indicate bad sampling)

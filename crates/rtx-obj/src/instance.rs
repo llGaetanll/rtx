@@ -153,6 +153,9 @@ pub fn hit_unit_quad(ray: &Ray, t_int: &mut Range<F>, rec: &mut HitRecord) -> bo
     let alpha = intersect.x;
     let beta = intersect.y;
 
+    // Not `(0.0..=1.0).contains(..)`: `RangeInclusive::contains` takes its operands
+    // by reference, which rust-gpu cannot lower ("is not a logical pointer")
+    #[allow(clippy::manual_range_contains)]
     if alpha < 0.0 || alpha > 1.0 || beta < 0.0 || beta > 1.0 {
         return false;
     }

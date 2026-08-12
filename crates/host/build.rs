@@ -18,10 +18,10 @@ fn set_git_sha() {
 
     // Also watch the ref that HEAD points to (e.g., refs/heads/master)
     // This ensures we re-run when new commits are made on the current branch
-    if let Ok(head_contents) = std::fs::read_to_string("../../.git/HEAD") {
-        if let Some(ref_path) = head_contents.trim().strip_prefix("ref: ") {
-            println!("cargo::rerun-if-changed=../../.git/{}", ref_path);
-        }
+    if let Ok(head_contents) = std::fs::read_to_string("../../.git/HEAD")
+        && let Some(ref_path) = head_contents.trim().strip_prefix("ref: ")
+    {
+        println!("cargo::rerun-if-changed=../../.git/{ref_path}");
     }
 
     let sha = Command::new("git")
@@ -32,7 +32,7 @@ fn set_git_sha() {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    println!("cargo::rustc-env=GIT_SHA={}", sha);
+    println!("cargo::rustc-env=GIT_SHA={sha}");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

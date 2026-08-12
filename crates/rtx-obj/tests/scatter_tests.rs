@@ -1,3 +1,5 @@
+use std::f32::consts::FRAC_1_SQRT_2;
+
 use rtx_mat::Dielectric;
 use rtx_mat::HitRecord;
 use rtx_mat::Lambertian;
@@ -87,12 +89,10 @@ fn test_metal_reflection_45_degrees() {
 
     // Perfect reflection: incoming (0.707, 0, 0.707) off normal (0, 0, -1) -> (0.707, 0, -0.707)
     let reflected = scattered.dir().normalize();
-    let expected = Vec3::new(0.7071068, 0.0, -0.7071068);
+    let expected = Vec3::new(FRAC_1_SQRT_2, 0.0, -FRAC_1_SQRT_2);
     assert!(
         approx_eq(reflected, expected, 0.0001),
-        "Reflected: expected {:?}, got {:?}",
-        expected,
-        reflected
+        "Reflected: expected {expected:?}, got {reflected:?}"
     );
 }
 
@@ -144,9 +144,7 @@ fn test_metal_reflection_grazing_angle() {
     let expected = Vec3::new(-1.0, 0.0, 0.0);
     assert!(
         approx_eq(reflected, expected, 0.0001),
-        "Reflected: expected {:?}, got {:?}",
-        expected,
-        reflected
+        "Reflected: expected {expected:?}, got {reflected:?}"
     );
 }
 
@@ -211,18 +209,14 @@ fn test_metal_fuzz_affects_direction() {
     let expected_smooth = Vec3::new(0.0, 0.0, -1.0);
     assert!(
         approx_eq(dir1, expected_smooth, 0.0001),
-        "Smooth reflection: expected {:?}, got {:?}",
-        expected_smooth,
-        dir1
+        "Smooth reflection: expected {expected_smooth:?}, got {dir1:?}"
     );
 
     // Fuzzy reflection (deterministic with seed 42)
     let expected_fuzzy = Vec3::new(0.4912008, 0.008160583, -0.8710082);
     assert!(
         approx_eq(dir2, expected_fuzzy, 0.0001),
-        "Fuzzy reflection: expected {:?}, got {:?}",
-        expected_fuzzy,
-        dir2
+        "Fuzzy reflection: expected {expected_fuzzy:?}, got {dir2:?}"
     );
 }
 
@@ -282,9 +276,7 @@ fn test_dielectric_refraction_entering_glass() {
     let expected = Vec3::new(0.38490024, -0.38490024, 0.83887047);
     assert!(
         approx_eq(refracted, expected, 0.0001),
-        "Refracted: expected {:?}, got {:?}",
-        expected,
-        refracted
+        "Refracted: expected {expected:?}, got {refracted:?}"
     );
 }
 
@@ -340,9 +332,7 @@ fn test_dielectric_refraction_exiting_glass() {
     let expected = Vec3::new(0.28734788, 0.0, 0.95782626);
     assert!(
         approx_eq(refracted, expected, 0.0001),
-        "Refracted: expected {:?}, got {:?}",
-        expected,
-        refracted
+        "Refracted: expected {expected:?}, got {refracted:?}"
     );
 }
 
@@ -394,9 +384,7 @@ fn test_dielectric_total_internal_reflection() {
     let expected = Vec3::new(0.947822, 0.0, -0.31880012);
     assert!(
         approx_eq(reflected, expected, 0.0001),
-        "TIR reflected: expected {:?}, got {:?}",
-        expected,
-        reflected
+        "TIR reflected: expected {expected:?}, got {reflected:?}"
     );
 }
 
@@ -443,9 +431,7 @@ fn test_dielectric_normal_incidence() {
     let expected = Vec3::new(0.0, 0.0, 1.0);
     assert!(
         approx_eq(dir, expected, 0.0001),
-        "Normal incidence: expected {:?}, got {:?}",
-        expected,
-        dir
+        "Normal incidence: expected {expected:?}, got {dir:?}"
     );
 }
 
@@ -498,9 +484,7 @@ fn test_lambertian_scatters_in_hemisphere() {
     let expected = Vec3::new(0.81248367, 0.013498228, -0.5828276);
     assert!(
         approx_eq(dir, expected, 0.0001),
-        "Lambertian scatter: expected {:?}, got {:?}",
-        expected,
-        dir
+        "Lambertian scatter: expected {expected:?}, got {dir:?}"
     );
 }
 
@@ -552,18 +536,14 @@ fn test_lambertian_deterministic_with_seed() {
     // Both should be identical
     assert!(
         approx_eq(dir1, dir2, 0.0001),
-        "Same seed should produce same result: {:?} vs {:?}",
-        dir1,
-        dir2
+        "Same seed should produce same result: {dir1:?} vs {dir2:?}"
     );
 
     // And should match expected value
     let expected = Vec3::new(0.81248367, 0.013498228, -0.5828276);
     assert!(
         approx_eq(dir1, expected, 0.0001),
-        "Lambertian with seed 42: expected {:?}, got {:?}",
-        expected,
-        dir1
+        "Lambertian with seed 42: expected {expected:?}, got {dir1:?}"
     );
 }
 
@@ -616,9 +596,7 @@ fn test_lambertian_grazing_angle() {
     let expected = Vec3::new(0.96750796, 0.009416749, -0.252665);
     assert!(
         approx_eq(dir, expected, 0.0001),
-        "Lambertian grazing: expected {:?}, got {:?}",
-        expected,
-        dir
+        "Lambertian grazing: expected {expected:?}, got {dir:?}"
     );
 }
 

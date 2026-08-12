@@ -383,7 +383,7 @@ impl ApplicationHandler for LiveApp {
 }
 
 pub fn run_live(scene: &str) -> Result<(), Box<dyn Error>> {
-    log::debug!("Running live with scene: {}", scene);
+    log::debug!("Running live with scene: {scene}");
     let event_loop = EventLoop::new()?;
     let mut app = LiveApp::new(scene.to_string());
     event_loop.run_app(&mut app).map_err(Into::into)

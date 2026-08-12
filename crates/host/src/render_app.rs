@@ -58,7 +58,7 @@ pub struct OutputDef {
 impl RenderFile {
     /// Load a render definition from `renders/configs/<name>.toml`.
     pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from(CONFIG_DIR).join(format!("{}.toml", name));
+        let path = PathBuf::from(CONFIG_DIR).join(format!("{name}.toml"));
         let contents = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
         let def: RenderFile = toml::from_str(&contents)
@@ -80,13 +80,13 @@ impl RenderFile {
             .into());
         }
         if self.quality.samples < 1 {
-            return Err(format!("Render {} needs at least 1 sample", name).into());
+            return Err(format!("Render {name} needs at least 1 sample").into());
         }
         if self.quality.bounces < 1 {
-            return Err(format!("Render {} needs at least 1 bounce", name).into());
+            return Err(format!("Render {name} needs at least 1 bounce").into());
         }
         if self.output.width < 1 || self.output.height < 1 {
-            return Err(format!("Render {} needs a non-zero output size", name).into());
+            return Err(format!("Render {name} needs a non-zero output size").into());
         }
         Ok(())
     }
@@ -150,11 +150,11 @@ fn format_duration(duration: Duration) -> String {
     let (hours, minutes, seconds) = (total / 3600, (total % 3600) / 60, total % 60);
 
     if hours > 0 {
-        format!("{}h{:02}m", hours, minutes)
+        format!("{hours}h{minutes:02}m")
     } else if minutes > 0 {
-        format!("{}m{:02}s", minutes, seconds)
+        format!("{minutes}m{seconds:02}s")
     } else if total > 0 {
-        format!("{}s", seconds)
+        format!("{seconds}s")
     } else {
         format!("{:.1}s", duration.as_secs_f64())
     }
@@ -232,7 +232,7 @@ pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
     let image = encode_srgb(&accumulated, width, height);
     fs::create_dir_all(OUTPUT_DIR)?;
     let timestamp = Utc::now().format("%Y-%m-%d-%H-%M-%S");
-    let path = PathBuf::from(OUTPUT_DIR).join(format!("{}-{}.png", name, timestamp));
+    let path = PathBuf::from(OUTPUT_DIR).join(format!("{name}-{timestamp}.png"));
     image.save(&path)?;
 
     let throughput = (pixels_per_pass * passes as u64) as f64 / elapsed.as_secs_f64() / 1e6;
