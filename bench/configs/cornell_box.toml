@@ -1,5 +1,12 @@
 scene = "cornell_box_fs"
-frame_count = 300
+frame_count = 60
+
+# Samples match the per-pass sample count the render command uses, so a frame here
+# costs about what one accumulation pass of a real render costs per pixel
+width = 400
+height = 300
+samples = 8
+bounces = 10
 
 # Camera moves through the Cornell box, starting at the back and pushing in
 position = [

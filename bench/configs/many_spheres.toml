@@ -1,5 +1,10 @@
 scene = "many_spheres_fs"
-frame_count = 450
+frame_count = 60
+
+width = 400
+height = 300
+samples = 8
+bounces = 10
 
 # Sweeping camera over the field of spheres
 position = [
