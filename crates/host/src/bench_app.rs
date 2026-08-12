@@ -149,10 +149,12 @@ struct QueuedBenchmark {
 pub struct BenchApp {
     gpu: Option<GpuContext>,
     gpu_info: Option<GpuInfo>,
-    window_surface: Option<WindowSurface>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     swapchain_format: Option<wgpu::TextureFormat>,
+    /// Declared after everything holding a GPU handle. Fields drop in declaration
+    /// order, and the surface has to go before the window it borrows.
+    window_surface: Option<WindowSurface>,
     close_requested: bool,
     camera_path: CameraPath,
     frame_records: Vec<FrameRecord>,

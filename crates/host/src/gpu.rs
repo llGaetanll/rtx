@@ -35,7 +35,13 @@ impl GpuContext {
         instance_flags.remove(wgpu::InstanceFlags::VALIDATION);
         instance_flags.remove(wgpu::InstanceFlags::DEBUG);
 
+        // Vulkan only. The GL backend cannot take our SPIR-V as-is, so it goes
+        // through naga and renders several entry points incorrectly, and tearing
+        // down its EGL instance after the window is gone segfaults in the Wayland
+        // client library. Asking for Vulkan alone turns a missing driver into a
+        // clear failure at adapter selection instead of silently wrong output.
         wgpu::Instance::new(&InstanceDescriptor {
+            backends: wgpu::Backends::VULKAN,
             flags: instance_flags,
             ..Default::default()
         })

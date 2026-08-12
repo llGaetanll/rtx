@@ -35,9 +35,11 @@ struct KeysHeld {
 pub struct LiveApp {
     scene: String,
     gpu: Option<GpuContext>,
-    window_surface: Option<WindowSurface>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
+    /// Declared after everything holding a GPU handle. Fields drop in declaration
+    /// order, and the surface has to go before the window it borrows.
+    window_surface: Option<WindowSurface>,
     close_requested: bool,
     start: Instant,
     cursor_x: f32,
