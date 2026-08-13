@@ -195,11 +195,7 @@ impl Camera {
         let mut accumulated = Color::new(0., 0., 0.);
         let mut throughput = Color::new(1., 1., 1.);
 
-        while world.hit(&ray, &mut range, &mut rec) {
-            if depth > self.max_ray_bounce {
-                break;
-            }
-
+        while depth <= self.max_ray_bounce && world.hit(&ray, &mut range, &mut rec) {
             // Add emission at this hit point, scaled by current throughput
             let emission = mat_table.emitted(state, tex_table, &rec, rec.u, rec.v, rec.p);
             accumulated += throughput * emission;
