@@ -11,6 +11,7 @@ Track rendering performance across commits to detect regressions.
 - `crates/host/src/cli.rs` - CLI definitions including `bench` subcommand
 - `crates/host/src/config.rs` - The config formats, including `VideoConfig`
 - `configs/video/*.toml` - The camera paths benchmarks run
+- `bench.toml` - Which scene each of those cameras flies through
 
 ## Overview
 
@@ -58,12 +59,13 @@ A benchmark is a video config: a scene, a camera that moves, and a frame count.
 The frames are timed and thrown away rather than saved, which is the only thing
 that separates `bench` from rendering the same file out.
 
-Definitions live in `configs/video/<name>.toml`, and `<name>` is used in the
-output filename (`bench/results/<git-sha>/<datetime>-<name>.jsonl`):
+Definitions are video configs, by convention in `configs/video/<name>.toml`, and
+`<name>` is used in the output filename
+(`bench/results/<git-sha>/<datetime>-<name>.jsonl`). The scene a config is flown
+through is the `--scene` path, or its partner in `bench.toml`:
 
 ```toml
 type = "video"
-scene = "two_spheres"
 
 [camera]
 # A list is keyframes on a spline; a single value is held for the whole path.

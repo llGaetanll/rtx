@@ -22,8 +22,13 @@ Two ideas drive the layout:
 
 **A scene describes what exists, never where it is viewed from.** Cameras belong
 to whatever is doing the looking, so the same scene can back a still image, a
-benchmark fly-through and a video without being copied. `scenes/<name>.toml`
-therefore has materials, objects and a background, and nothing else.
+benchmark fly-through and a video without being copied. A scene file therefore
+has materials, objects and a background, and nothing else.
+
+**Neither file names the other.** A config holds a camera and nothing that says
+what to point it at, and the two files are given to a command as paths. Nothing
+resolves a name against a directory the program knows about, so a scene and a
+config are ordinary files that can live anywhere and be paired freely.
 
 **An image and a video differ only in whether the camera moves.** They share one
 config shape, distinguished by a `type` at the top and by whether the camera's
@@ -31,23 +36,41 @@ fields hold a single value or a list of them.
 
 ## Layout
 
+The directories are a convention, not a lookup path:
+
 ```
-scenes/<name>.toml          what exists
-configs/image/<name>.toml   a still camera looking at it
-configs/video/<name>.toml   a moving camera looking at it
+scenes/       what exists
+configs/image a still camera looking at something
+configs/video a moving camera looking at something
+bench.toml    which scene each benchmark camera flies through
 ```
 
-Which command reads what:
+Every command takes both files as paths:
 
-| Command | Reads | Uses |
-|---------|-------|------|
-| `live <name>` | `configs/image/<name>.toml` | camera as the starting view; its own resolution and sample count |
-| `test` | every `configs/image/*.toml` | camera, one grid tile each |
-| `render <name>` | `configs/image/<name>.toml` | everything |
-| `bench [name]` | `configs/video/*.toml` | camera path and quality; records frame times instead of writing frames |
+```sh
+cargo run --release -- render -s scenes/cornell_box.toml -c configs/image/cornell_box.toml
+```
+
+| Command | Uses of the config |
+|---------|--------------------|
+| `live -s <scene> -c <config>` | camera as the starting view; its own resolution and sample count |
+| `render -s <scene> -c <config>` | everything |
+| `bench -s <scene> -c <config>` | camera path and quality; records frame times instead of writing frames |
+| `bench` | the same, for every pair in `bench.toml` |
 
 `bench` reading video configs is the point of the split rather than an accident
-of it: a benchmark is a video whose frames are timed and thrown away.
+of it: a benchmark is a video whose frames are timed and thrown away. Running
+every benchmark still needs the pairs written down somewhere, which is what
+`bench.toml` is:
+
+```toml
+[[benchmark]]
+scene = "scenes/cornell_box.toml"
+config = "configs/video/cornell_box.toml"
+```
+
+The name a render or a benchmark result is filed under is the config's file name
+without its extension.
 
 ## Scene Format
 
@@ -102,7 +125,6 @@ before it is known what to do with it.
 ```toml
 # configs/image/cornell_box.toml
 type = "image"
-scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]
@@ -126,7 +148,6 @@ A video is the same file with a camera that moves:
 ```toml
 # configs/video/cornell_box.toml
 type = "video"
-scene = "cornell_box"
 
 [camera]
 # A list is keyframes on a spline; a plain value is held for the whole path.

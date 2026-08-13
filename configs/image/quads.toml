@@ -1,7 +1,6 @@
 # Head on and wide, so all five quads are in frame at once.
 
 type = "image"
-scene = "quads"
 
 [camera]
 position = [0.0, 0.0, 9.0]

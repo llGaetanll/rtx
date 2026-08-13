@@ -1,7 +1,6 @@
 # Close enough that the reflection in the metal sphere is readable.
 
 type = "image"
-scene = "metal_test"
 
 [camera]
 position = [0.0, 1.0, 5.0]

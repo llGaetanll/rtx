@@ -1,21 +1,26 @@
 # The reference scene: a closed room lit only by its ceiling panel. Slow to
 # converge because every ray has to find that one small light.
+#
+# The image is A1 paper in portrait, 594 by 841, and the camera is placed so the
+# front opening of the room lands exactly on the four edges of the image. With a
+# 40 degree vertical field of view that fixes the distance: the room is 785.7828
+# tall, so the camera sits (785.7828 / 2) / tan(20 degrees) = 1079.46 in front of
+# the opening plane at z = 0, aimed at its centre.
 
 type = "image"
-scene = "cornell_box"
 
 [camera]
-position = [278.0, 278.0, -800.0]
-look_at = [278.0, 278.0, 0.0]
+position = [277.5, 392.8914, -1079.4603]
+look_at = [277.5, 392.8914, 0.0]
 vup = [0.0, 1.0, 0.0]
 fov = 40.0
 defocus_angle = 0.0
-focus_dist = 10.0
+focus_dist = 1079.4603
 
 [quality]
-samples = 500
+samples = 2000
 bounces = 50
 
 [output]
-width = 1920
-height = 1080
+width = 594
+height = 841

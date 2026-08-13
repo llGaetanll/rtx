@@ -2,7 +2,6 @@
 # benchmark cost.
 
 type = "video"
-scene = "two_spheres"
 
 [camera]
 position = [

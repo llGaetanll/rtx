@@ -1,0 +1,15 @@
+# The benchmarks `rtx bench` runs when it is not given a scene and config of its
+# own. A benchmark is a scene paired with the moving camera that flies through
+# it, and nothing in either file names the other, so the pairing is written here.
+
+[[benchmark]]
+scene = "scenes/cornell_box.toml"
+config = "configs/video/cornell_box.toml"
+
+[[benchmark]]
+scene = "scenes/many_spheres.toml"
+config = "configs/video/many_spheres.toml"
+
+[[benchmark]]
+scene = "scenes/two_spheres.toml"
+config = "configs/video/two_spheres.toml"

@@ -5,14 +5,16 @@ Generate high-quality images (and eventually videos) from scene definitions.
 ## Relevant Files
 
 - `crates/host/src/cli.rs` - CLI definitions (will add `render` subcommand)
-- `crates/host/src/gpu.rs` - `render_to_image()` for offscreen rendering
+- `crates/host/src/gpu.rs` - `render_to_image_accumulated()` for offscreen rendering
 - `configs/image/*.toml` - Image configs, which is what a render definition is
 - `crates/host/src/config.rs` - The config formats
 - `renders/` - Output directory for rendered images
 
 ## Overview
 
-Run `cargo run --release -- render <name>` to generate an image from `configs/image/<name>.toml`. Output saved to `renders/<name>-<timestamp>.png`.
+Run `cargo run --release -- render -s <scene> -c <config>` to generate an image
+from a scene file and an image config. Output saved to
+`renders/<config>-<timestamp>.png`, named after the config file.
 
 ## Status
 
@@ -30,17 +32,17 @@ Run `cargo run --release -- render <name>` to generate an image from `configs/im
 
 ## Implementation Notes
 
-Definitions live in `configs/image/<name>.toml` and images are written to
-`renders/<name>-<timestamp>.png`. Definitions are tracked in git; rendered
-images are not.
+Both files are given as paths, so nothing resolves a name against a directory,
+and images are written to `renders/<config>-<timestamp>.png`. Configs are
+tracked in git; rendered images are not.
 
 Camera and quality settings reach the shader through `ShaderConstants`, which
 grew fields for field of view, defocus angle, focus distance, sample count,
 bounce depth and an RNG seed. The shader holds no camera defaults: the host
 supplies every setting on every draw, and the scene contributes only its
-background color. `live` and `test` take their cameras from the same image
-configs `render` uses, and `bench` from a video config; every one of them states
-its camera in full.
+background color. `live` takes its camera from the same image configs `render`
+uses, and `bench` from a video config; every one of them states its camera in
+full.
 
 High sample counts cannot run in a single draw call without tripping the GPU
 watchdog, so a render is split into passes of `SAMPLES_PER_PASS` rays per pixel.
@@ -53,15 +55,15 @@ feature, which tells wgpu validation to consult the real adapter capabilities;
 the CPU instead cost about 10% of total render time.
 
 The float target is also why the sRGB transfer is applied by hand when the PNG is
-written, while `test` gets it free from its `Rgba8UnormSrgb` target.
+written, rather than coming free from an `Rgba8UnormSrgb` target.
 
 ## Render Definition Format
 
-Render definitions are the image configs in `configs/image/<name>.toml`:
+Render definitions are image configs, by convention in `configs/image/`. A
+config says nothing about which scene it looks at; that is the `--scene` path:
 
 ```toml
 type = "image"
-scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]

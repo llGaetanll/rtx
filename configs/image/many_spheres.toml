@@ -1,7 +1,6 @@
 # The same camera as three_spheres, so the two are directly comparable.
 
 type = "image"
-scene = "many_spheres"
 
 [camera]
 position = [13.0, 2.0, 3.0]

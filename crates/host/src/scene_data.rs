@@ -10,6 +10,8 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
+use std::path::Path;
+#[cfg(test)]
 use std::path::PathBuf;
 
 use rtx_mat::Dielectric;
@@ -26,8 +28,6 @@ use rtx_prim::Vec3;
 use rtx_tex::SolidTexture;
 use rtx_tex::TextureInfo;
 use serde::Deserialize;
-
-pub const SCENE_DIR: &str = "scenes";
 
 /// Everything about a scene that the shader reads from a buffer.
 #[derive(Default)]
@@ -172,33 +172,30 @@ fn color(c: [f32; 3]) -> Color {
     Color::new(c[0], c[1], c[2])
 }
 
-/// Read and build the scene named by `name`, from `scenes/<name>.toml`.
-pub fn load(name: &str) -> Result<SceneData, Box<dyn Error>> {
-    load_from(SCENE_DIR, name)
-}
-
-fn load_from(dir: &str, name: &str) -> Result<SceneData, Box<dyn Error>> {
-    let path = PathBuf::from(dir).join(format!("{name}.toml"));
-    let contents = fs::read_to_string(&path)
+/// Read and build the scene written in `path`.
+pub fn load(path: &Path) -> Result<SceneData, Box<dyn Error>> {
+    let contents = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     let file: SceneFile = toml::from_str(&contents)
         .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
 
-    build(&file).map_err(|e| format!("Scene {name}: {e}").into())
+    build(&file).map_err(|e| format!("Scene {}: {}", path.display(), e).into())
 }
 
-/// Every scene name in `scenes/`, sorted.
-pub fn names() -> Result<Vec<String>, Box<dyn Error>> {
-    toml_stems(SCENE_DIR)
-}
-
-/// Every scene name, listed for an error message. A failure to read the
-/// directory is not worth reporting in place of the error being explained.
-pub fn names_or_empty() -> String {
-    names().unwrap_or_default().join(", ")
+/// The scene's name, which is its file name without the extension. Nothing
+/// resolves a scene by it; it is what a log line and a benchmark record call the
+/// thing being rendered.
+pub fn name_of(path: &Path) -> String {
+    path.file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// The names of the TOML files in a directory, sorted, without their extension.
+/// Only the tests walk a directory of them: nothing in the program looks a scene
+/// up by name any more.
+#[cfg(test)]
 pub fn toml_stems(dir: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let mut stems: Vec<String> = fs::read_dir(dir)
         .map_err(|e| format!("Failed to read {dir}/: {e}"))?
@@ -313,11 +310,15 @@ mod tests {
         toml_stems(SCENES).expect("scenes/ is unreadable")
     }
 
+    fn load_named(name: &str) -> Result<SceneData, Box<dyn Error>> {
+        load(&PathBuf::from(SCENES).join(format!("{name}.toml")))
+    }
+
     /// The scene files are data, so a typo in one is only found by reading it.
     #[test]
     fn every_scene_file_loads() {
         for name in scene_names() {
-            let scene = load_from(SCENES, &name).unwrap_or_else(|e| panic!("{e}"));
+            let scene = load_named(&name).unwrap_or_else(|e| panic!("{e}"));
             assert!(!scene.instances.is_empty(), "{name} built no instances");
         }
     }
@@ -329,7 +330,7 @@ mod tests {
         use rtx_mat::material_kind;
 
         for name in scene_names() {
-            let scene = load_from(SCENES, &name).unwrap();
+            let scene = load_named(&name).unwrap();
 
             for instance in &scene.instances {
                 let index = instance.material.index as usize;

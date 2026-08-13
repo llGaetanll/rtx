@@ -1,7 +1,6 @@
 # The cover shot of Ray Tracing in One Weekend: long lens, shallow focus.
 
 type = "image"
-scene = "three_spheres"
 
 [camera]
 position = [13.0, 2.0, 3.0]

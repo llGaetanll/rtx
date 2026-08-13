@@ -1,4 +1,6 @@
 use std::error::Error;
+use std::path::Path;
+use std::path::PathBuf;
 use std::time::Instant;
 
 use futures::executor::block_on;
@@ -39,6 +41,7 @@ pub struct LiveApp {
     /// The config this view started from. Its camera is only a starting point,
     /// but its lens settings keep applying as the camera is flown around.
     image: ImageConfig,
+    scene_path: PathBuf,
     gpu: Option<GpuContext>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
@@ -61,12 +64,13 @@ pub struct LiveApp {
 }
 
 impl LiveApp {
-    pub fn new(config: ImageConfig) -> Self {
+    pub fn new(config: ImageConfig, scene_path: PathBuf) -> Self {
         let camera = config.camera;
         let cam_pos = Vec3::from(camera.position);
 
         Self {
             image: config,
+            scene_path,
             gpu: None,
             window_surface: None,
             config: None,
@@ -205,7 +209,7 @@ impl LiveApp {
 
         let render_pipeline = gpu.create_pipeline(swapchain_format);
 
-        let scene = scene_data::load(&self.image.scene)?;
+        let scene = scene_data::load(&self.scene_path)?;
         self.background = scene.background;
         let scene_buffers = gpu.upload_scene(&scene);
 
@@ -406,12 +410,12 @@ fn orientation(camera: crate::config::Camera) -> Quat {
     Quat::from_mat3(&Mat3::from_cols(right, back.cross(right), back)).normalize()
 }
 
-pub fn run_live(name: &str) -> Result<(), Box<dyn Error>> {
-    let config = ImageConfig::load(name)?;
-    log::debug!("Running live with scene: {}", config.scene);
+pub fn run_live(scene_path: &Path, config_path: &Path) -> Result<(), Box<dyn Error>> {
+    let config = ImageConfig::load(config_path)?;
+    log::debug!("Running live with scene: {}", scene_path.display());
 
     let event_loop = EventLoop::new()?;
-    let mut app = LiveApp::new(config);
+    let mut app = LiveApp::new(config, scene_path.to_path_buf());
     event_loop.run_app(&mut app).map_err(Into::into)
 }
 

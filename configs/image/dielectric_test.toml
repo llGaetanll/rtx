@@ -2,7 +2,6 @@
 # them before it leaves.
 
 type = "image"
-scene = "dielectric_test"
 
 [camera]
 position = [0.0, 1.0, 5.0]

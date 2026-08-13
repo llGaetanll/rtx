@@ -4,9 +4,13 @@
 //! produced. An image is a still from a fixed camera, a video is the same thing
 //! with a camera that moves, so the two share a shape and are told apart by the
 //! `type` at the top of the file.
+//!
+//! A config names no scene. Which scene it is pointed at is a command line
+//! argument, so any camera can be aimed at any scene without editing a file.
 
 use std::error::Error;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
 use glam::Vec3;
@@ -14,23 +18,68 @@ use rtx_bench::CameraPath;
 use rtx_bench::CatmullRomSpline;
 use serde::Deserialize;
 
-use crate::scene_data;
-
-pub const IMAGE_DIR: &str = "configs/image";
-pub const VIDEO_DIR: &str = "configs/video";
+/// The benchmarks `bench` runs when it is given no files of its own. A
+/// benchmark is a scene paired with a video config, and the pairing has to be
+/// written down somewhere; this is that place.
+pub const BENCH_MANIFEST: &str = "bench.toml";
 
 /// Control points a Catmull-Rom spline needs before it describes a curve. The
 /// first and last only set the tangents at the ends, so four points is the
 /// smallest path that goes anywhere.
 const MIN_KEYFRAMES: usize = 4;
 
-/// Rays per pixel for the interactive and grid renderers, which set their own
-/// rather than taking the sample count an image config asks of `render`. That
-/// count is chosen to make a good picture, not to keep a window responsive.
+/// Rays per pixel for the interactive renderer, which sets its own rather than
+/// taking the sample count an image config asks of `render`. That count is
+/// chosen to make a good picture, not to keep a window responsive.
 pub const PREVIEW_SAMPLES: u32 = 40;
 
-/// Maximum ray bounce depth for the interactive and grid renderers.
+/// Maximum ray bounce depth for the interactive renderer.
 pub const PREVIEW_BOUNCES: u32 = 10;
+
+/// Read and parse a TOML file, saying which file was at fault when it fails.
+fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn Error>> {
+    let contents = fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+
+    toml::from_str(&contents)
+        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e).into())
+}
+
+/// What a config is called in a log line or an output file name: its file name
+/// without the extension.
+pub fn name_of(path: &Path) -> String {
+    path.file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// One entry of the bench manifest: the two files a benchmark run needs.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BenchEntry {
+    pub scene: PathBuf,
+    pub config: PathBuf,
+}
+
+/// `bench.toml`, the list of benchmarks that a bare `bench` runs.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BenchManifest {
+    #[serde(rename = "benchmark")]
+    pub benchmarks: Vec<BenchEntry>,
+}
+
+impl BenchManifest {
+    pub fn load(path: &Path) -> Result<Self, Box<dyn Error>> {
+        let manifest: Self = read(path)?;
+        if manifest.benchmarks.is_empty() {
+            return Err(format!("{} lists no benchmarks", path.display()).into());
+        }
+
+        Ok(manifest)
+    }
+}
 
 /// The `type` at the top of a config. It is written down rather than inferred
 /// from the directory so a file says what it is on its own.
@@ -47,7 +96,6 @@ pub enum ConfigType {
 pub struct ImageConfig {
     #[serde(rename = "type")]
     pub kind: ConfigType,
-    pub scene: String,
     pub camera: Camera,
     pub quality: Quality,
     pub output: Output,
@@ -87,7 +135,6 @@ pub struct Output {
 pub struct VideoConfig {
     #[serde(rename = "type")]
     pub kind: ConfigType,
-    pub scene: String,
     pub camera: VideoCamera,
     pub quality: Quality,
     pub output: VideoOutput,
@@ -212,44 +259,17 @@ impl VideoCamera {
 }
 
 impl VideoConfig {
-    /// Load a video config from `configs/video/<name>.toml`.
-    pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from(VIDEO_DIR).join(format!("{name}.toml"));
-        let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-        let config: Self = toml::from_str(&contents)
-            .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
-
-        config.validate(name)?;
+    /// Load a video config from `path`.
+    pub fn load(path: &Path) -> Result<Self, Box<dyn Error>> {
+        let config: Self = read(path)?;
+        config.validate(&name_of(path))?;
 
         Ok(config)
-    }
-
-    /// Every video config, in name order.
-    pub fn load_all() -> Result<Vec<(String, Self)>, Box<dyn Error>> {
-        let names = scene_data::toml_stems(VIDEO_DIR)?;
-        if names.is_empty() {
-            return Err(format!("No configs found in {VIDEO_DIR}/").into());
-        }
-
-        names
-            .into_iter()
-            .map(|name| Self::load(&name).map(|config| (name, config)))
-            .collect()
     }
 
     fn validate(&self, name: &str) -> Result<(), Box<dyn Error>> {
         if self.kind != ConfigType::Video {
             return Err(format!("{name} is an image config, not a video").into());
-        }
-        if !scene_data::names()?.iter().any(|s| s == &self.scene) {
-            return Err(format!(
-                "Video {} uses unknown scene {}. Available scenes: {}",
-                name,
-                self.scene,
-                scene_data::names_or_empty()
-            )
-            .into());
         }
         if self.output.frames < 1 {
             return Err(format!("Video {name} needs at least 1 frame").into());
@@ -323,44 +343,17 @@ impl Camera {
 }
 
 impl ImageConfig {
-    /// Load an image config from `configs/image/<name>.toml`.
-    pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from(IMAGE_DIR).join(format!("{name}.toml"));
-        let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-        let config: Self = toml::from_str(&contents)
-            .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
-
-        config.validate(name)?;
+    /// Load an image config from `path`.
+    pub fn load(path: &Path) -> Result<Self, Box<dyn Error>> {
+        let config: Self = read(path)?;
+        config.validate(&name_of(path))?;
 
         Ok(config)
-    }
-
-    /// Every image config, in name order.
-    pub fn load_all() -> Result<Vec<(String, Self)>, Box<dyn Error>> {
-        let names = scene_data::toml_stems(IMAGE_DIR)?;
-        if names.is_empty() {
-            return Err(format!("No configs found in {IMAGE_DIR}/").into());
-        }
-
-        names
-            .into_iter()
-            .map(|name| Self::load(&name).map(|config| (name, config)))
-            .collect()
     }
 
     fn validate(&self, name: &str) -> Result<(), Box<dyn Error>> {
         if self.kind != ConfigType::Image {
             return Err(format!("{name} is a video config, not an image").into());
-        }
-        if !scene_data::names()?.iter().any(|s| s == &self.scene) {
-            return Err(format!(
-                "Image {} uses unknown scene {}. Available scenes: {}",
-                name,
-                self.scene,
-                scene_data::names_or_empty()
-            )
-            .into());
         }
         if self.quality.samples < 1 {
             return Err(format!("Image {name} needs at least 1 sample").into());
@@ -388,37 +381,47 @@ impl ImageConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene_data;
 
     /// Configs are data, so a typo in one is only found by reading it. The paths
     /// are absolute because tests run from the crate directory.
     const IMAGES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../configs/image");
     const VIDEOS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../configs/video");
-    const SCENES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../scenes");
 
-    fn read<T: serde::de::DeserializeOwned>(dir: &str, name: &str) -> T {
+    fn read_named<T: serde::de::DeserializeOwned>(dir: &str, name: &str) -> T {
         let path = PathBuf::from(dir).join(format!("{name}.toml"));
         toml::from_str(&fs::read_to_string(path).unwrap()).unwrap_or_else(|e| panic!("{name}: {e}"))
     }
 
     #[test]
-    fn every_image_config_parses_and_names_a_scene() {
-        let scenes = scene_data::toml_stems(SCENES).unwrap();
+    fn every_image_config_parses() {
         let names = scene_data::toml_stems(IMAGES).expect("configs/image is unreadable");
         assert!(!names.is_empty(), "no image configs");
 
         for name in names {
-            let config: ImageConfig = read(IMAGES, &name);
+            let config: ImageConfig = read_named(IMAGES, &name);
 
             assert_eq!(config.kind, ConfigType::Image, "{name}");
-            assert!(
-                scenes.contains(&config.scene),
-                "{name} uses unknown scene {}",
-                config.scene
-            );
             assert!(config.quality.samples >= 1, "{name} samples");
             assert!(config.quality.bounces >= 1, "{name} bounces");
             assert!(config.output.width >= 1, "{name} width");
             assert!(config.output.height >= 1, "{name} height");
+        }
+    }
+
+    /// The manifest is the one place a scene and a config are paired, so a path
+    /// that has gone stale in it is only found by looking.
+    #[test]
+    fn the_bench_manifest_points_at_files_that_exist() {
+        let root = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+        let manifest = BenchManifest::load(&root.join(BENCH_MANIFEST)).unwrap();
+
+        for entry in &manifest.benchmarks {
+            let config = root.join(&entry.config);
+            let scene = root.join(&entry.scene);
+
+            assert!(scene.is_file(), "{} is not a file", entry.scene.display());
+            VideoConfig::load(&config).unwrap_or_else(|e| panic!("{e}"));
         }
     }
 
@@ -428,7 +431,6 @@ mod tests {
     fn a_video_is_not_an_image() {
         let source = r#"
             type = "video"
-            scene = "two_spheres"
             [camera]
             position = [0.0, 1.0, 5.0]
             look_at = [0.0, 0.0, 0.0]
@@ -449,20 +451,14 @@ mod tests {
     }
 
     #[test]
-    fn every_video_config_parses_and_names_a_scene() {
-        let scenes = scene_data::toml_stems(SCENES).unwrap();
+    fn every_video_config_parses() {
         let names = scene_data::toml_stems(VIDEOS).expect("configs/video is unreadable");
         assert!(!names.is_empty(), "no video configs");
 
         for name in names {
-            let config: VideoConfig = read(VIDEOS, &name);
+            let config: VideoConfig = read_named(VIDEOS, &name);
 
             assert_eq!(config.kind, ConfigType::Video, "{name}");
-            assert!(
-                scenes.contains(&config.scene),
-                "{name} uses unknown scene {}",
-                config.scene
-            );
             assert!(config.output.frames >= 1, "{name} frames");
 
             for (field, keyframes) in config.camera.tracks_with_names() {
@@ -522,7 +518,6 @@ mod tests {
     fn a_short_keyframe_list_is_rejected() {
         let source = r#"
             type = "video"
-            scene = "two_spheres"
             [camera]
             position = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
             look_at = [0.0, 0.0, 0.0]

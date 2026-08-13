@@ -1,7 +1,6 @@
 # A push through the Cornell box, from the back wall in and out again.
 
 type = "video"
-scene = "cornell_box"
 
 # Any camera field takes either a single value, held for the whole path, or a
 # list of keyframes interpolated across the frames. A path needs at least four

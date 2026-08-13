@@ -1,7 +1,6 @@
 # A sweep over the field of spheres, the heaviest scene by instance count.
 
 type = "video"
-scene = "many_spheres"
 
 [camera]
 position = [

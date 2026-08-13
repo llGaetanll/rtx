@@ -22,16 +22,26 @@ most scene entry points silently misrender or hang the GPU.
 
 ## Scenes and configs
 
-A scene is a TOML file in `scenes/` listing materials and objects. It says what
-exists and nothing about where it is viewed from, so the same scene can back a
-still image, a benchmark fly-through and a video without being copied.
+A scene is a TOML file listing materials and objects. It says what exists and
+nothing about where it is viewed from, so the same scene can back a still image,
+a benchmark fly-through and a video without being copied.
 
 Cameras live in configs, which come in two kinds:
 
-- `configs/image/<name>.toml` - a scene, a fixed camera, and what to produce.
-  Read by `render`, and by `live` and `test` for the camera.
-- `configs/video/<name>.toml` - the same, with a camera that moves. Read by
-  `bench`.
+- an image config - a fixed camera and what to produce. Read by `render`, and by
+  `live` for its starting view.
+- a video config - the same, with a camera that moves. Read by `bench`.
+
+Neither file names the other. Every command takes both as paths:
+
+```sh
+cargo run --release -- render --scene scenes/cornell_box.toml --config configs/image/cornell_box.toml
+```
+
+The scenes and configs that come with the repository live in `scenes/`,
+`configs/image/` and `configs/video/`, but that is a convention: nothing
+resolves a name against those directories, so a scene and a config can live
+anywhere and any camera can be pointed at any scene.
 
 See [docs/tasks/scene-definitions.md](docs/tasks/scene-definitions.md) for both
 formats.
@@ -43,7 +53,7 @@ formats.
 Open a window and fly around a scene, starting from an image config's camera.
 
 ```sh
-cargo run --release -- live cornell_box
+cargo run --release -- live -s scenes/cornell_box.toml -c configs/image/cornell_box.toml
 ```
 
 Controls:
@@ -52,29 +62,23 @@ Controls:
 - **Mouse** - Look around
 - **Q/Escape** - Quit
 
-### `test` - Render all scenes
-
-Render every image config to a 4x4 grid image saved to `renders/render.png`.
-
-```sh
-cargo run --release -- test
-```
-
 ### `render` - High-quality still images
 
-Render a single image from a definition file, accumulating samples over many
-passes. Output is saved to `renders/<name>-<timestamp>.png`.
+Render a single image, accumulating samples over many passes. Output is saved to
+`renders/<config>-<timestamp>.png`, named after the config file.
 
 ```sh
-cargo run --release -- render cornell_box
+cargo run --release -- render -s scenes/cornell_box.toml -c configs/image/cornell_box.toml
 ```
 
-Render definitions are the image configs in `configs/image/`. Every setting is
+Pass `--preview` to watch the image accumulate in a window; closing it early
+saves what has been rendered so far.
+
+A config holds the camera, the quality and the output size. Every setting is
 required - the shader has no defaults of its own:
 
 ```toml
 type = "image"
-scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]
@@ -105,10 +109,11 @@ Run benchmarks with an animated camera path. Results are saved to `bench/results
 Run a specific benchmark:
 
 ```sh
-cargo run --release -- bench two_spheres
+cargo run --release -- bench -s scenes/two_spheres.toml -c configs/video/two_spheres.toml
 ```
 
-Run every benchmark in `configs/video/`:
+Run every benchmark listed in `bench.toml`, which is where a benchmark camera is
+paired with the scene it flies through:
 
 ```sh
 cargo run --release -- bench

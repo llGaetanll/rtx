@@ -79,7 +79,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     if skip_shader_build() {
         match previously_built_shader() {
             Some(path) => println!("cargo::rustc-env=shader.spv={}", path.display()),
-            None => println!("cargo::warning=skipped the shader build, and none was found to reuse"),
+            None => {
+                println!("cargo::warning=skipped the shader build, and none was found to reuse")
+            }
         }
     } else {
         build_shader("../shader")?;

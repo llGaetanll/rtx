@@ -51,8 +51,8 @@ impl RenderPlan {
     }
 }
 
-/// Convert the accumulated linear image to an 8-bit sRGB image. The live and test
-/// paths get this transfer for free from their sRGB render targets.
+/// Convert the accumulated linear image to an 8-bit sRGB image. The live path
+/// gets this transfer for free from its sRGB render target.
 fn encode_srgb(accumulated: &[f32], width: u32, height: u32) -> image::RgbaImage {
     let mut bytes = Vec::with_capacity((width * height * 4) as usize);
 

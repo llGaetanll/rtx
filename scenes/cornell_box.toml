@@ -1,7 +1,11 @@
 # The Cornell box: a closed room lit only by a panel in the ceiling.
 #
+# The room is 555 wide and deep and 785.7828 tall, so its front opening has the
+# proportions of A1 paper in portrait. The image config frames that opening
+# exactly, which is why the height is this particular number.
+#
 # Lengths are in scene units and angles in degrees. The coordinate system is
-# right handed with +Y up, so the room spans 0..555 on every axis.
+# right handed with +Y up.
 #
 # A scene describes what exists, never where it is viewed from. Cameras belong to
 # whatever is doing the looking, so the same scene can back a still render, a
@@ -26,10 +30,12 @@ color = [0.12, 0.45, 0.15]
 type = "lambertian"
 color = [0.73, 0.73, 0.73]
 
-# Values above 1 are what make this a light rather than a bright surface
+# Values above 1 are what make this a light rather than a bright surface. The
+# taller room puts the panel further from the floor, so this is brighter than the
+# usual 15 to keep the exposure.
 [materials.light]
 type = "diffuse_light"
-color = [15.0, 15.0, 15.0]
+color = [30.0, 30.0, 30.0]
 
 # A quad is a corner and the two edge vectors leading away from it, so it can be
 # any parallelogram rather than only an axis aligned rectangle. The order of `u`
@@ -40,7 +46,7 @@ name = "left wall"
 type = "quad"
 material = "green"
 corner = [555.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
+u = [0.0, 785.7828, 0.0]
 v = [0.0, 0.0, 555.0]
 
 [[objects]]
@@ -48,7 +54,7 @@ name = "right wall"
 type = "quad"
 material = "red"
 corner = [0.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
+u = [0.0, 785.7828, 0.0]
 v = [0.0, 0.0, 555.0]
 
 [[objects]]
@@ -63,7 +69,7 @@ v = [0.0, 0.0, 555.0]
 name = "ceiling"
 type = "quad"
 material = "white"
-corner = [555.0, 555.0, 555.0]
+corner = [555.0, 785.7828, 555.0]
 u = [-555.0, 0.0, 0.0]
 v = [0.0, 0.0, -555.0]
 
@@ -73,13 +79,13 @@ type = "quad"
 material = "white"
 corner = [0.0, 0.0, 555.0]
 u = [555.0, 0.0, 0.0]
-v = [0.0, 555.0, 0.0]
+v = [0.0, 785.7828, 0.0]
 
 [[objects]]
 name = "light"
 type = "quad"
 material = "light"
-corner = [343.0, 554.0, 332.0]
+corner = [343.0, 784.7828, 332.0]
 u = [-130.0, 0.0, 0.0]
 v = [0.0, 0.0, -105.0]
 

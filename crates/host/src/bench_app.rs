@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fs;
 use std::io::BufWriter;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -25,6 +26,8 @@ use winit::keyboard::NamedKey;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
+use crate::config;
+use crate::config::BenchManifest;
 use crate::config::CameraTracks;
 use crate::config::Quality;
 use crate::config::VideoConfig;
@@ -48,9 +51,10 @@ const GIT_SHA: &str = env!("GIT_SHA");
 /// frame takes seconds.
 const PROGRESS_INTERVAL: u32 = 10;
 
-/// A queued benchmark with its name and definition.
+/// A queued benchmark: what to look at, and the moving camera that looks at it.
 struct QueuedBenchmark {
     name: String,
+    scene_path: PathBuf,
     def: VideoConfig,
 }
 
@@ -74,7 +78,7 @@ pub struct BenchApp {
     frame_records: Vec<FrameRecord>,
     frame_count: u32,
     name: String,
-    scene: String,
+    scene_path: PathBuf,
     width: u32,
     height: u32,
     quality: Quality,
@@ -83,11 +87,8 @@ pub struct BenchApp {
 }
 
 impl BenchApp {
-    pub fn new(benchmarks: Vec<(String, VideoConfig)>, timestamp: DateTime<Utc>) -> Self {
-        let mut queue: Vec<QueuedBenchmark> = benchmarks
-            .into_iter()
-            .map(|(name, def)| QueuedBenchmark { name, def })
-            .collect();
+    fn new(benchmarks: Vec<QueuedBenchmark>, timestamp: DateTime<Utc>) -> Self {
+        let mut queue = benchmarks;
 
         // Pop the first benchmark to run immediately
         let first = queue.remove(0);
@@ -112,7 +113,7 @@ impl BenchApp {
             width: first.def.output.width,
             height: first.def.output.height,
             quality: first.def.quality,
-            scene: first.def.scene,
+            scene_path: first.scene_path,
             timestamp,
             queue,
         }
@@ -128,7 +129,7 @@ impl BenchApp {
         log::info!(
             "Running benchmark '{}' (scene: {})",
             next.name,
-            next.def.scene
+            next.scene_path.display()
         );
 
         // Update camera path
@@ -141,7 +142,7 @@ impl BenchApp {
 
         // Update scene info
         self.name = next.name;
-        self.scene = next.def.scene.clone();
+        self.scene_path = next.scene_path;
         self.width = next.def.output.width;
         self.height = next.def.output.height;
         self.quality = next.def.quality;
@@ -156,7 +157,7 @@ impl BenchApp {
         // Upload the new scene. The pipeline is shared across scenes now, so only
         // the buffers behind it change
         if let Some(gpu) = &self.gpu {
-            match scene_data::load(&self.scene) {
+            match scene_data::load(&self.scene_path) {
                 Ok(scene) => {
                     self.background = scene.background;
                     self.scene_buffers = Some(gpu.upload_scene(&scene));
@@ -196,7 +197,7 @@ impl BenchApp {
 
         let render_pipeline = gpu.create_pipeline(swapchain_format);
 
-        let scene = scene_data::load(&self.scene)?;
+        let scene = scene_data::load(&self.scene_path)?;
         self.background = scene.background;
         let scene_buffers = gpu.upload_scene(&scene);
 
@@ -221,7 +222,11 @@ impl BenchApp {
         self.render_pipeline = Some(render_pipeline);
         self.swapchain_format = Some(swapchain_format);
         self.scene_buffers = Some(scene_buffers);
-        log::info!("Running benchmark '{}' (scene: {})", self.name, self.scene);
+        log::info!(
+            "Running benchmark '{}' (scene: {})",
+            self.name,
+            self.scene_path.display()
+        );
         Ok(())
     }
 
@@ -371,7 +376,7 @@ impl BenchApp {
             version: 1,
             timestamp: self.timestamp.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             git_sha: GIT_SHA.to_string(),
-            scene: self.scene.clone(),
+            scene: scene_data::name_of(&self.scene_path),
             resolution: [config.width, config.height],
             samples: self.quality.samples,
             bounces: self.quality.bounces,
@@ -453,21 +458,34 @@ impl ApplicationHandler for BenchApp {
     }
 }
 
-pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
-    let def = VideoConfig::load(&name)?;
-
-    run_benchmarks(vec![(name, def)])
+fn queue(scene_path: PathBuf, config_path: &Path) -> Result<QueuedBenchmark, Box<dyn Error>> {
+    Ok(QueuedBenchmark {
+        name: config::name_of(config_path),
+        scene_path,
+        def: VideoConfig::load(config_path)?,
+    })
 }
 
+/// Time one scene through one video config.
+pub fn run_bench(scene_path: &Path, config_path: &Path) -> Result<(), Box<dyn Error>> {
+    run_benchmarks(vec![queue(scene_path.to_path_buf(), config_path)?])
+}
+
+/// Time every benchmark listed in the manifest.
 pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
-    let benchmarks = VideoConfig::load_all()?;
+    let manifest = BenchManifest::load(Path::new(config::BENCH_MANIFEST))?;
+    let benchmarks = manifest
+        .benchmarks
+        .into_iter()
+        .map(|entry| queue(entry.scene, &entry.config))
+        .collect::<Result<Vec<_>, _>>()?;
 
     log::info!(
         "Found {} benchmark(s): {}",
         benchmarks.len(),
         benchmarks
             .iter()
-            .map(|(name, _)| name.as_str())
+            .map(|b| b.name.as_str())
             .collect::<Vec<_>>()
             .join(", ")
     );
@@ -475,7 +493,7 @@ pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
     run_benchmarks(benchmarks)
 }
 
-fn run_benchmarks(benchmarks: Vec<(String, VideoConfig)>) -> Result<(), Box<dyn Error>> {
+fn run_benchmarks(benchmarks: Vec<QueuedBenchmark>) -> Result<(), Box<dyn Error>> {
     let event_loop = EventLoop::new()?;
     let mut app = BenchApp::new(benchmarks, Utc::now());
     event_loop.run_app(&mut app).map_err(Into::into)

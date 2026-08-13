@@ -449,7 +449,7 @@ impl Accumulator {
             width: self.width,
             height: self.height,
             px_samples: samples_per_pass,
-            // Seed 0 would match the live/test path, so start at 1
+            // Seed 0 would match the live path, so start at 1
             seed: self.passes_done + 1,
             ..*constants
         };
