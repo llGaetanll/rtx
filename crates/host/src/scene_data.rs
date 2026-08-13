@@ -20,6 +20,7 @@ use rtx_mat::Lambertian;
 use rtx_mat::MaterialInfo;
 use rtx_mat::Metal;
 use rtx_mat::material_kind;
+use rtx_obj::BvhNode;
 use rtx_obj::Instance;
 use rtx_obj::Light;
 use rtx_obj::box_quads;
@@ -62,6 +63,10 @@ pub struct SceneData {
     /// sampling a point on a light needs its area and facing and an instance only
     /// stores the inverse of its transform.
     pub lights: Vec<Light>,
+
+    /// The hierarchy a ray walks instead of scanning every instance. Built last,
+    /// because building it settles the order the instances are stored in.
+    pub bvh: Vec<BvhNode>,
 }
 
 impl SceneData {
@@ -356,6 +361,17 @@ fn build(file: &SceneFile) -> Result<SceneData, Box<dyn Error>> {
     if scene.instances.is_empty() {
         return Err("has no objects".into());
     }
+
+    // Last, and after nothing else will add an instance: this reorders them
+    scene.bvh = rtx_obj::bvh::build(&mut scene.instances);
+
+    let leaves = scene.bvh.iter().filter(|n| n.is_leaf()).count();
+    let deepest = scene.bvh.iter().map(|n| n.count).max().unwrap_or(0);
+    log::debug!(
+        "bvh: {} instances, {} nodes, {leaves} leaves, largest leaf {deepest}",
+        scene.instances.len(),
+        scene.bvh.len(),
+    );
 
     Ok(scene)
 }

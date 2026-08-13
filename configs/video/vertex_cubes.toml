@@ -1,0 +1,51 @@
+# An orbit of the cube field, the heaviest scene by instance count: eighty three
+# boxes are six quads each, so a ray meets around five hundred instances rather
+# than the eighteen the Cornell box has. This is the benchmark an acceleration
+# structure is meant to move.
+
+type = "video"
+
+[camera]
+# A ring of radius twenty about the middle of the field, rising and falling
+position = [
+    [18.2, 2.3, 7.0],
+    [12.0, 4.5, 15.0],
+    [1.0, 6.0, 18.0],
+    [-10.0, 5.0, 14.0],
+    [-18.0, 3.0, 5.0],
+    [-16.0, 2.0, -7.0],
+    [-6.0, 5.5, -15.0],
+    [6.0, 4.0, -14.0],
+    [15.0, 2.5, -6.0],
+    [18.2, 2.3, 7.0],
+]
+
+# The middle of the field throughout
+look_at = [
+    [-1.8, 1.2, 0.0],
+    [-1.8, 1.2, 0.0],
+    [-1.8, 1.5, 0.0],
+    [-1.8, 1.5, 0.0],
+    [-1.8, 1.2, 0.0],
+    [-1.8, 1.2, 0.0],
+    [-1.8, 1.5, 0.0],
+    [-1.8, 1.5, 0.0],
+    [-1.8, 1.2, 0.0],
+    [-1.8, 1.2, 0.0],
+]
+
+vup = [0.0, 1.0, 0.0]
+fov = 30.0
+defocus_angle = 0.0
+focus_dist = 20.0
+
+# The same settings as the other benchmarks, so a frame here is comparable to a
+# frame there and only the instance count differs
+[quality]
+samples = 8
+bounces = 10
+
+[output]
+width = 400
+height = 300
+frames = 60

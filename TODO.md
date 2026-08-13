@@ -60,12 +60,56 @@
 
 ## Optimizations
 
-1. [ ] Bounding Volume Hierarchy (BVH)
-   - [ ] Implement AABB (Axis-Aligned Bounding Box) with ray intersection test
-   - [ ] Add `bbox()` method to hittable primitives (Sphere, Quad)
-   - [ ] Implement linearized BVH structure (flat array, no recursion/pointers for GPU)
-   - [ ] Build BVH on CPU, upload as buffer to GPU
-   - [ ] Iterative BVH traversal in shader (stack-based or stackless)
+1. [x] Bounding Volume Hierarchy (BVH)
+
+   A ray used to test every instance, so a frame cost the instance count times the
+   ray count. It now walks a tree of boxes built on the host and uploaded as a
+   buffer. See `crates/rtx-obj/src/bvh.rs`, which documents the layout and the
+   constants the build is tuned to.
+
+   - [x] Per instance world space boxes (`Instance::world_bbox`), from the corners
+         of the unit primitive under the instance's transform
+   - [x] Linearized structure: a flat array of nodes in depth first order
+   - [x] Build on the host, upload as a buffer, reordering the instances so a leaf
+         names a contiguous run of them
+   - [x] Stackless traversal in the shader: entering a box carries on to the next
+         node, missing one skips to the far end of its subtree. No per ray scratch
+         space, which matters because the tracer is short of registers
+   - [x] Both closest hit and `occluded`, since NEE makes shadow rays the most
+         common kind
+   - [x] `Hit::bbox` dropped rather than filled in. It was the `todo!()` waiting on
+         this work, and nothing came to need it: the build asks an `Instance` for
+         its box directly, and the shader only ever reads boxes off nodes
+   - [x] Binned SAH partitioning, which also decides when *not* to split: where
+         instances all overlap, as six walls of one room do, a leaf beats a tree
+   - [x] `vertex_cubes` added as a benchmark - no existing one had the geometry to
+         show an acceleration structure at all
+
+   Measured, as the mean frame of each benchmark:
+
+   | benchmark | instances | before | after |
+   | --- | --- | --- | --- |
+   | vertex_cubes | 499 | 169 ms | 18.5 ms |
+   | cornell_box | 18 | 21.0 ms | 23.2 ms |
+   | many_spheres | 9 | 5.4 ms | 6.5 ms |
+   | two_spheres | 3 | 1.5 ms | 2.0 ms |
+
+   The small scenes pay for a tree they are too small to use. A control that keeps
+   the traversal but never splits measures slower than the old scan on every one of
+   them, so the cost is having the walk in the kernel at all rather than the tree
+   it walks; no build tuning recovers it.
+
+   Left undone, in the order worth trying:
+
+   - [ ] Front to back traversal. The walk visits children in build order, so the
+         closest hit so far shrinks slowly and boxes a better order would cull get
+         tested anyway. Needs a stack, which costs the registers the stackless walk
+         was chosen to save, so it is worth measuring rather than assuming
+   - [ ] Spatial splits (SBVH). The one partitioning idea left, and the only one
+         that addresses the Cornell box: a huge thin wall's box overlaps everything,
+         and no object partition can separate what overlaps. Splits a primitive's
+         box across the plane and names it from both sides, which would break the
+         invariant that leaves tile the instance buffer
 
 2. [ ] Sample accumulation in live mode
    

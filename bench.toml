@@ -13,3 +13,7 @@ config = "configs/video/many_spheres.toml"
 [[benchmark]]
 scene = "scenes/two_spheres.toml"
 config = "configs/video/two_spheres.toml"
+
+[[benchmark]]
+scene = "scenes/vertex_cubes.toml"
+config = "configs/video/vertex_cubes.toml"

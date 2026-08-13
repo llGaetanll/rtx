@@ -28,7 +28,7 @@ pub struct AccumulatedRender<'a> {
 pub const FRAGMENT_ENTRY: &str = "trace_fs";
 
 /// The scene buffers bound to a pipeline, in binding order.
-const SCENE_BINDINGS: u32 = 7;
+const SCENE_BINDINGS: u32 = 8;
 
 pub struct GpuContext {
     pub adapter: wgpu::Adapter,
@@ -173,7 +173,21 @@ impl GpuContext {
     }
 
     /// Upload a scene and build the bind group the shader reads it through.
+    ///
+    /// A ray reaches an instance only through a leaf of the hierarchy, so an
+    /// instance added after the hierarchy was built is one nothing can hit. That
+    /// misrenders quietly - the surface is simply not there - which is worth a
+    /// check here, where every scene passes on its way to the GPU.
     pub fn upload_scene(&self, scene: &crate::scene_data::SceneData) -> SceneBuffers {
+        let covered: u32 = scene.bvh.iter().map(|node| node.count).sum();
+        assert_eq!(
+            covered as usize,
+            scene.instances.len(),
+            "the hierarchy covers {covered} of {} instances, so it was built \
+             before the last of them was added",
+            scene.instances.len(),
+        );
+
         let buffers = vec![
             storage_buffer(&self.device, "instances", &scene.instances),
             storage_buffer(&self.device, "lambertians", &scene.lambertians),
@@ -182,6 +196,7 @@ impl GpuContext {
             storage_buffer(&self.device, "diffuse_lights", &scene.diffuse_lights),
             storage_buffer(&self.device, "solids", &scene.solids),
             storage_buffer(&self.device, "lights", &scene.lights),
+            storage_buffer(&self.device, "bvh", &scene.bvh),
         ];
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {

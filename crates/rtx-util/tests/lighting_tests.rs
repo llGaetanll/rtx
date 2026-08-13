@@ -14,6 +14,7 @@ use rtx_mat::Lambertian;
 use rtx_mat::MaterialInfo;
 use rtx_mat::MaterialTable;
 use rtx_mat::Metal;
+use rtx_obj::BvhNode;
 use rtx_obj::Instance;
 use rtx_obj::Light;
 use rtx_obj::Lights;
@@ -35,6 +36,10 @@ use rtx_util::CameraParams;
 /// out independently, which a Cornell box's interreflections rule out.
 struct Fixture {
     instances: Vec<Instance>,
+
+    /// Built here rather than left empty, so these tests walk the same hierarchy
+    /// the renderer does instead of a path only they take.
+    bvh: Vec<BvhNode>,
     lights: Vec<Light>,
     lambertians: Vec<Lambertian>,
     metals: Vec<Metal>,
@@ -95,8 +100,12 @@ impl Fixture {
         let mut panel = Instance::quad(light_q, light_u, light_v, light_material);
         panel.light_index = 0;
 
+        let mut instances = vec![floor, panel];
+        let bvh = rtx_obj::bvh::build(&mut instances);
+
         Self {
-            instances: vec![floor, panel],
+            instances,
+            bvh,
             lights: vec![Light::quad(light_q, light_u, light_v, light_material)],
             lambertians,
             metals,
@@ -110,6 +119,15 @@ impl Fixture {
         }
     }
 
+    /// Add an instance, and rebuild the hierarchy over it.
+    ///
+    /// The two go together: a leaf names an instance by its place in the buffer,
+    /// so an instance added without a rebuild is one no ray can reach.
+    fn add(&mut self, instance: Instance) {
+        self.instances.push(instance);
+        self.bvh = rtx_obj::bvh::build(&mut self.instances);
+    }
+
     fn tables(&self) -> (MaterialTable<'_>, TextureTable<'_>, Scene<'_>, Lights<'_>) {
         (
             MaterialTable {
@@ -121,7 +139,7 @@ impl Fixture {
             TextureTable {
                 solids: &self.solids,
             },
-            Scene::new(&self.instances),
+            Scene::new(&self.instances, &self.bvh),
             Lights::new(&self.lights),
         )
     }
@@ -281,7 +299,7 @@ fn a_blocker_between_surface_and_light_casts_a_shadow() {
     let mut fixture = Fixture::new(20.0, 12.0, false);
 
     // A wide slab just under the panel, blocking every path to it
-    fixture.instances.push(Instance::quad(
+    fixture.add(Instance::quad(
         Point3::new(-15., 15., -15.),
         Vec3::new(30., 0., 0.),
         Vec3::new(0., 0., 30.),

@@ -2,6 +2,7 @@ use bytemuck::Pod;
 use bytemuck::Zeroable;
 use rtx_mat::HitRecord;
 use rtx_mat::MaterialInfo;
+use rtx_prim::Aabb;
 use rtx_prim::F;
 use rtx_prim::Mat4;
 use rtx_prim::PI;
@@ -80,6 +81,44 @@ impl Instance {
     pub fn sphere(center: Point3, radius: F, material: MaterialInfo) -> Self {
         let transform = Mat4::from_translation(center) * Mat4::from_scale(Vec3::splat(radius));
         Self::new(primitive_kind::SPHERE, transform, material)
+    }
+
+    /// The box in world space that contains this instance.
+    ///
+    /// Worked out from the corners of the unit primitive rather than from the
+    /// shape itself, so it is only as tight as the transform allows: a rotated
+    /// sphere gets the box of its rotated cube, which is larger than the sphere
+    /// needs. A loose box costs a hierarchy some tests, never a correct answer.
+    pub fn world_bbox(&self) -> Aabb {
+        let transform = self.inv_transform.inverse();
+
+        // The unit sphere spans -1 to 1 on every axis. The unit quad spans 0 to 1
+        // on x and y and is flat in z, which leaves its eight corners coinciding
+        // in pairs and the loop below none the wiser
+        let (lo, hi) = if self.kind == primitive_kind::SPHERE {
+            (Vec3::splat(-1.), Vec3::ONE)
+        } else {
+            (Vec3::ZERO, Vec3::new(1., 1., 0.))
+        };
+
+        let mut min = Vec3::splat(F::INFINITY);
+        let mut max = Vec3::splat(F::NEG_INFINITY);
+
+        for corner in 0..8 {
+            let p = transform.transform_point3(Vec3::new(
+                if corner & 1 == 0 { lo.x } else { hi.x },
+                if corner & 2 == 0 { lo.y } else { hi.y },
+                if corner & 4 == 0 { lo.z } else { hi.z },
+            ));
+
+            min = min.min(p);
+            max = max.max(p);
+        }
+
+        // `from_points` pads a side that came out flat, which an axis aligned
+        // quad always does. A box of no thickness is one a ray running along it
+        // can slip through
+        Aabb::from_points(min, max)
     }
 
     /// Create a quad instance from corner point and two edge vectors.
