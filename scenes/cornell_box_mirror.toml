@@ -1,0 +1,102 @@
+# The Cornell box with the tall box turned into a mirror.
+#
+# Same room as `cornell_box.toml`: 555 wide and deep, 785.7828 tall so its front
+# opening has the proportions of A1 paper in portrait, lit only by a panel in
+# the ceiling. The one change is the tall box, which is a polished metal rather
+# than white plaster, so the red and green walls, the light and the short box
+# all turn up reflected in its faces.
+
+background = [0.0, 0.0, 0.0]
+
+[materials.red]
+type = "lambertian"
+color = [0.65, 0.05, 0.05]
+
+[materials.green]
+type = "lambertian"
+color = [0.12, 0.45, 0.15]
+
+[materials.white]
+type = "lambertian"
+color = [0.73, 0.73, 0.73]
+
+# A near white metal with no fuzz, so reflections stay sharp and the box picks up
+# the colour of the walls rather than tinting them.
+[materials.mirror]
+type = "metal"
+color = [0.9, 0.9, 0.9]
+fuzz = 0.0
+
+[materials.light]
+type = "diffuse_light"
+color = [30.0, 30.0, 30.0]
+
+[[objects]]
+name = "left wall"
+type = "quad"
+material = "green"
+corner = [555.0, 0.0, 0.0]
+u = [0.0, 785.7828, 0.0]
+v = [0.0, 0.0, 555.0]
+
+[[objects]]
+name = "right wall"
+type = "quad"
+material = "red"
+corner = [0.0, 0.0, 0.0]
+u = [0.0, 785.7828, 0.0]
+v = [0.0, 0.0, 555.0]
+
+[[objects]]
+name = "floor"
+type = "quad"
+material = "white"
+corner = [0.0, 0.0, 0.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 0.0, 555.0]
+
+[[objects]]
+name = "ceiling"
+type = "quad"
+material = "white"
+corner = [555.0, 785.7828, 555.0]
+u = [-555.0, 0.0, 0.0]
+v = [0.0, 0.0, -555.0]
+
+[[objects]]
+name = "back wall"
+type = "quad"
+material = "white"
+corner = [0.0, 0.0, 555.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 785.7828, 0.0]
+
+[[objects]]
+name = "light"
+type = "quad"
+material = "light"
+corner = [343.0, 784.7828, 332.0]
+u = [-130.0, 0.0, 0.0]
+v = [0.0, 0.0, -105.0]
+
+# Turned 45 degrees rather than the usual 15. A mirror reflects whatever is
+# opposite it, and the room has no fourth wall, so faces pointed at the camera
+# mirror the black outside and read as holes. At 45 degrees both visible faces
+# point at a side wall instead, one green and one red.
+[[objects]]
+name = "tall box"
+type = "box"
+material = "mirror"
+min = [0.0, 0.0, 0.0]
+max = [165.0, 330.0, 165.0]
+rotate_y = 45.0
+translate = [265.0, 0.0, 295.0]
+
+[[objects]]
+name = "short box"
+type = "box"
+material = "white"
+min = [0.0, 0.0, 0.0]
+max = [165.0, 165.0, 165.0]
+rotate_y = -18.0
+translate = [130.0, 0.0, 65.0]

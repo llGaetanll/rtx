@@ -1,0 +1,23 @@
+# The mirrored Cornell box, framed exactly like the plain one: A1 paper in
+# portrait, 594 by 841, with the front opening of the room landing on the four
+# edges of the image. A 40 degree vertical field of view over a room 785.7828
+# tall puts the camera (785.7828 / 2) / tan(20 degrees) = 1079.46 in front of
+# the opening plane at z = 0.
+
+type = "image"
+
+[camera]
+position = [277.5, 392.8914, -1079.4603]
+look_at = [277.5, 392.8914, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 1079.4603
+
+[quality]
+samples = 2000
+bounces = 50
+
+[output]
+width = 594
+height = 841
