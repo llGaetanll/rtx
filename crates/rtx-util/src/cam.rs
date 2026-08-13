@@ -19,6 +19,13 @@ use rtx_tex::TextureTable;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
+/// Number of bounces that always survive before russian roulette kicks in. Killing early bounces
+/// would add a lot of variance for very little saved work
+const RR_MIN_BOUNCE: u32 = 3;
+
+/// Upper bound on the survival probability, so a bright path still terminates eventually
+const RR_MAX_SURVIVAL: F = 0.95;
+
 #[repr(C)]
 pub struct CameraParams {
     /// The position of the camera
@@ -216,6 +223,22 @@ impl Camera {
 
             // Update throughput and continue bouncing
             throughput *= attenuation;
+
+            // Russian roulette. Past a few bounces, kill paths with probability `1 - p` and scale
+            // the survivors by `1 / p`. The expected contribution is unchanged, so the image stays
+            // unbiased, but dim paths stop costing traversals.
+            if depth >= RR_MIN_BOUNCE {
+                let p = throughput.max_element().min(RR_MAX_SURVIVAL);
+
+                if rand::rand_f(state) >= p {
+                    // A killed path contributes nothing more, not even the background
+                    throughput = Color::ZERO;
+                    break;
+                }
+
+                throughput /= p;
+            }
+
             ray = scattered;
             depth += 1;
         }
