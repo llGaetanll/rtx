@@ -61,16 +61,24 @@ fn cam_params_from_constants(constants: &ShaderConstants) -> CameraParams {
 }
 
 /// Basic PCG
+fn pcg(state: u32) -> u32 {
+    let state = state.wrapping_mul(747796405).wrapping_add(2891336453);
+    let word = ((state >> ((state >> 28) + 4)) ^ state).wrapping_mul(277803737);
+    (word >> 22) ^ word
+}
+
+/// Seed one pixel's chain for one pass.
+///
+/// Each input gets its own mixing round. Summing them into one word instead left
+/// vertical neighbours one apart going into a single round, which is not enough
+/// avalanche: their first draws came out correlated at r = -0.13 eight rows apart,
+/// and no amount of passes averaged that away.
 fn gen_state(frag_coord: Vec4, seed: u32) -> u32 {
     let x = frag_coord.x as u32;
     let y = frag_coord.y as u32;
 
-    let state = x
-        .wrapping_mul(747796405)
-        .wrapping_add(y)
-        .wrapping_add(seed.wrapping_mul(2891336453));
-    let word = ((state >> ((state >> 28) + 4)) ^ state).wrapping_mul(277803737);
-    (word >> 22) ^ word
+    // Zero is a fixed point of the xorshift chain, so never hand it one
+    pcg(x ^ pcg(y ^ pcg(seed))).max(1)
 }
 
 #[spirv(vertex)]
