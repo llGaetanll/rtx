@@ -43,7 +43,7 @@ formats.
 Open a window and fly around a scene, starting from an image config's camera.
 
 ```sh
-cargo run --release -- live --config cornell_box
+cargo run --release -- live cornell_box
 ```
 
 Controls:

@@ -4,9 +4,10 @@ use clap::Subcommand;
 #[derive(Parser)]
 #[command(name = "rtx")]
 #[command(about = "A GPU ray tracer built with rust-gpu")]
+#[command(arg_required_else_help = true)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Option<Commands>,
+    pub command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -16,8 +17,7 @@ pub enum Commands {
         /// Image config to start from (loads configs/image/<name>.toml). Its
         /// camera is the starting view; the sample count and window size are
         /// live mode's own.
-        #[arg(short, long, default_value = "cornell_box")]
-        config: String,
+        name: String,
     },
     /// Render every image config to a grid image
     Test,
