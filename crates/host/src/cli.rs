@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+
+use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 
@@ -10,27 +13,52 @@ pub struct Cli {
     pub command: Commands,
 }
 
+/// The two files every render needs: what exists, and how it is looked at. Both
+/// are paths, so a scene and a config are ordinary files that can live anywhere
+/// rather than names resolved against a directory the program knows about.
+#[derive(Args)]
+pub struct Files {
+    /// Path to a scene TOML file
+    #[arg(short, long)]
+    pub scene: PathBuf,
+
+    /// Path to a config TOML file, holding the camera, quality and output
+    #[arg(short, long)]
+    pub config: PathBuf,
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Open a window and fly around a scene
     Live {
-        /// Image config to start from (loads configs/image/<name>.toml). Its
-        /// camera is the starting view; the sample count and window size are
-        /// live mode's own.
-        name: String,
+        /// The image config's camera is the starting view; the sample count and
+        /// window size are live mode's own.
+        #[command(flatten)]
+        files: Files,
     },
-    /// Render every image config to a grid image
-    Test,
     /// Render a high-quality still image
     Render {
-        /// Image config name (loads configs/image/<name>.toml)
-        name: String,
+        #[command(flatten)]
+        files: Files,
+
+        /// Watch the image accumulate in a window. Closing it early saves what
+        /// has been rendered so far.
+        #[arg(short, long)]
+        preview: bool,
     },
     /// Time the frames of a video's camera path
+    ///
+    /// Given a scene and a video config, times that pair. Given neither, times
+    /// every benchmark listed in bench.toml. The two go together, so one without
+    /// the other is an error rather than half a benchmark.
     Bench {
-        /// Video config name (loads configs/video/<name>.toml). If not
-        /// specified, runs every config in configs/video/.
-        name: Option<String>,
+        /// Path to a scene TOML file
+        #[arg(short, long, requires = "config")]
+        scene: Option<PathBuf>,
+
+        /// Path to a video config TOML file
+        #[arg(short, long, requires = "scene")]
+        config: Option<PathBuf>,
     },
     /// Generate SVG charts from benchmark results
     Chart,

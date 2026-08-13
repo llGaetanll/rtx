@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
@@ -7,6 +8,7 @@ use std::time::Instant;
 use chrono::Utc;
 use futures::executor::block_on;
 
+use crate::config;
 use crate::config::ImageConfig;
 use crate::gpu::AccumulatedRender;
 use crate::gpu::GpuContext;
@@ -17,6 +19,37 @@ use crate::scene_data;
 const SAMPLES_PER_PASS: u32 = 8;
 
 const OUTPUT_DIR: &str = "renders";
+
+/// How a requested sample count is split into passes.
+#[derive(Copy, Clone)]
+pub struct RenderPlan {
+    pub passes: u32,
+    pub samples_per_pass: u32,
+    /// What the passes add up to, which is the requested count rounded up.
+    pub samples: u32,
+}
+
+impl RenderPlan {
+    /// Passes are equal in size, so the requested sample count rounds up to the
+    /// nearest multiple that divides evenly.
+    fn new(name: &str, requested: u32) -> Self {
+        let passes = requested.div_ceil(SAMPLES_PER_PASS);
+        let samples_per_pass = requested.div_ceil(passes);
+        let samples = passes * samples_per_pass;
+
+        if samples != requested {
+            log::debug!(
+                "{name}: rounded {requested} samples up to {samples} ({passes} passes of {samples_per_pass})"
+            );
+        }
+
+        Self {
+            passes,
+            samples_per_pass,
+            samples,
+        }
+    }
+}
 
 /// Convert the accumulated linear image to an 8-bit sRGB image. The live and test
 /// paths get this transfer for free from their sRGB render targets.
@@ -43,7 +76,7 @@ fn linear_to_srgb(linear: f32) -> f32 {
     }
 }
 
-fn format_duration(duration: Duration) -> String {
+pub fn format_duration(duration: Duration) -> String {
     let total = duration.as_secs();
     let (hours, minutes, seconds) = (total / 3600, (total % 3600) / 60, total % 60);
 
@@ -58,44 +91,112 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
-/// Render a definition by name and save the resulting image.
-pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
-    let def = ImageConfig::load(&name)?;
+/// Timing for a render in progress, and the lines it reports as it goes.
+pub struct Progress {
+    plan: RenderPlan,
+    pixels_per_pass: u64,
+    start: Instant,
+}
+
+impl Progress {
+    pub fn new(plan: RenderPlan, width: u32, height: u32) -> Self {
+        Self {
+            plan,
+            pixels_per_pass: (width as u64) * (height as u64) * (plan.samples_per_pass as u64),
+            start: Instant::now(),
+        }
+    }
+
+    fn msamples_per_second(&self, done: u32) -> f64 {
+        (self.pixels_per_pass * done as u64) as f64 / self.start.elapsed().as_secs_f64() / 1e6
+    }
+
+    /// A line per finished pass, with an estimate of the time left.
+    pub fn log_pass(&self, done: u32) {
+        let eta = self.start.elapsed() / done * (self.plan.passes - done);
+
+        log::info!(
+            "pass {}/{}  {}/{} spp  {}%  {:.1} Msamples/s  eta {}",
+            done,
+            self.plan.passes,
+            done * self.plan.samples_per_pass,
+            self.plan.samples,
+            done * 100 / self.plan.passes,
+            self.msamples_per_second(done),
+            format_duration(eta)
+        );
+    }
+
+    /// The closing line. `done` is what was actually drawn, which is fewer passes
+    /// than planned when a preview is closed early.
+    pub fn log_saved(&self, path: &Path, done: u32) {
+        log::info!(
+            "saved {} ({} spp in {}, {:.1} Msamples/s avg)",
+            path.display(),
+            done * self.plan.samples_per_pass,
+            format_duration(self.start.elapsed()),
+            self.msamples_per_second(done)
+        );
+    }
+}
+
+/// Save an accumulated image under a timestamped name and return where it went.
+pub fn save(
+    name: &str,
+    accumulated: &[f32],
+    width: u32,
+    height: u32,
+) -> Result<PathBuf, Box<dyn Error>> {
+    let image = encode_srgb(accumulated, width, height);
+    fs::create_dir_all(OUTPUT_DIR)?;
+    let timestamp = Utc::now().format("%Y-%m-%d-%H-%M-%S");
+    let path = PathBuf::from(OUTPUT_DIR).join(format!("{name}-{timestamp}.png"));
+    image.save(&path)?;
+
+    Ok(path)
+}
+
+/// Announce what is about to be rendered.
+pub fn log_start(name: &str, scene_path: &Path, def: &ImageConfig, plan: RenderPlan) {
+    log::info!(
+        "rendering {} ({}) {}x{} {} spp {} bounces",
+        name,
+        scene_path.display(),
+        def.output.width,
+        def.output.height,
+        plan.samples,
+        def.quality.bounces
+    );
+}
+
+/// Render `scene_path` through `config_path` and save the resulting image.
+pub fn run_render(
+    scene_path: &Path,
+    config_path: &Path,
+    preview: bool,
+) -> Result<(), Box<dyn Error>> {
+    let def = ImageConfig::load(config_path)?;
+    let name = config::name_of(config_path);
+    let plan = RenderPlan::new(&name, def.quality.samples);
+
+    if preview {
+        return crate::preview_app::run_preview(name, scene_path.to_path_buf(), def, plan);
+    }
 
     let instance = GpuContext::create_instance();
     let gpu = block_on(GpuContext::new(instance, None))?;
 
     let width = def.output.width;
     let height = def.output.height;
+    let RenderPlan {
+        passes,
+        samples_per_pass,
+        ..
+    } = plan;
 
-    // Passes are equal in size, so the requested sample count rounds up to the
-    // nearest multiple that divides evenly
-    let passes = def.quality.samples.div_ceil(SAMPLES_PER_PASS);
-    let samples_per_pass = def.quality.samples.div_ceil(passes);
-    let samples = passes * samples_per_pass;
+    log_start(&name, scene_path, &def, plan);
 
-    if samples != def.quality.samples {
-        log::debug!(
-            "{}: rounded {} samples up to {} ({} passes of {})",
-            name,
-            def.quality.samples,
-            samples,
-            passes,
-            samples_per_pass
-        );
-    }
-
-    log::info!(
-        "rendering {} ({}) {}x{} {} spp {} bounces",
-        name,
-        def.scene,
-        width,
-        height,
-        samples,
-        def.quality.bounces
-    );
-
-    let scene = scene_data::load(&def.scene)?;
+    let scene = scene_data::load(scene_path)?;
     let buffers = gpu.upload_scene(&scene);
 
     let request = AccumulatedRender {
@@ -109,43 +210,13 @@ pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
             .constants(width, height, def.quality, scene.background),
     };
 
-    let pixels_per_pass = (width as u64) * (height as u64) * (samples_per_pass as u64);
-    let start = Instant::now();
+    let progress = Progress::new(plan, width, height);
 
-    let accumulated = block_on(gpu.render_to_image_accumulated(&request, |done| {
-        let elapsed = start.elapsed();
-        let per_pass = elapsed / done;
-        let eta = per_pass * (passes - done);
-        let throughput = (pixels_per_pass * done as u64) as f64 / elapsed.as_secs_f64() / 1e6;
+    let accumulated =
+        block_on(gpu.render_to_image_accumulated(&request, |done| progress.log_pass(done)))?;
 
-        log::info!(
-            "pass {}/{}  {}/{} spp  {}%  {:.1} Msamples/s  eta {}",
-            done,
-            passes,
-            done * samples_per_pass,
-            samples,
-            done * 100 / passes,
-            throughput,
-            format_duration(eta)
-        );
-    }))?;
-
-    let elapsed = start.elapsed();
-
-    let image = encode_srgb(&accumulated, width, height);
-    fs::create_dir_all(OUTPUT_DIR)?;
-    let timestamp = Utc::now().format("%Y-%m-%d-%H-%M-%S");
-    let path = PathBuf::from(OUTPUT_DIR).join(format!("{name}-{timestamp}.png"));
-    image.save(&path)?;
-
-    let throughput = (pixels_per_pass * passes as u64) as f64 / elapsed.as_secs_f64() / 1e6;
-    log::info!(
-        "saved {} ({} spp in {}, {:.1} Msamples/s avg)",
-        path.display(),
-        samples,
-        format_duration(elapsed),
-        throughput
-    );
+    let path = save(&name, &accumulated, width, height)?;
+    progress.log_saved(&path, passes);
 
     Ok(())
 }

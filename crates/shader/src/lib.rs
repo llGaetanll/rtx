@@ -12,10 +12,13 @@ use rtx_prim::Vec3;
 use rtx_tex::SolidTexture;
 use rtx_tex::TextureTable;
 use rtx_util::CameraParams;
+use shared::BlitConstants;
 use shared::ShaderConstants;
 use spirv_std::glam::Vec4;
+use spirv_std::glam::uvec2;
 use spirv_std::glam::vec2;
 use spirv_std::glam::vec4;
+use spirv_std::image::Image2d;
 use spirv_std::spirv;
 
 /// Build camera params from ShaderConstants. The host supplies every camera and
@@ -111,6 +114,40 @@ pub fn trace_fs(
     let mut state = gen_state(frag_coord, constants.seed);
 
     let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
+
+    *output = vec4(color.x, color.y, color.z, 1.0);
+}
+
+/// Show an in-progress accumulated image in a window.
+///
+/// The image keeps its own resolution and aspect ratio, so it is scaled to fit
+/// the window and the leftover space on either side is left black. Texels are
+/// picked rather than filtered, which the float target the render accumulates
+/// into cannot do anyway.
+#[spirv(fragment)]
+pub fn blit_fs(
+    #[spirv(frag_coord)] frag_coord: Vec4,
+    #[spirv(push_constant)] constants: &BlitConstants,
+    #[spirv(descriptor_set = 0, binding = 0)] accumulated: &Image2d,
+    output: &mut Vec4,
+) {
+    let image = vec2(constants.image_width as f32, constants.image_height as f32);
+    let surface = vec2(
+        constants.surface_width as f32,
+        constants.surface_height as f32,
+    );
+
+    let zoom = (surface.x / image.x).min(surface.y / image.y);
+    let origin = (surface - image * zoom) * 0.5;
+    let texel = (vec2(frag_coord.x, frag_coord.y) - origin) / zoom;
+
+    if texel.x < 0.0 || texel.y < 0.0 || texel.x >= image.x || texel.y >= image.y {
+        *output = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    let sum: Vec4 = accumulated.fetch(uvec2(texel.x as u32, texel.y as u32));
+    let color = sum.truncate() * constants.scale;
 
     *output = vec4(color.x, color.y, color.z, 1.0);
 }

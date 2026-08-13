@@ -39,3 +39,19 @@ pub struct ShaderConstants {
     /// needs on every miss.
     pub background: [f32; 3],
 }
+
+/// Settings for drawing an accumulated image into a window.
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct BlitConstants {
+    /// Size of the accumulated image, which is the render's own resolution and
+    /// has nothing to do with the size of the window showing it.
+    pub image_width: u32,
+    pub image_height: u32,
+    pub surface_width: u32,
+    pub surface_height: u32,
+
+    /// Reciprocal of the number of passes drawn so far, which turns the summed
+    /// image into the average an unfinished render should look like.
+    pub scale: f32,
+}

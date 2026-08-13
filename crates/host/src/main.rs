@@ -1,16 +1,15 @@
 use std::error::Error;
 use std::fs;
 use std::path::Path;
-use std::time::Instant;
 
 use clap::Parser;
-use futures::executor::block_on;
 
 mod bench_app;
 mod cli;
 mod config;
 mod gpu;
 mod live_app;
+mod preview_app;
 mod render_app;
 mod scene_data;
 mod stats;
@@ -18,96 +17,6 @@ mod window_surface;
 
 use cli::Cli;
 use cli::Commands;
-use gpu::GpuContext;
-
-fn run_test() -> Result<(), Box<dyn Error>> {
-    log::debug!("Test mode: rendering all scenes to grid image...");
-
-    let instance = GpuContext::create_instance();
-    let gpu = block_on(GpuContext::new(instance, None))?;
-
-    let configs = config::ImageConfig::load_all()?;
-
-    // 720p per scene
-    let scene_width = 1280u32;
-    let scene_height = 720u32;
-
-    // 4x4 grid
-    let grid_cols = 4u32;
-    let grid_rows = 4u32;
-    let grid_width = scene_width * grid_cols;
-    let grid_height = scene_height * grid_rows;
-
-    // Create the final grid image with checkerboard background
-    let mut grid_img = image::RgbaImage::new(grid_width, grid_height);
-
-    // Fill with checkerboard pattern for empty slots
-    let color_a = image::Rgba([0x17, 0x1d, 0x1c, 0xff]);
-    let color_b = image::Rgba([0x3f, 0x50, 0x4d, 0xff]);
-    let checker_size = 128u32;
-
-    for y in 0..grid_height {
-        for x in 0..grid_width {
-            let checker_x = x / checker_size;
-            let checker_y = y / checker_size;
-            let color = if (checker_x + checker_y) % 2 == 0 {
-                color_a
-            } else {
-                color_b
-            };
-            grid_img.put_pixel(x, y, color);
-        }
-    }
-
-    // Render each scene and place in grid (top to bottom, left to right)
-    for (i, (name, image)) in configs.iter().enumerate() {
-        let col = (i as u32) % grid_cols;
-        let row = (i as u32) / grid_cols;
-
-        let start = Instant::now();
-        let scene_data = scene_data::load(&image.scene)?;
-        let buffers = gpu.upload_scene(&scene_data);
-        // The grid is a comparison between scenes, not a set of finished
-        // pictures, so the tiles share a size and a sample count
-        let constants = image.camera.constants(
-            scene_width,
-            scene_height,
-            config::ImageConfig::preview_quality(),
-            scene_data.background,
-        );
-        let pixels = block_on(gpu.render_to_image(&buffers, constants));
-        let elapsed = start.elapsed();
-
-        log::debug!(
-            "Rendered {} ({}/{}) in {:.2?}",
-            name,
-            i + 1,
-            configs.len(),
-            elapsed
-        );
-        let scene_img = image::RgbaImage::from_raw(scene_width, scene_height, pixels)
-            .expect("Failed to create image from pixel data");
-
-        // Copy scene image into grid
-        let x_offset = col * scene_width;
-        let y_offset = row * scene_height;
-        for y in 0..scene_height {
-            for x in 0..scene_width {
-                let pixel = scene_img.get_pixel(x, y);
-                grid_img.put_pixel(x + x_offset, y + y_offset, *pixel);
-            }
-        }
-    }
-
-    std::fs::create_dir_all("renders")?;
-    let path = "renders/render.png";
-
-    log::debug!("Saving {grid_width}x{grid_height} grid to {path}...");
-    grid_img.save(path)?;
-
-    log::info!("Saved {path}");
-    Ok(())
-}
 
 fn run_chart() -> Result<(), Box<dyn Error>> {
     let bench_results_dir = Path::new("bench/results");
@@ -144,11 +53,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Live { name } => live_app::run_live(&name),
-        Commands::Test => run_test(),
-        Commands::Render { name } => render_app::run_render(name),
-        Commands::Bench { name: Some(name) } => bench_app::run_bench(name),
-        Commands::Bench { name: None } => bench_app::run_all_benchmarks(),
+        Commands::Live { files } => live_app::run_live(&files.scene, &files.config),
+        Commands::Render { files, preview } => {
+            render_app::run_render(&files.scene, &files.config, preview)
+        }
+        Commands::Bench {
+            scene: Some(scene),
+            config: Some(config),
+        } => bench_app::run_bench(&scene, &config),
+        // Clap rejects one without the other, so nothing else is left
+        Commands::Bench { .. } => bench_app::run_all_benchmarks(),
         Commands::Chart => run_chart(),
         Commands::Stats => stats::run_stats(),
     }
