@@ -38,6 +38,14 @@ impl Metal {
 }
 
 impl Material for Metal {
+    /// A fuzzed metal is really a narrow glossy lobe rather than a mirror, so
+    /// this is a simplification. Calling it specular costs a little accuracy on
+    /// very fuzzy metal and keeps the direct lighting estimate from having to
+    /// evaluate a lobe it has no formula for.
+    fn is_specular(&self, _rec: &HitRecord) -> bool {
+        true
+    }
+
     fn scatter(
         &self,
         state: &mut RandState,

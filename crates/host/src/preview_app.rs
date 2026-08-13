@@ -204,7 +204,7 @@ impl PreviewApp {
         let constants =
             self.image
                 .camera
-                .constants(width, height, self.image.quality, scene_data.background);
+                .constants(width, height, self.image.quality, scene_data.info());
         let scene = gpu.upload_scene(&scene_data);
 
         let accumulator = Accumulator::new(&gpu, width, height)?;

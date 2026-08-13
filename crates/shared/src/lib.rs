@@ -38,6 +38,13 @@ pub struct ShaderConstants {
     /// rather than the scene buffers because it is a single value the shader
     /// needs on every miss.
     pub background: [f32; 3],
+
+    /// How many entries of the light buffer are real.
+    ///
+    /// The buffer cannot answer this itself: a zero sized binding is not allowed,
+    /// so a scene with no emitters still uploads one zeroed light. Sampling that
+    /// one would aim every shadow ray at a lightless point at the origin.
+    pub light_count: u32,
 }
 
 /// Settings for drawing an accumulated image into a window.

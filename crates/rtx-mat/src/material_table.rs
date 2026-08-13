@@ -110,6 +110,16 @@ impl Material for MaterialTable<'_> {
         }
     }
 
+    fn is_specular(&self, rec: &HitRecord) -> bool {
+        match rec.mat.kind {
+            material_kind::METAL => self.metals[rec.mat.index as usize].is_specular(rec),
+            material_kind::DIELECTRIC => self.dielectrics[rec.mat.index as usize].is_specular(rec),
+            // Lambertian scatters over a whole hemisphere, and a light is never
+            // asked. An unknown kind read from a buffer lands here too
+            _ => false,
+        }
+    }
+
     fn emitted(
         &self,
         state: &mut RandState,

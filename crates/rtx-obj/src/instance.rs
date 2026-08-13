@@ -31,16 +31,21 @@ pub struct Instance {
     pub inv_transform: Mat4,
     pub material: MaterialInfo,
     pub kind: u32,
-    /// Rust adds these four bytes whether or not they are written down: the
-    /// matrix aligns the struct to sixteen, so its 76 bytes of fields round up to
-    /// 80 either way. Spelling the padding out as a field is what keeps those
-    /// bytes initialized, and reading uninitialized bytes is what would make
-    /// handing the type to the GPU unsound.
-    pub _pad: u32,
+    /// Which entry of the light buffer this instance is, or `NOT_A_LIGHT`.
+    ///
+    /// A ray that lands on an emitter has to be able to ask what the odds were of
+    /// having aimed at it instead, and that question is about the light's area
+    /// and facing rather than the instance's. This says where to look them up.
+    ///
+    /// These four bytes exist whether or not they are written down: the matrix
+    /// aligns the struct to sixteen, so its 76 bytes of fields round up to 80
+    /// either way. They used to be an explicit pad for exactly that reason, and
+    /// spelling them out is still what keeps them initialized.
+    pub light_index: u32,
 }
 
 // SAFETY: `repr(C)` over a matrix of sixteen floats, two `u32`s of material
-// reference, a `u32` tag and an explicit tail pad. Every field is a float or an
+// reference, a `u32` tag and a `u32` light reference. Every field is a float or an
 // integer, so all bit patterns are valid, and the assertion below pins the size
 // so a new field cannot silently introduce padding. Not derived because the
 // shader builds glam without its bytemuck feature, which cannot be enabled there.
@@ -56,7 +61,7 @@ impl Default for Instance {
             inv_transform: Mat4::IDENTITY,
             material: MaterialInfo::default(),
             kind: primitive_kind::SPHERE,
-            _pad: 0,
+            light_index: crate::NOT_A_LIGHT,
         }
     }
 }
@@ -67,7 +72,7 @@ impl Instance {
             inv_transform: transform.inverse(),
             material,
             kind,
-            _pad: 0,
+            light_index: crate::NOT_A_LIGHT,
         }
     }
 
@@ -109,9 +114,19 @@ impl Instance {
     }
 }
 
-/// The six quads of a box spanning the two opposite corners `a` and `b`, with
-/// `xform` applied on top so the box can be rotated, translated or scaled.
-pub fn make_box(a: Point3, b: Point3, xform: Mat4, material: MaterialInfo) -> [Instance; 6] {
+/// The six faces of a box spanning the two opposite corners `a` and `b`, each as
+/// the corner and the two edges leading away from it, with `xform` already
+/// applied so the geometry is where it will actually be.
+///
+/// An emissive box is six lights as well as six quads, and a light is described
+/// by this geometry rather than by a transform. Returning the faces rather than
+/// finished instances is what lets one table of them feed both, so the light a
+/// ray is aimed at and the surface it eventually hits stay the same
+/// parallelogram.
+///
+/// Applying the transform here rather than leaving it on each instance is the
+/// same thing for the rotations and translations a scene file can ask for.
+pub fn box_quads(a: Point3, b: Point3, xform: Mat4) -> [(Point3, Vec3, Vec3); 6] {
     let min = a.min(b);
     let max = a.max(b);
 
@@ -119,19 +134,29 @@ pub fn make_box(a: Point3, b: Point3, xform: Mat4, material: MaterialInfo) -> [I
     let dy = Vec3::new(0., max.y - min.y, 0.);
     let dz = Vec3::new(0., 0., max.z - min.z);
 
+    // Written out per face rather than mapped over an array of them: rust-gpu
+    // cannot lower `array::map`, and this crate is compiled for the GPU whole
+    let face = |q: Point3, u: Vec3, v: Vec3| {
+        (
+            xform.transform_point3(q),
+            xform.transform_vector3(u),
+            xform.transform_vector3(v),
+        )
+    };
+
     [
         // Front (+z)
-        Instance::quad_transformed(xform, Point3::new(min.x, min.y, max.z), dx, dy, material),
+        face(Point3::new(min.x, min.y, max.z), dx, dy),
         // Right (+x)
-        Instance::quad_transformed(xform, Point3::new(max.x, min.y, max.z), -dz, dy, material),
+        face(Point3::new(max.x, min.y, max.z), -dz, dy),
         // Back (-z)
-        Instance::quad_transformed(xform, Point3::new(max.x, min.y, min.z), -dx, dy, material),
+        face(Point3::new(max.x, min.y, min.z), -dx, dy),
         // Left (-x)
-        Instance::quad_transformed(xform, Point3::new(min.x, min.y, min.z), dz, dy, material),
+        face(Point3::new(min.x, min.y, min.z), dz, dy),
         // Top (+y)
-        Instance::quad_transformed(xform, Point3::new(min.x, max.y, max.z), dx, -dz, material),
+        face(Point3::new(min.x, max.y, max.z), dx, -dz),
         // Bottom (-y)
-        Instance::quad_transformed(xform, Point3::new(min.x, min.y, min.z), dx, dz, material),
+        face(Point3::new(min.x, min.y, min.z), dx, dz),
     ]
 }
 

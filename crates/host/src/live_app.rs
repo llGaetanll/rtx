@@ -46,7 +46,7 @@ pub struct LiveApp {
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     scene_buffers: Option<SceneBuffers>,
-    background: [f32; 3],
+    scene: crate::scene_data::SceneInfo,
     /// Declared after everything holding a GPU handle. Fields drop in declaration
     /// order, and the surface has to go before the window it borrows.
     window_surface: Option<WindowSurface>,
@@ -76,7 +76,7 @@ impl LiveApp {
             config: None,
             render_pipeline: None,
             scene_buffers: None,
-            background: [0.; 3],
+            scene: Default::default(),
             close_requested: false,
             start: Instant::now(),
             cursor_x: 0.0,
@@ -210,7 +210,7 @@ impl LiveApp {
         let render_pipeline = gpu.create_pipeline(swapchain_format);
 
         let scene = scene_data::load(&self.scene_path)?;
-        self.background = scene.background;
+        self.scene = scene.info();
         let scene_buffers = gpu.upload_scene(&scene);
 
         let config = wgpu::SurfaceConfiguration {
@@ -282,7 +282,7 @@ impl LiveApp {
                 current_size.width,
                 current_size.height,
                 ImageConfig::preview_quality(),
-                self.background,
+                self.scene,
             )
         };
 

@@ -207,7 +207,7 @@ pub fn run_render(
         samples_per_pass,
         constants: def
             .camera
-            .constants(width, height, def.quality, scene.background),
+            .constants(width, height, def.quality, scene.info()),
     };
 
     let progress = Progress::new(plan, width, height);

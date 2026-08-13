@@ -22,6 +22,18 @@ pub trait Material {
         false
     }
 
+    /// Whether this material scatters into one direction rather than over a
+    /// spread of them.
+    ///
+    /// A specular surface reflects light from exactly one incoming direction, so
+    /// aiming a ray at a light from it is pointless: the odds of that being the
+    /// one direction that reflects into the viewer are zero. Such a surface takes
+    /// its light the only way it can, by following the reflection and seeing what
+    /// is there.
+    fn is_specular(&self, _rec: &HitRecord) -> bool {
+        false
+    }
+
     /// The light emitted by this material. Defaults to no light.
     fn emitted(
         &self,

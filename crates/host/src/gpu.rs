@@ -28,7 +28,7 @@ pub struct AccumulatedRender<'a> {
 pub const FRAGMENT_ENTRY: &str = "trace_fs";
 
 /// The scene buffers bound to a pipeline, in binding order.
-const SCENE_BINDINGS: u32 = 6;
+const SCENE_BINDINGS: u32 = 7;
 
 pub struct GpuContext {
     pub adapter: wgpu::Adapter,
@@ -181,6 +181,7 @@ impl GpuContext {
             storage_buffer(&self.device, "dielectrics", &scene.dielectrics),
             storage_buffer(&self.device, "diffuse_lights", &scene.diffuse_lights),
             storage_buffer(&self.device, "solids", &scene.solids),
+            storage_buffer(&self.device, "lights", &scene.lights),
         ];
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {

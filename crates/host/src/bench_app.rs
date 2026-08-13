@@ -66,7 +66,7 @@ pub struct BenchApp {
     render_pipeline: Option<wgpu::RenderPipeline>,
     swapchain_format: Option<wgpu::TextureFormat>,
     scene_buffers: Option<SceneBuffers>,
-    background: [f32; 3],
+    scene: crate::scene_data::SceneInfo,
     /// Declared after everything holding a GPU handle. Fields drop in declaration
     /// order, and the surface has to go before the window it borrows.
     window_surface: Option<WindowSurface>,
@@ -103,7 +103,7 @@ impl BenchApp {
             render_pipeline: None,
             swapchain_format: None,
             scene_buffers: None,
-            background: [0.; 3],
+            scene: Default::default(),
             close_requested: false,
             camera_path,
             tracks,
@@ -159,7 +159,7 @@ impl BenchApp {
         if let Some(gpu) = &self.gpu {
             match scene_data::load(&self.scene_path) {
                 Ok(scene) => {
-                    self.background = scene.background;
+                    self.scene = scene.info();
                     self.scene_buffers = Some(gpu.upload_scene(&scene));
                 }
                 Err(e) => log::error!("{e}"),
@@ -198,7 +198,7 @@ impl BenchApp {
         let render_pipeline = gpu.create_pipeline(swapchain_format);
 
         let scene = scene_data::load(&self.scene_path)?;
-        self.background = scene.background;
+        self.scene = scene.info();
         let scene_buffers = gpu.upload_scene(&scene);
 
         let config = wgpu::SurfaceConfiguration {
@@ -288,7 +288,7 @@ impl BenchApp {
                 current_size.width,
                 current_size.height,
                 self.quality,
-                self.background,
+                self.scene,
             )
         };
 

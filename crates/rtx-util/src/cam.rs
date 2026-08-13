@@ -4,6 +4,7 @@ use rtx_mat::Hit;
 use rtx_mat::HitRecord;
 use rtx_mat::Material;
 use rtx_mat::MaterialTable;
+use rtx_obj::Lights;
 use rtx_obj::Scene;
 use rtx_prim::Color;
 use rtx_prim::F;
@@ -25,6 +26,27 @@ const RR_MIN_BOUNCE: u32 = 3;
 
 /// Upper bound on the survival probability, so a bright path still terminates eventually
 const RR_MAX_SURVIVAL: F = 0.95;
+
+/// How far along a ray a hit has to be to count, so that a ray leaving a surface
+/// does not immediately find the surface it left.
+const RAY_EPSILON: F = 0.001;
+
+/// The fraction of the way to a light a shadow ray is allowed to travel. The rest
+/// is the margin that keeps it from hitting the light it is testing for.
+const SHADOW_REACH: F = 1.0 - 1e-4;
+
+/// How much of a contribution to credit to one of two sampling strategies that
+/// could both have produced it, given the density each assigns it.
+///
+/// Squaring is Veach's power heuristic: it commits harder to whichever strategy
+/// was more likely to find this particular path than weighting by the densities
+/// alone would. Whatever this gives one strategy, it gives the other the rest, so
+/// between them they count the path exactly once.
+fn power_heuristic(pdf: F, other: F) -> F {
+    let (a, b) = (pdf * pdf, other * other);
+
+    if a + b <= 0. { 0. } else { a / (a + b) }
+}
 
 #[repr(C)]
 pub struct CameraParams {
@@ -166,6 +188,7 @@ impl Camera {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render(
         &self,
         state: &mut RandState,
@@ -174,18 +197,20 @@ impl Camera {
         mat_table: &MaterialTable<'_>,
         tex_table: &TextureTable<'_>,
         world: &Scene<'_>,
+        lights: &Lights<'_>,
     ) -> Color {
         let mut color = Color::new(0., 0., 0.);
 
         for _ in 0..self.px_samples {
             let ray = self.get_ray(state, i, j);
-            color += self.ray_color(state, mat_table, tex_table, ray, world, 0);
+            color += self.ray_color(state, mat_table, tex_table, ray, world, lights, 0);
         }
 
         // TODO: One can also use Self::modify_color here but I prefer to not alter it
         self.px_sample_scale * color
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn ray_color(
         &self,
         state: &mut RandState,
@@ -193,19 +218,52 @@ impl Camera {
         tex_table: &TextureTable<'_>,
         mut ray: Ray,
         world: &Scene<'_>,
+        lights: &Lights<'_>,
         mut depth: u32,
     ) -> Color {
-        // Start of range is not zero to avoid floating point errors
-        let mut range = Range::new(0.001, F::MAX);
         let mut rec: HitRecord = Default::default();
 
         let mut accumulated = Color::new(0., 0., 0.);
         let mut throughput = Color::new(1., 1., 1.);
 
-        while depth <= self.max_ray_bounce && world.hit(&ray, &mut range, &mut rec) {
-            // Add emission at this hit point, scaled by current throughput
+        // How the ray currently being traced was chosen, which decides how much of
+        // any light it lands on it is entitled to claim. A camera ray was not
+        // sampled off a surface at all, so no direct lighting estimate was
+        // competing with it and it takes what it finds whole.
+        let mut prev_specular = true;
+        let mut prev_pdf_bsdf = 0.;
+
+        while depth <= self.max_ray_bounce {
+            // Start of range is not zero to avoid floating point errors
+            let mut range = Range::new(RAY_EPSILON, F::MAX);
+
+            if !world.hit(&ray, &mut range, &mut rec) {
+                // Nothing more to hit, so whatever is at infinity is the last
+                // thing this path sees. A path that stops any other way sees
+                // nothing more at all, which is why this is the only place the
+                // background is added
+                accumulated += throughput * self.background;
+                break;
+            }
+
+            // `rec.t` is in units of the ray's direction, which is not normalized
+            let dir = ray.dir();
+            let dist = rec.t * dir.length();
+
+            // Light found by bouncing into it. The direct lighting estimate below
+            // could have found this same point from the previous surface, so the
+            // two strategies split it between them rather than both claiming it.
+            // Off a specular bounce there was no such estimate and no split
             let emission = mat_table.emitted(state, tex_table, &rec, rec.u, rec.v, rec.p);
-            accumulated += throughput * emission;
+            let weight = if prev_specular {
+                1.
+            } else {
+                let pdf_light =
+                    lights.pdf(rec.light_index as usize, ray.orig(), dir.normalize(), dist);
+
+                power_heuristic(prev_pdf_bsdf, pdf_light)
+            };
+            accumulated += throughput * emission * weight;
 
             // If material doesn't scatter, we're done (hit a pure light)
             let mut scattered = Default::default();
@@ -221,6 +279,25 @@ impl Camera {
                 break;
             }
 
+            let specular = mat_table.is_specular(&rec);
+
+            // Light found by aiming at it. Pointless off a specular surface,
+            // where the one direction that reflects into the viewer is not one
+            // this gets to choose
+            if !specular {
+                accumulated += throughput
+                    * Self::direct_light(
+                        state,
+                        mat_table,
+                        tex_table,
+                        world,
+                        lights,
+                        &rec,
+                        attenuation,
+                        ray.time(),
+                    );
+            }
+
             // Update throughput and continue bouncing
             throughput *= attenuation;
 
@@ -231,20 +308,102 @@ impl Camera {
                 let p = throughput.max_element().min(RR_MAX_SURVIVAL);
 
                 if rand::rand_f(state) >= p {
-                    // A killed path contributes nothing more, not even the background
-                    throughput = Color::ZERO;
+                    // A killed path contributes nothing more
                     break;
                 }
 
                 throughput /= p;
             }
 
+            // What the next iteration needs to know about how it was aimed.
+            // Lambertian scatters `norm + rand_unit`, which is already exactly
+            // cosine distributed, so its density is recovered here rather than
+            // returned from `scatter`
+            prev_specular = specular;
+            prev_pdf_bsdf = if specular {
+                0.
+            } else {
+                rec.norm.dot(scattered.dir().normalize()).max(0.) / PI
+            };
+
             ray = scattered;
             depth += 1;
         }
 
-        // Ray escaped or stopped - add background scaled by remaining throughput
-        accumulated + throughput * self.background
+        accumulated
+    }
+
+    /// What the lights of the scene deliver straight to this surface, before the
+    /// path's throughput is applied.
+    ///
+    /// This is the whole point of the exercise. Left to itself a bounce finds the
+    /// Cornell box's ceiling panel about one time in a hundred, and the ninety
+    /// nine paths that miss are the noise. Aiming at the panel on purpose and
+    /// paying for the privilege in the density finds it every time.
+    ///
+    /// `albedo` is the attenuation the material returned, which for a Lambertian
+    /// is exactly its albedo. That is only true because Lambertian is the one
+    /// material that reaches here; a glossy material would need its lobe evaluated
+    /// for this direction rather than assumed.
+    #[allow(clippy::too_many_arguments)]
+    fn direct_light(
+        state: &mut RandState,
+        mat_table: &MaterialTable<'_>,
+        tex_table: &TextureTable<'_>,
+        world: &Scene<'_>,
+        lights: &Lights<'_>,
+        rec: &HitRecord,
+        albedo: Color,
+        time: F,
+    ) -> Color {
+        let sample = lights.sample(state, rec.p);
+
+        // No lights, or none that can be seen from this side of one
+        if sample.pdf <= 0. {
+            return Color::ZERO;
+        }
+
+        // The light is below this surface's horizon
+        let cos_surf = rec.norm.dot(sample.dir);
+        if cos_surf <= 0. {
+            return Color::ZERO;
+        }
+
+        // Stopping short of the light keeps the shadow ray from finding the
+        // surface it is aimed at. Short by a fraction rather than by a fixed
+        // amount, because a scene measured in hundreds of units has no use for an
+        // epsilon chosen for one measured in ones
+        let shadow = Ray::new(rec.p, sample.dir, time);
+        let range = Range::new(RAY_EPSILON, sample.dist * SHADOW_REACH);
+        if world.occluded(&shadow, &range) {
+            return Color::ZERO;
+        }
+
+        // The light's own radiance, read through the material table like any
+        // other surface. The sampled point is on the face that emits, which is
+        // what a positive density above already established
+        let mut light_rec = HitRecord {
+            mat: lights.lights[sample.index].material(),
+            front_face: true,
+            ..Default::default()
+        };
+        light_rec.p = rec.p + sample.dir * sample.dist;
+
+        let emitted = mat_table.emitted(
+            state,
+            tex_table,
+            &light_rec,
+            sample.u,
+            sample.v,
+            light_rec.p,
+        );
+
+        // Weighed against the bounce that could have found the same light on its
+        // own, so the two estimates of it add up to one estimate
+        let pdf_bsdf = cos_surf / PI;
+        let weight = power_heuristic(sample.pdf, pdf_bsdf);
+
+        albedo * emitted * (cos_surf / PI * weight / sample.pdf)
     }
 
     pub fn modify_color(color: Color) -> Color {

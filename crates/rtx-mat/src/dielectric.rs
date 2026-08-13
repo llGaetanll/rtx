@@ -40,6 +40,10 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
+    fn is_specular(&self, _rec: &HitRecord) -> bool {
+        true
+    }
+
     fn scatter(
         &self,
         state: &mut RandState,

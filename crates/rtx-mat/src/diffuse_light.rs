@@ -33,15 +33,26 @@ impl DiffuseLight {
 }
 
 impl Material for DiffuseLight {
+    /// A light shines out of its front face only.
+    ///
+    /// The direct lighting estimate samples that one face and its density
+    /// describes that one face, so a light that also radiated out of its back
+    /// would be brighter than any estimate of it. The two have to agree about
+    /// what exists, and the front face is the side the edge order already says
+    /// the surface points towards.
     fn emitted(
         &self,
         _state: &mut RandState,
         tex_table: &TextureTable<'_>,
-        _rec: &crate::HitRecord,
+        rec: &crate::HitRecord,
         u: F,
         v: F,
         point: Point3,
     ) -> Color {
+        if !rec.front_face {
+            return Color::new(0., 0., 0.);
+        }
+
         self.emitted_impl(tex_table, u, v, point)
     }
 }

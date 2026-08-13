@@ -19,8 +19,10 @@ use rtx_mat::DiffuseLight;
 use rtx_mat::Lambertian;
 use rtx_mat::MaterialInfo;
 use rtx_mat::Metal;
+use rtx_mat::material_kind;
 use rtx_obj::Instance;
-use rtx_obj::make_box;
+use rtx_obj::Light;
+use rtx_obj::box_quads;
 use rtx_prim::Color;
 use rtx_prim::Mat4;
 use rtx_prim::Point3;
@@ -28,6 +30,21 @@ use rtx_prim::Vec3;
 use rtx_tex::SolidTexture;
 use rtx_tex::TextureInfo;
 use serde::Deserialize;
+
+/// The parts of a scene that reach the shader as push constants rather than as a
+/// buffer, because they are one value each and every pixel needs them.
+///
+/// Carried together because the apps outlive the `SceneData` they came from: a
+/// window keeps flying around a scene it has already uploaded and thrown away.
+#[derive(Clone, Copy, Default)]
+pub struct SceneInfo {
+    /// What a ray that escapes the scene sees.
+    pub background: [f32; 3],
+
+    /// How many entries of the light buffer are real. See the field of the same
+    /// name on `ShaderConstants` for why the buffer cannot say.
+    pub light_count: u32,
+}
 
 /// Everything about a scene that the shader reads from a buffer.
 #[derive(Default)]
@@ -39,9 +56,23 @@ pub struct SceneData {
     pub dielectrics: Vec<Dielectric>,
     pub diffuse_lights: Vec<DiffuseLight>,
     pub solids: Vec<SolidTexture>,
+
+    /// The emitters, as geometry a shadow ray can be aimed at. Every entry is
+    /// also an instance; this is the same surface described a second way, because
+    /// sampling a point on a light needs its area and facing and an instance only
+    /// stores the inverse of its transform.
+    pub lights: Vec<Light>,
 }
 
 impl SceneData {
+    /// What the shader needs about this scene beyond its buffers.
+    pub fn info(&self) -> SceneInfo {
+        SceneInfo {
+            background: self.background,
+            light_count: self.lights.len() as u32,
+        }
+    }
+
     /// Add a solid color texture and return its index.
     fn solid(&mut self, color: Color) -> u32 {
         self.solids.push(SolidTexture::from_color(color));
@@ -67,6 +98,22 @@ impl SceneData {
         self.dielectrics.push(Dielectric::new(ior));
 
         MaterialInfo::dielectric((self.dielectrics.len() - 1) as u32)
+    }
+
+    /// Add a quad instance, and a light beside it when the quad emits.
+    ///
+    /// The two go together or not at all: an emitter missing from the light list
+    /// is one a shadow ray can never find, and a light with no instance behind it
+    /// is one a shadow ray would pass straight through.
+    fn quad(&mut self, q: Point3, u: Vec3, v: Vec3, material: MaterialInfo) {
+        let mut instance = Instance::quad(q, u, v, material);
+
+        if material.kind == material_kind::DIFFUSE_LIGHT {
+            self.lights.push(Light::quad(q, u, v, material));
+            instance.light_index = (self.lights.len() - 1) as u32;
+        }
+
+        self.instances.push(instance);
     }
 
     fn diffuse_light(&mut self, color: Color) -> MaterialInfo {
@@ -250,6 +297,19 @@ fn build(file: &SceneFile) -> Result<SceneData, Box<dyn Error>> {
                 if radius <= 0.0 {
                     return Err(format!("{} needs a positive radius", object.label(index)).into());
                 }
+                // Only quads can be sampled as lights so far. An emissive sphere
+                // would still light the scene, but only by being stumbled upon,
+                // and it would be missing from the light list that the direct
+                // lighting estimate assumes is complete. Refusing it is the
+                // honest failure, and it goes away when sphere lights land
+                if material.kind == material_kind::DIFFUSE_LIGHT {
+                    return Err(format!(
+                        "{} is an emissive sphere, which cannot be sampled as a light yet. \
+                         Only quads and boxes can emit.",
+                        object.label(index)
+                    )
+                    .into());
+                }
                 scene
                     .instances
                     .push(Instance::sphere(point(center), radius, material));
@@ -263,9 +323,7 @@ fn build(file: &SceneFile) -> Result<SceneData, Box<dyn Error>> {
                     )
                     .into());
                 }
-                scene
-                    .instances
-                    .push(Instance::quad(point(corner), u, v, material));
+                scene.quad(point(corner), u, v, material);
             }
             ObjectDef::Box {
                 min,
@@ -284,9 +342,13 @@ fn build(file: &SceneFile) -> Result<SceneData, Box<dyn Error>> {
                 }
                 let transform = Mat4::from_translation(vector(translate))
                     * Mat4::from_rotation_y(rotate_y.to_radians());
-                scene
-                    .instances
-                    .extend_from_slice(&make_box(min, max, transform, material));
+
+                // Not `make_box`: a box goes through the same door as a lone quad
+                // so that an emissive box becomes six lights rather than six
+                // surfaces nothing knows to aim at
+                for (q, u, v) in box_quads(min, max, transform) {
+                    scene.quad(q, u, v, material);
+                }
             }
         }
     }
@@ -415,5 +477,112 @@ mod tests {
         let source = ONE_SPHERE.replace("radius = 1.0", "radius = 1.0\nradius2 = 2.0");
 
         assert!(parse(&source).is_err());
+    }
+
+    /// The renderer aims shadow rays at this list and assumes it holds every
+    /// emitter in the scene. A light missing from it is one that only lights the
+    /// room by being stumbled upon, which is the noise this all exists to remove.
+    #[test]
+    fn the_cornell_panel_becomes_one_light() {
+        let scene = load_named("cornell_box").unwrap();
+
+        assert_eq!(scene.lights.len(), 1);
+
+        let light = &scene.lights[0];
+        assert_eq!(light.area, 130.0 * 105.0);
+
+        // The panel is on the ceiling, so the face that emits looks down
+        assert_eq!(light.norm(), Vec3::new(0.0, -1.0, 0.0));
+    }
+
+    /// The two descriptions of an emitter have to agree: the instance a ray can
+    /// hit, and the light a ray can be aimed at.
+    #[test]
+    fn emitters_and_lights_refer_to_each_other() {
+        for name in scene_names() {
+            let scene = load_named(&name).unwrap();
+
+            let emitters = scene
+                .instances
+                .iter()
+                .filter(|i| i.material.kind == material_kind::DIFFUSE_LIGHT)
+                .count();
+
+            assert_eq!(
+                emitters,
+                scene.lights.len(),
+                "{name} has {emitters} emitting instances but {} lights",
+                scene.lights.len()
+            );
+
+            for instance in &scene.instances {
+                let emits = instance.material.kind == material_kind::DIFFUSE_LIGHT;
+                let linked = instance.light_index != rtx_obj::NOT_A_LIGHT;
+
+                assert_eq!(emits, linked, "{name} has an emitter that is not a light");
+
+                if linked {
+                    assert!(
+                        (instance.light_index as usize) < scene.lights.len(),
+                        "{name} points at light {} of {}",
+                        instance.light_index,
+                        scene.lights.len()
+                    );
+                }
+            }
+        }
+    }
+
+    /// An emissive box is six lights, not one, because each of its faces emits on
+    /// its own and a shadow ray has to be able to pick between them.
+    #[test]
+    fn an_emissive_box_becomes_six_lights() {
+        let source = r#"
+            background = [0.0, 0.0, 0.0]
+            [materials.glow]
+            type = "diffuse_light"
+            color = [4.0, 4.0, 4.0]
+            [[objects]]
+            type = "box"
+            material = "glow"
+            min = [0.0, 0.0, 0.0]
+            max = [1.0, 2.0, 3.0]
+        "#;
+
+        let scene = parse(source).unwrap();
+
+        assert_eq!(scene.instances.len(), 6);
+        assert_eq!(scene.lights.len(), 6);
+
+        // Two faces of each of the three sizes, so the surface area of the box
+        let total: f32 = scene.lights.iter().map(|l| l.area).sum();
+        assert_eq!(total, 2.0 * (1.0 * 2.0 + 1.0 * 3.0 + 2.0 * 3.0));
+    }
+
+    /// Until spheres can be sampled as lights, an emissive one would be an
+    /// emitter the direct lighting estimate does not know about. That has to be a
+    /// loud failure rather than a quietly darker room.
+    #[test]
+    fn an_emissive_sphere_is_rejected_by_name() {
+        let source = r#"
+            background = [0.0, 0.0, 0.0]
+            [materials.glow]
+            type = "diffuse_light"
+            color = [4.0, 4.0, 4.0]
+            [[objects]]
+            name = "the sun"
+            type = "sphere"
+            material = "glow"
+            center = [0.0, 0.0, 0.0]
+            radius = 1.0
+        "#;
+
+        let error = match parse(source) {
+            Ok(_) => panic!("an emissive sphere was accepted"),
+            Err(e) => e.to_string(),
+        };
+
+        assert!(error.contains("the sun"), "{error}");
+        assert!(error.contains("sphere"), "{error}");
     }
 }

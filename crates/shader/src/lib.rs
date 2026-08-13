@@ -6,6 +6,8 @@ use rtx_mat::Lambertian;
 use rtx_mat::MaterialTable;
 use rtx_mat::Metal;
 use rtx_obj::Instance;
+use rtx_obj::Light;
+use rtx_obj::Lights;
 use rtx_obj::Scene;
 use rtx_prim::Color;
 use rtx_prim::Vec3;
@@ -95,11 +97,17 @@ pub fn trace_fs(
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)] dielectrics: &[Dielectric],
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)] diffuse_lights: &[DiffuseLight],
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)] solids: &[SolidTexture],
+    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)] lights: &[Light],
     output: &mut Vec4,
 ) {
     let cam = rtx_util::Camera::new(cam_params_from_constants(constants));
 
     let world = Scene::new(instances);
+
+    // The buffer is padded to one element when the scene has no emitters, since a
+    // zero sized binding is not allowed, so the count decides how much of it is
+    // real rather than its length
+    let lights = Lights::bounded(lights, constants.light_count as usize);
     let mat_table = MaterialTable {
         lambertians,
         metals,
@@ -113,7 +121,7 @@ pub fn trace_fs(
 
     let mut state = gen_state(frag_coord, constants.seed);
 
-    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world);
+    let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world, &lights);
 
     *output = vec4(color.x, color.y, color.z, 1.0);
 }

@@ -320,7 +320,7 @@ impl Camera {
         width: u32,
         height: u32,
         quality: Quality,
-        background: [f32; 3],
+        scene: crate::scene_data::SceneInfo,
     ) -> shared::ShaderConstants {
         shared::ShaderConstants {
             width,
@@ -337,7 +337,8 @@ impl Camera {
             px_samples: quality.samples,
             max_ray_bounce: quality.bounces,
             seed: 0,
-            background,
+            background: scene.background,
+            light_count: scene.light_count,
         }
     }
 }
