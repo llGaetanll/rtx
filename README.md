@@ -17,7 +17,7 @@ most scene entry points silently misrender or hang the GPU.
 - **rtx-prim** - Primitive types: `Array`, `List`, `Ray`, `HitRecord`, `Interval`, etc.
 - **rtx-obj** - Scene objects that can be hit by rays (e.g., `Sphere`).
 - **rtx-mat** - Materials (Lambertian, Metal, Dielectric) and the material dispatch table.
-- **rtx-tex** - Textures (solid colors, checkerboard) and the texture table.
+- **rtx-tex** - Textures (solid colors) and the texture table.
 - **rtx-util** - Utilities including the camera and random number generation.
 
 ## Scenes and configs
