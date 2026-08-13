@@ -1,0 +1,21 @@
+# Raised and looking down at the glass sphere, where refraction bugs show up
+# as a dark or inverted center.
+
+type = "image"
+scene = "glass_debug"
+
+[camera]
+position = [0.0, 2.0, 5.0]
+look_at = [0.0, 0.5, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 5.0
+
+[quality]
+samples = 200
+bounces = 30
+
+[output]
+width = 1920
+height = 1080

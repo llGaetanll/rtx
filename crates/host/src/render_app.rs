@@ -6,121 +6,17 @@ use std::time::Instant;
 
 use chrono::Utc;
 use futures::executor::block_on;
-use serde::Deserialize;
 
+use crate::config::ImageConfig;
 use crate::gpu::AccumulatedRender;
 use crate::gpu::GpuContext;
 use crate::scene_data;
-use crate::scenes;
 
 /// Samples per accumulation pass. Small enough that a single draw call stays well
 /// under the GPU watchdog timeout even at high resolutions.
 const SAMPLES_PER_PASS: u32 = 8;
 
-const CONFIG_DIR: &str = "renders/configs";
 const OUTPUT_DIR: &str = "renders";
-
-/// Render definition loaded from a TOML file. Every setting is explicit: the
-/// shader has no defaults of its own to fall back on.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RenderFile {
-    pub scene: String,
-    pub camera: CameraDef,
-    pub quality: QualityDef,
-    pub output: OutputDef,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CameraDef {
-    pub position: [f32; 3],
-    pub look_at: [f32; 3],
-    pub vup: [f32; 3],
-    pub fov: f32,
-    pub defocus_angle: f32,
-    pub focus_dist: f32,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct QualityDef {
-    pub samples: u32,
-    pub bounces: u32,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct OutputDef {
-    pub width: u32,
-    pub height: u32,
-}
-
-impl RenderFile {
-    /// Load a render definition from `renders/configs/<name>.toml`.
-    pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from(CONFIG_DIR).join(format!("{name}.toml"));
-        let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-        let def: RenderFile = toml::from_str(&contents)
-            .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
-
-        def.validate(name)?;
-
-        Ok(def)
-    }
-
-    fn validate(&self, name: &str) -> Result<(), Box<dyn Error>> {
-        if scenes::Scene::find(&self.scene).is_none() {
-            return Err(format!(
-                "Render {} uses unknown scene {}. Available scenes: {}",
-                name,
-                self.scene,
-                scenes::names().collect::<Vec<_>>().join(", ")
-            )
-            .into());
-        }
-        if self.quality.samples < 1 {
-            return Err(format!("Render {name} needs at least 1 sample").into());
-        }
-        if self.quality.bounces < 1 {
-            return Err(format!("Render {name} needs at least 1 bounce").into());
-        }
-        if self.output.width < 1 || self.output.height < 1 {
-            return Err(format!("Render {name} needs a non-zero output size").into());
-        }
-        Ok(())
-    }
-
-    /// Build the push constants for this render. Per-pass fields (resolution,
-    /// samples, seed) are filled in by the GPU layer.
-    fn constants(&self, background: [f32; 3]) -> shared::ShaderConstants {
-        let position = self.camera.position;
-        let look_at = self.camera.look_at;
-
-        shared::ShaderConstants {
-            width: 0,
-            height: 0,
-            time: 0.0,
-            cursor_x: 0.0,
-            cursor_y: 0.0,
-            cam_pos: position,
-            cam_dir: [
-                look_at[0] - position[0],
-                look_at[1] - position[1],
-                look_at[2] - position[2],
-            ],
-            cam_vup: self.camera.vup,
-            fov_v: self.camera.fov,
-            defocus_angle: self.camera.defocus_angle,
-            focus_dist: self.camera.focus_dist,
-            px_samples: 0,
-            max_ray_bounce: self.quality.bounces,
-            seed: 0,
-            background,
-        }
-    }
-}
 
 /// Convert the accumulated linear image to an 8-bit sRGB image. The live and test
 /// paths get this transfer for free from their sRGB render targets.
@@ -164,7 +60,7 @@ fn format_duration(duration: Duration) -> String {
 
 /// Render a definition by name and save the resulting image.
 pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
-    let def = RenderFile::load(&name)?;
+    let def = ImageConfig::load(&name)?;
 
     let instance = GpuContext::create_instance();
     let gpu = block_on(GpuContext::new(instance, None))?;
@@ -199,8 +95,7 @@ pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
         def.quality.bounces
     );
 
-    let scene = scene_data::build(&def.scene)
-        .ok_or_else(|| format!("Scene {} has no scene data", def.scene))?;
+    let scene = scene_data::load(&def.scene)?;
     let buffers = gpu.upload_scene(&scene);
 
     let request = AccumulatedRender {
@@ -209,7 +104,9 @@ pub fn run_render(name: String) -> Result<(), Box<dyn Error>> {
         height,
         passes,
         samples_per_pass,
-        constants: def.constants(scene.background),
+        constants: def
+            .camera
+            .constants(width, height, def.quality, scene.background),
     };
 
     let pixels_per_pass = (width as u64) * (height as u64) * (samples_per_pass as u64);

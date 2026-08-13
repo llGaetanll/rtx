@@ -13,7 +13,6 @@ use rtx_bench::BenchmarkMetadata;
 use rtx_bench::CameraPath;
 use rtx_bench::FrameRecord;
 use rtx_bench::GpuInfo;
-use serde::Deserialize;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::ElementState;
@@ -26,101 +25,14 @@ use winit::keyboard::NamedKey;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
+use crate::config::CameraTracks;
+use crate::config::Quality;
+use crate::config::VideoConfig;
 use crate::gpu::GpuContext;
 use crate::gpu::SceneBuffers;
 use crate::scene_data;
-use crate::scenes;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
-
-/// Benchmark definition loaded from a TOML file.
-///
-/// The workload settings all have defaults so existing definitions keep working,
-/// but every benchmark should set them explicitly: they decide how long a run
-/// takes, and comparing runs across commits is only meaningful when they match.
-#[derive(Deserialize)]
-pub struct BenchmarkFile {
-    pub scene: String,
-    pub frame_count: u32,
-    #[serde(default = "default_width")]
-    pub width: u32,
-    #[serde(default = "default_height")]
-    pub height: u32,
-    #[serde(default = "default_samples")]
-    pub samples: u32,
-    #[serde(default = "default_bounces")]
-    pub bounces: u32,
-    pub position: Vec<[f32; 3]>,
-    pub look_at: Vec<[f32; 3]>,
-}
-
-fn default_width() -> u32 {
-    800
-}
-
-fn default_height() -> u32 {
-    600
-}
-
-fn default_samples() -> u32 {
-    scenes::SAMPLES
-}
-
-fn default_bounces() -> u32 {
-    scenes::BOUNCES
-}
-
-impl BenchmarkFile {
-    /// Load a benchmark definition from `bench/configs/<name>.toml`.
-    pub fn load(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = PathBuf::from("bench/configs").join(format!("{name}.toml"));
-        let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-        let def: BenchmarkFile = toml::from_str(&contents)
-            .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
-
-        if def.frame_count < 1 {
-            return Err(format!("Benchmark {name} needs at least 1 frame").into());
-        }
-        if def.width < 1 || def.height < 1 {
-            return Err(format!("Benchmark {name} needs a non-zero resolution").into());
-        }
-        if def.samples < 1 {
-            return Err(format!("Benchmark {name} needs at least 1 sample").into());
-        }
-        if def.bounces < 1 {
-            return Err(format!("Benchmark {name} needs at least 1 bounce").into());
-        }
-        if def.position.len() < 4 {
-            return Err(format!(
-                "Benchmark {} needs at least 4 position points, got {}",
-                name,
-                def.position.len()
-            )
-            .into());
-        }
-        if def.look_at.len() < 4 {
-            return Err(format!(
-                "Benchmark {} needs at least 4 look_at points, got {}",
-                name,
-                def.look_at.len()
-            )
-            .into());
-        }
-
-        Ok(def)
-    }
-
-    /// Convert position points to Vec<Vec3>.
-    pub fn position_points(&self) -> Vec<Vec3> {
-        self.position.iter().map(|&p| Vec3::from(p)).collect()
-    }
-
-    /// Convert look_at points to Vec<Vec3>.
-    pub fn look_at_points(&self) -> Vec<Vec3> {
-        self.look_at.iter().map(|&p| Vec3::from(p)).collect()
-    }
-}
 
 /// Extract GPU info from a wgpu adapter.
 fn gpu_info_from_adapter(adapter: &wgpu::Adapter) -> GpuInfo {
@@ -139,7 +51,7 @@ const PROGRESS_INTERVAL: u32 = 10;
 /// A queued benchmark with its name and definition.
 struct QueuedBenchmark {
     name: String,
-    def: BenchmarkFile,
+    def: VideoConfig,
 }
 
 /// Application for benchmark mode with animated camera path.
@@ -156,20 +68,22 @@ pub struct BenchApp {
     window_surface: Option<WindowSurface>,
     close_requested: bool,
     camera_path: CameraPath,
+    /// The camera settings the path does not record: which way is up, and the
+    /// lens. Sampled per frame like the position is.
+    tracks: CameraTracks,
     frame_records: Vec<FrameRecord>,
     frame_count: u32,
     name: String,
     scene: String,
     width: u32,
     height: u32,
-    samples: u32,
-    bounces: u32,
+    quality: Quality,
     timestamp: DateTime<Utc>,
     queue: Vec<QueuedBenchmark>,
 }
 
 impl BenchApp {
-    pub fn new(benchmarks: Vec<(String, BenchmarkFile)>, timestamp: DateTime<Utc>) -> Self {
+    pub fn new(benchmarks: Vec<(String, VideoConfig)>, timestamp: DateTime<Utc>) -> Self {
         let mut queue: Vec<QueuedBenchmark> = benchmarks
             .into_iter()
             .map(|(name, def)| QueuedBenchmark { name, def })
@@ -177,11 +91,8 @@ impl BenchApp {
 
         // Pop the first benchmark to run immediately
         let first = queue.remove(0);
-        let camera_path = CameraPath::new(
-            first.def.position_points(),
-            first.def.look_at_points(),
-            first.def.frame_count,
-        );
+        let camera_path = first.def.camera.path(first.def.output.frames);
+        let tracks = first.def.camera.tracks();
 
         Self {
             gpu: None,
@@ -194,13 +105,13 @@ impl BenchApp {
             background: [0.; 3],
             close_requested: false,
             camera_path,
+            tracks,
             frame_records: Vec::new(),
             frame_count: 0,
             name: first.name,
-            width: first.def.width,
-            height: first.def.height,
-            samples: first.def.samples,
-            bounces: first.def.bounces,
+            width: first.def.output.width,
+            height: first.def.output.height,
+            quality: first.def.quality,
             scene: first.def.scene,
             timestamp,
             queue,
@@ -221,11 +132,8 @@ impl BenchApp {
         );
 
         // Update camera path
-        self.camera_path = CameraPath::new(
-            next.def.position_points(),
-            next.def.look_at_points(),
-            next.def.frame_count,
-        );
+        self.camera_path = next.def.camera.path(next.def.output.frames);
+        self.tracks = next.def.camera.tracks();
 
         // Reset frame tracking
         self.frame_records.clear();
@@ -234,10 +142,9 @@ impl BenchApp {
         // Update scene info
         self.name = next.name;
         self.scene = next.def.scene.clone();
-        self.width = next.def.width;
-        self.height = next.def.height;
-        self.samples = next.def.samples;
-        self.bounces = next.def.bounces;
+        self.width = next.def.output.width;
+        self.height = next.def.output.height;
+        self.quality = next.def.quality;
 
         // Benchmarks may render at different sizes, so resize before the next one
         if let Some(ws) = &self.window_surface {
@@ -249,12 +156,12 @@ impl BenchApp {
         // Upload the new scene. The pipeline is shared across scenes now, so only
         // the buffers behind it change
         if let Some(gpu) = &self.gpu {
-            match scene_data::build(&self.scene) {
-                Some(scene) => {
+            match scene_data::load(&self.scene) {
+                Ok(scene) => {
                     self.background = scene.background;
                     self.scene_buffers = Some(gpu.upload_scene(&scene));
                 }
-                None => log::error!("Scene {} has no scene data", self.scene),
+                Err(e) => log::error!("{e}"),
             }
         }
 
@@ -289,8 +196,7 @@ impl BenchApp {
 
         let render_pipeline = gpu.create_pipeline(swapchain_format);
 
-        let scene = scene_data::build(&self.scene)
-            .ok_or_else(|| format!("Scene {} has no scene data", self.scene))?;
+        let scene = scene_data::load(&self.scene)?;
         self.background = scene.background;
         let scene_buffers = gpu.upload_scene(&scene);
 
@@ -343,13 +249,13 @@ impl BenchApp {
             return;
         }
 
-        // Evaluate camera path at current frame
+        // Evaluate the camera at the current frame
         let t = self.camera_path.frame_t(self.frame_count);
-        let pose = self.camera_path.evaluate_frame(self.frame_count);
+        let camera = self.tracks.at(t);
 
-        let cam_pos = pose.position;
-        let cam_dir = pose.direction();
-        let cam_vup = pose.up(Vec3::Y);
+        let cam_pos = Vec3::from(camera.position);
+        let cam_dir = Vec3::from(camera.direction());
+        let cam_vup = Vec3::from(camera.vup);
 
         let window = window_surface.borrow_window();
         let current_size = window.inner_size();
@@ -371,23 +277,14 @@ impl BenchApp {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        let scene = scenes::Scene::find(&self.scene).expect("Unknown scene");
         let push_constants = shared::ShaderConstants {
-            width: current_size.width,
-            height: current_size.height,
             time: t,
-            cursor_x: 0.0,
-            cursor_y: 0.0,
-            cam_pos: cam_pos.into(),
-            cam_dir: cam_dir.into(),
-            cam_vup: cam_vup.into(),
-            fov_v: scene.fov,
-            defocus_angle: scene.defocus_angle,
-            focus_dist: scene.focus_dist,
-            px_samples: self.samples,
-            max_ray_bounce: self.bounces,
-            seed: 0,
-            background: self.background,
+            ..camera.constants(
+                current_size.width,
+                current_size.height,
+                self.quality,
+                self.background,
+            )
         };
 
         {
@@ -476,8 +373,8 @@ impl BenchApp {
             git_sha: GIT_SHA.to_string(),
             scene: self.scene.clone(),
             resolution: [config.width, config.height],
-            samples: self.samples,
-            bounces: self.bounces,
+            samples: self.quality.samples,
+            bounces: self.quality.bounces,
             gpu: gpu_info.clone(),
             camera_path: self.camera_path.clone(),
         };
@@ -557,48 +454,28 @@ impl ApplicationHandler for BenchApp {
 }
 
 pub fn run_bench(name: String) -> Result<(), Box<dyn Error>> {
-    let def = BenchmarkFile::load(&name)?;
-    let benchmarks = vec![(name, def)];
-    run_benchmarks(benchmarks)
+    let def = VideoConfig::load(&name)?;
+
+    run_benchmarks(vec![(name, def)])
 }
 
 pub fn run_all_benchmarks() -> Result<(), Box<dyn Error>> {
-    let benchmarks_dir = PathBuf::from("bench/configs");
-    let mut benchmark_names: Vec<String> = fs::read_dir(&benchmarks_dir)
-        .map_err(|e| format!("Failed to read bench/configs directory: {e}"))?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            if path.extension()? == "toml" {
-                path.file_stem()?.to_str().map(|s| s.to_string())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    benchmark_names.sort();
-
-    if benchmark_names.is_empty() {
-        return Err("No benchmark files found in bench/configs/ directory".into());
-    }
+    let benchmarks = VideoConfig::load_all()?;
 
     log::info!(
         "Found {} benchmark(s): {}",
-        benchmark_names.len(),
-        benchmark_names.join(", ")
+        benchmarks.len(),
+        benchmarks
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
     );
-
-    let mut benchmarks = Vec::new();
-    for name in benchmark_names {
-        let def = BenchmarkFile::load(&name)?;
-        benchmarks.push((name, def));
-    }
 
     run_benchmarks(benchmarks)
 }
 
-fn run_benchmarks(benchmarks: Vec<(String, BenchmarkFile)>) -> Result<(), Box<dyn Error>> {
+fn run_benchmarks(benchmarks: Vec<(String, VideoConfig)>) -> Result<(), Box<dyn Error>> {
     let event_loop = EventLoop::new()?;
     let mut app = BenchApp::new(benchmarks, Utc::now());
     event_loop.run_app(&mut app).map_err(Into::into)

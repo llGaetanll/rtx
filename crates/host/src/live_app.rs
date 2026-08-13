@@ -2,6 +2,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use futures::executor::block_on;
+use glam::Mat3;
 use glam::Quat;
 use glam::Vec3;
 use winit::application::ApplicationHandler;
@@ -16,10 +17,10 @@ use winit::keyboard::NamedKey;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
+use crate::config::ImageConfig;
 use crate::gpu::GpuContext;
 use crate::gpu::SceneBuffers;
 use crate::scene_data;
-use crate::scenes;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
 
@@ -35,7 +36,9 @@ struct KeysHeld {
 }
 
 pub struct LiveApp {
-    scene: String,
+    /// The config this view started from. Its camera is only a starting point,
+    /// but its lens settings keep applying as the camera is flown around.
+    image: ImageConfig,
     gpu: Option<GpuContext>,
     config: Option<wgpu::SurfaceConfiguration>,
     render_pipeline: Option<wgpu::RenderPipeline>,
@@ -58,18 +61,12 @@ pub struct LiveApp {
 }
 
 impl LiveApp {
-    pub fn new(scene: String) -> Self {
-        // Default camera: two_spheres position
-        // two_spheres camera: lookfrom (0, 1, 5), lookat (0, 0, 0)
-        let cam_pos = Vec3::new(0.0, 1.0, 5.0);
-
-        // Initial orientation: looking slightly down toward origin
-        // Start with identity (looking down -Z), then pitch down slightly
-        let pitch = -0.197f32; // Slightly down to look at origin
-        let cam_orientation = Quat::from_rotation_x(pitch);
+    pub fn new(config: ImageConfig) -> Self {
+        let camera = config.camera;
+        let cam_pos = Vec3::from(camera.position);
 
         Self {
-            scene,
+            image: config,
             gpu: None,
             window_surface: None,
             config: None,
@@ -81,7 +78,7 @@ impl LiveApp {
             cursor_x: 0.0,
             cursor_y: 0.0,
             cam_pos,
-            cam_orientation,
+            cam_orientation: orientation(camera),
             keys_held: KeysHeld::default(),
             last_cursor_x: 0.0,
             last_cursor_y: 0.0,
@@ -208,8 +205,7 @@ impl LiveApp {
 
         let render_pipeline = gpu.create_pipeline(swapchain_format);
 
-        let scene = scene_data::build(&self.scene)
-            .ok_or_else(|| format!("Scene {} has no scene data", self.scene))?;
+        let scene = scene_data::load(&self.image.scene)?;
         self.background = scene.background;
         let scene_buffers = gpu.upload_scene(&scene);
 
@@ -269,23 +265,21 @@ impl LiveApp {
 
         let cam_dir = self.cam_dir();
         let cam_vup = self.cam_vup();
-        let scene = scenes::Scene::find(&self.scene).expect("Unknown scene");
+        // The camera has been flown away from where the config put it, so only
+        // its lens settings come from there
         let push_constants = shared::ShaderConstants {
-            width: current_size.width,
-            height: current_size.height,
             time: self.start.elapsed().as_secs_f32(),
             cursor_x: self.cursor_x,
             cursor_y: self.cursor_y,
             cam_pos: self.cam_pos.into(),
             cam_dir: cam_dir.into(),
             cam_vup: cam_vup.into(),
-            fov_v: scene.fov,
-            defocus_angle: scene.defocus_angle,
-            focus_dist: scene.focus_dist,
-            px_samples: scenes::SAMPLES,
-            max_ray_bounce: scenes::BOUNCES,
-            seed: 0,
-            background: self.background,
+            ..self.image.camera.constants(
+                current_size.width,
+                current_size.height,
+                ImageConfig::preview_quality(),
+                self.background,
+            )
         };
 
         {
@@ -398,9 +392,67 @@ impl ApplicationHandler for LiveApp {
     }
 }
 
-pub fn run_live(scene: &str) -> Result<(), Box<dyn Error>> {
-    log::debug!("Running live with scene: {scene}");
+/// The orientation looking from a camera's position towards what it looks at.
+/// `live` steers with a quaternion rather than a target point, so the config's
+/// `look_at` only decides where the view starts.
+fn orientation(camera: crate::config::Camera) -> Quat {
+    let forward = Vec3::from(camera.direction()).normalize_or(Vec3::NEG_Z);
+    let right = forward
+        .cross(Vec3::from(camera.vup))
+        .try_normalize()
+        .unwrap_or(Vec3::X);
+    let back = -forward;
+
+    Quat::from_mat3(&Mat3::from_cols(right, back.cross(right), back)).normalize()
+}
+
+pub fn run_live(name: &str) -> Result<(), Box<dyn Error>> {
+    let config = ImageConfig::load(name)?;
+    log::debug!("Running live with scene: {}", config.scene);
+
     let event_loop = EventLoop::new()?;
-    let mut app = LiveApp::new(scene.to_string());
+    let mut app = LiveApp::new(config);
     event_loop.run_app(&mut app).map_err(Into::into)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Camera;
+
+    fn camera(position: [f32; 3], look_at: [f32; 3]) -> Camera {
+        Camera {
+            position,
+            look_at,
+            vup: [0.0, 1.0, 0.0],
+            fov: 40.0,
+            defocus_angle: 0.0,
+            focus_dist: 10.0,
+        }
+    }
+
+    /// The starting view has to be the one the config describes, and getting the
+    /// handedness wrong would mirror the scene rather than fail.
+    #[test]
+    fn orientation_faces_the_target() {
+        for (position, look_at) in [
+            ([278.0, 278.0, -800.0], [278.0, 278.0, 0.0]),
+            ([13.0, 2.0, 3.0], [0.0, 0.0, 0.0]),
+            ([0.0, 2.0, 5.0], [0.0, 0.5, 0.0]),
+        ] {
+            let camera = camera(position, look_at);
+            let rotation = orientation(camera);
+
+            let wanted = Vec3::from(camera.direction()).normalize();
+            let facing = rotation * Vec3::NEG_Z;
+            assert!(
+                (facing - wanted).length() < 1e-5,
+                "looking {facing} instead of {wanted}"
+            );
+
+            let up = rotation * Vec3::Y;
+            assert!(up.dot(Vec3::Y) > 0.0, "upside down: {up}");
+            assert!(up.dot(facing).abs() < 1e-5, "up is not perpendicular: {up}");
+        }
+    }
 }

@@ -1,0 +1,106 @@
+# The three large spheres with a scattering of small ones around them. The
+# heaviest scene by instance count.
+
+background = [0.7, 0.8, 1.0]
+
+[materials.ground]
+type = "lambertian"
+color = [0.5, 0.5, 0.5]
+
+[materials.brown]
+type = "lambertian"
+color = [0.4, 0.2, 0.1]
+
+[materials.rust]
+type = "lambertian"
+color = [0.73, 0.24, 0.14]
+
+[materials.moss]
+type = "lambertian"
+color = [0.22, 0.55, 0.34]
+
+[materials.steel]
+type = "metal"
+color = [0.7, 0.6, 0.5]
+fuzz = 0.0
+
+[materials.copper]
+type = "metal"
+color = [0.85, 0.75, 0.65]
+fuzz = 0.1
+
+[materials.silver]
+type = "metal"
+color = [0.72, 0.72, 0.78]
+fuzz = 0.0
+
+[materials.glass]
+type = "dielectric"
+ior = 1.5
+
+[materials."thin glass"]
+type = "dielectric"
+ior = 1.45
+
+[[objects]]
+name = "ground"
+type = "sphere"
+material = "ground"
+center = [0.0, -1000.0, 0.0]
+radius = 1000.0
+
+[[objects]]
+name = "centre glass"
+type = "sphere"
+material = "glass"
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+
+[[objects]]
+name = "left diffuse"
+type = "sphere"
+material = "brown"
+center = [-4.0, 1.0, 0.0]
+radius = 1.0
+
+[[objects]]
+name = "right metal"
+type = "sphere"
+material = "steel"
+center = [4.0, 1.0, 0.0]
+radius = 1.0
+
+[[objects]]
+name = "small rust"
+type = "sphere"
+material = "rust"
+center = [-3.5, 0.2, 1.5]
+radius = 0.2
+
+[[objects]]
+name = "small moss"
+type = "sphere"
+material = "moss"
+center = [-2.2, 0.2, 2.8]
+radius = 0.2
+
+[[objects]]
+name = "small copper"
+type = "sphere"
+material = "copper"
+center = [0.8, 0.2, -1.8]
+radius = 0.2
+
+[[objects]]
+name = "small silver"
+type = "sphere"
+material = "silver"
+center = [2.5, 0.2, -0.5]
+radius = 0.2
+
+[[objects]]
+name = "small glass"
+type = "sphere"
+material = "thin glass"
+center = [-0.2, 0.2, 0.5]
+radius = 0.2

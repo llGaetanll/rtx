@@ -1,0 +1,20 @@
+# The cheapest scene there is, viewed plainly.
+
+type = "image"
+scene = "two_spheres"
+
+[camera]
+position = [0.0, 1.0, 5.0]
+look_at = [0.0, 0.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 5.0
+
+[quality]
+samples = 100
+bounces = 10
+
+[output]
+width = 1920
+height = 1080

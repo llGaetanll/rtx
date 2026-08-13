@@ -1,0 +1,37 @@
+# A diffuse sphere beside a slightly rough metal one, over a large ground sphere.
+
+background = [0.7, 0.8, 1.0]
+
+[materials.ground]
+type = "lambertian"
+color = [0.5, 0.5, 0.5]
+
+[materials.red]
+type = "lambertian"
+color = [0.8, 0.3, 0.3]
+
+[materials.steel]
+type = "metal"
+color = [0.8, 0.8, 0.8]
+fuzz = 0.1
+
+[[objects]]
+name = "ground"
+type = "sphere"
+material = "ground"
+center = [0.0, -100.5, 0.0]
+radius = 100.0
+
+[[objects]]
+name = "diffuse"
+type = "sphere"
+material = "red"
+center = [-1.0, 0.0, 0.0]
+radius = 0.5
+
+[[objects]]
+name = "metal"
+type = "sphere"
+material = "steel"
+center = [1.0, 0.0, 0.0]
+radius = 0.5

@@ -1,0 +1,46 @@
+# A sweep over the field of spheres, the heaviest scene by instance count.
+
+type = "video"
+scene = "many_spheres"
+
+[camera]
+position = [
+    [13.0, 2.0, 3.0],  # Classic starting position
+    [10.0, 3.0, 8.0],  # Moving around right side, higher
+    [4.0, 4.0, 10.0],  # Continuing around, higher still
+    [-4.0, 3.5, 8.0],  # Left side of scene
+    [-8.0, 2.5, 3.0],  # Far left
+    [-6.0, 2.0, -3.0], # Behind, left
+    [0.0, 5.0, -6.0],  # Behind center, high overhead view
+    [6.0, 2.0, -3.0],  # Behind, right
+    [10.0, 2.5, 3.0],  # Coming back around
+    [13.0, 2.0, 3.0],  # Return to start
+]
+
+# The center of the sphere field, with slight vertical variation
+look_at = [
+    [0.0, 0.5, 0.0],
+    [0.0, 0.8, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.8, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.0, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.8, 0.0],
+    [0.0, 0.5, 0.0],
+]
+
+vup = [0.0, 1.0, 0.0]
+fov = 20.0
+defocus_angle = 0.6
+focus_dist = 10.0
+
+[quality]
+samples = 8
+bounces = 10
+
+[output]
+width = 400
+height = 300
+frames = 60

@@ -11,23 +11,25 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Open a window and render the scene live
+    /// Open a window and fly around a scene
     Live {
-        /// Which scene to render (fragment shader entry point)
+        /// Image config to start from (loads configs/image/<name>.toml). Its
+        /// camera is the starting view; the sample count and window size are
+        /// live mode's own.
         #[arg(short, long, default_value = "cornell_box")]
-        scene: String,
+        config: String,
     },
-    /// Render all test scenes to a grid image
+    /// Render every image config to a grid image
     Test,
-    /// Render a high-quality still image from a render definition
+    /// Render a high-quality still image
     Render {
-        /// Render definition name (loads from renders/configs/<name>.toml)
+        /// Image config name (loads configs/image/<name>.toml)
         name: String,
     },
-    /// Run benchmark with animated camera path
+    /// Time the frames of a video's camera path
     Bench {
-        /// Benchmark definition name (loads from bench/configs/<name>.toml).
-        /// If not specified, runs all benchmarks in the bench/configs/ directory.
+        /// Video config name (loads configs/video/<name>.toml). If not
+        /// specified, runs every config in configs/video/.
         name: Option<String>,
     },
     /// Generate SVG charts from benchmark results

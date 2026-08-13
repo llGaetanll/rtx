@@ -1,0 +1,48 @@
+# Glass, diffuse and metal side by side: one sphere per material kind.
+
+background = [0.7, 0.8, 1.0]
+
+[materials.ground]
+type = "lambertian"
+color = [0.5, 0.5, 0.5]
+
+[materials.brown]
+type = "lambertian"
+color = [0.4, 0.2, 0.1]
+
+[materials.steel]
+type = "metal"
+color = [0.7, 0.6, 0.5]
+fuzz = 0.0
+
+[materials.glass]
+type = "dielectric"
+ior = 1.5
+
+[[objects]]
+name = "ground"
+type = "sphere"
+material = "ground"
+center = [0.0, -1000.0, 0.0]
+radius = 1000.0
+
+[[objects]]
+name = "glass"
+type = "sphere"
+material = "glass"
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+
+[[objects]]
+name = "diffuse"
+type = "sphere"
+material = "brown"
+center = [-4.0, 1.0, 0.0]
+radius = 1.0
+
+[[objects]]
+name = "metal"
+type = "sphere"
+material = "steel"
+center = [4.0, 1.0, 0.0]
+radius = 1.0

@@ -1,0 +1,39 @@
+# A push through the Cornell box, from the back wall in and out again.
+
+type = "video"
+scene = "cornell_box"
+
+# Any camera field takes either a single value, held for the whole path, or a
+# list of keyframes interpolated across the frames. A path needs at least four
+# keyframes: the first and last only set the tangents at the ends.
+[camera]
+position = [
+    [278.0, 278.0, -800.0], # Far back, centered
+    [278.0, 278.0, -600.0], # Moving in
+    [278.0, 300.0, -400.0], # Closer, slightly up
+    [200.0, 278.0, -200.0], # Close, shifted left
+    [356.0, 278.0, -200.0], # Close, shifted right
+    [278.0, 250.0, -300.0], # Pulling back, lower
+    [278.0, 278.0, -500.0], # Back to middle distance
+    [278.0, 278.0, -800.0], # Return to start
+    [278.0, 278.0, -600.0], # (duplicate for spline)
+    [278.0, 300.0, -400.0], # (duplicate for spline)
+]
+
+# Fixed on the center of the box throughout
+look_at = [278.0, 278.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 10.0
+
+# Samples match the per-pass sample count the render command uses, so a frame here
+# costs about what one accumulation pass of a real render costs per pixel
+[quality]
+samples = 8
+bounces = 10
+
+[output]
+width = 400
+height = 300
+frames = 60

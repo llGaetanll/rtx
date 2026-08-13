@@ -1,0 +1,21 @@
+# Glass needs the extra bounces: a ray entering the sphere spends several of
+# them before it leaves.
+
+type = "image"
+scene = "dielectric_test"
+
+[camera]
+position = [0.0, 1.0, 5.0]
+look_at = [0.0, 0.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 5.0
+
+[quality]
+samples = 200
+bounces = 30
+
+[output]
+width = 1920
+height = 1080

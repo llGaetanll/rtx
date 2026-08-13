@@ -41,22 +41,22 @@
    
    A dedicated command for rendering publication-quality images with configurable quality settings. Unlike `live` (interactive, low samples) or `test` (grid comparison), this produces a single high-quality image.
    
-   - [x] `render <name>` loading TOML definitions from `renders/configs/`
+   - [x] `render <name>` loading TOML definitions from `configs/image/`
    - [x] High sample counts (hundreds or thousands per pixel), accumulated over multiple passes
    - [x] Configurable max bounce depth
    - [x] Camera overrides (position, look_at, vup, fov, defocus angle, focus distance)
    - [x] Progress reporting (percentage complete, throughput, ETA)
-   - [ ] Video output via animated camera paths (reuse `CameraPath` from benchmarking)
+   - [ ] Video output via animated camera paths (the video config format exists; rendering its frames does not)
 
-8. [ ] TOML-based scene definitions
+8. [x] TOML-based scene definitions
    
-   Move scene definitions from hardcoded shader code to TOML files. This decouples scene data from rendering logic, enabling faster iteration (no shader recompilation), easier scene sharing, and dynamic scene creation.
+   Scenes, images and videos are all TOML now. A scene in `scenes/` says what exists; an image or video config in `configs/` says where it is viewed from and what to produce. See [docs/tasks/scene-definitions.md](docs/tasks/scene-definitions.md).
    
-   - [ ] Define scene file format (primitives, materials, camera, render settings)
-   - [ ] Parse TOML on host, build scene data structures
-   - [ ] Upload scene data to GPU as buffers (replacing hardcoded arrays)
-   - [ ] Single generic shader entry point that reads scene from buffers
-   - [ ] Benchmark configs can reference scene files or define scenes inline
+   - [x] Define scene file format (materials, objects, background)
+   - [x] Parse TOML on host, build scene data structures
+   - [x] Upload scene data to GPU as buffers (replacing hardcoded arrays)
+   - [x] Single generic shader entry point that reads scene from buffers
+   - [x] Image and video configs reference scenes by name
 
 ## Optimizations
 

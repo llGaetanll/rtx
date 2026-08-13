@@ -20,17 +20,31 @@ most scene entry points silently misrender or hang the GPU.
 - **rtx-tex** - Textures (solid colors, checkerboard) and the texture table.
 - **rtx-util** - Utilities including the camera and random number generation.
 
+## Scenes and configs
+
+A scene is a TOML file in `scenes/` listing materials and objects. It says what
+exists and nothing about where it is viewed from, so the same scene can back a
+still image, a benchmark fly-through and a video without being copied.
+
+Cameras live in configs, which come in two kinds:
+
+- `configs/image/<name>.toml` - a scene, a fixed camera, and what to produce.
+  Read by `render`, and by `live` and `test` for the camera.
+- `configs/video/<name>.toml` - the same, with a camera that moves. Read by
+  `bench`.
+
+See [docs/tasks/scene-definitions.md](docs/tasks/scene-definitions.md) for both
+formats.
+
 ## Commands
 
 ### `live` - Interactive rendering
 
-Open a window and render a scene in real-time with interactive camera controls.
+Open a window and fly around a scene, starting from an image config's camera.
 
 ```sh
-cargo run --release -- live --scene cornell_box
+cargo run --release -- live --config cornell_box
 ```
-
-Available scenes: `cornell_box`, `quads`, `metal_test`, `dielectric_test`, `two_spheres`, `three_spheres`, `many_spheres`
 
 Controls:
 - **WASD** - Move horizontally (forward/back/strafe)
@@ -40,7 +54,7 @@ Controls:
 
 ### `test` - Render all scenes
 
-Render all scenes to a 4x4 grid image saved to `renders/render.png`.
+Render every image config to a 4x4 grid image saved to `renders/render.png`.
 
 ```sh
 cargo run --release -- test
@@ -55,10 +69,11 @@ passes. Output is saved to `renders/<name>-<timestamp>.png`.
 cargo run --release -- render cornell_box
 ```
 
-Render definitions are TOML files in `renders/configs/`. Every setting is
+Render definitions are the image configs in `configs/image/`. Every setting is
 required - the shader has no defaults of its own:
 
 ```toml
+type = "image"
 scene = "cornell_box"
 
 [camera]
@@ -93,13 +108,15 @@ Run a specific benchmark:
 cargo run --release -- bench two_spheres
 ```
 
-Run all benchmarks in the `bench/configs/` directory:
+Run every benchmark in `configs/video/`:
 
 ```sh
 cargo run --release -- bench
 ```
 
-Benchmark definitions are TOML files in `bench/configs/`. See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md) for details on the format and output.
+Benchmarks are video configs: a benchmark is a video whose frames are timed and
+thrown away rather than saved. See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md)
+for the output format.
 
 ## Testing
 

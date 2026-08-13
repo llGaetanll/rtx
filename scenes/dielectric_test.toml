@@ -1,0 +1,37 @@
+# A diffuse sphere beside a glass one, to check refraction and total internal
+# reflection.
+
+background = [0.7, 0.8, 1.0]
+
+[materials.ground]
+type = "lambertian"
+color = [0.5, 0.5, 0.5]
+
+[materials.red]
+type = "lambertian"
+color = [0.8, 0.3, 0.3]
+
+[materials.glass]
+type = "dielectric"
+ior = 1.5
+
+[[objects]]
+name = "ground"
+type = "sphere"
+material = "ground"
+center = [0.0, -100.5, 0.0]
+radius = 100.0
+
+[[objects]]
+name = "diffuse"
+type = "sphere"
+material = "red"
+center = [-1.0, 0.0, 0.0]
+radius = 0.5
+
+[[objects]]
+name = "glass"
+type = "sphere"
+material = "glass"
+center = [1.0, 0.0, 0.0]
+radius = 0.5

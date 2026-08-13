@@ -1,7 +1,16 @@
-//! Scene definitions, in the form the GPU reads them.
+//! Scenes, as read from `scenes/<name>.toml` and as the GPU reads them.
 //!
-//! These used to live in the shader and were rebuilt by every pixel before it
-//! traced a single ray. The host now builds each scene once and uploads it.
+//! Scenes used to be built inside the shader and rebuilt by every pixel before it
+//! traced a single ray. They are now parsed on the host and uploaded once.
+//!
+//! A scene says what exists and nothing about where it is viewed from: cameras
+//! live in the image and video configs, so one scene can back a still, a
+//! benchmark fly-through and a video without being copied.
+
+use std::collections::BTreeMap;
+use std::error::Error;
+use std::fs;
+use std::path::PathBuf;
 
 use rtx_mat::Dielectric;
 use rtx_mat::DiffuseLight;
@@ -12,11 +21,13 @@ use rtx_obj::Instance;
 use rtx_obj::make_box;
 use rtx_prim::Color;
 use rtx_prim::Mat4;
-use rtx_prim::PI;
 use rtx_prim::Point3;
 use rtx_prim::Vec3;
 use rtx_tex::SolidTexture;
 use rtx_tex::TextureInfo;
+use serde::Deserialize;
+
+pub const SCENE_DIR: &str = "scenes";
 
 /// Everything about a scene that the shader reads from a buffer.
 #[derive(Default)]
@@ -52,8 +63,8 @@ impl SceneData {
         MaterialInfo::metal((self.metals.len() - 1) as u32)
     }
 
-    fn dielectric(&mut self, r: f32) -> MaterialInfo {
-        self.dielectrics.push(Dielectric::new(r));
+    fn dielectric(&mut self, ior: f32) -> MaterialInfo {
+        self.dielectrics.push(Dielectric::new(ior));
 
         MaterialInfo::dielectric((self.dielectrics.len() - 1) as u32)
     }
@@ -67,313 +78,246 @@ impl SceneData {
     }
 }
 
-const SKY: [f32; 3] = [0.7, 0.8, 1.0];
-const DARK: [f32; 3] = [0.0, 0.0, 0.0];
-
-/// Build a scene by name. Names match the entries in `scenes::SCENES`.
-pub fn build(name: &str) -> Option<SceneData> {
-    let scene = match name {
-        "cornell_box" => cornell_box(),
-        "quads" => quads(),
-        "metal_test" => metal_test(),
-        "dielectric_test" => dielectric_test(),
-        "two_spheres" => two_spheres(),
-        "glass_debug" => glass_debug(),
-        "three_spheres" => three_spheres(),
-        "many_spheres" => many_spheres(),
-        _ => return None,
-    };
-
-    Some(scene)
+/// A scene file, as written.
+///
+/// Materials are a table keyed by name so an object can refer to one without
+/// repeating it, and so a surface shared by several objects stays a single
+/// definition. Objects are an array because their order is their identity.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SceneFile {
+    /// What a ray that escapes the scene sees.
+    background: [f32; 3],
+    materials: BTreeMap<String, MaterialDef>,
+    objects: Vec<ObjectDef>,
 }
 
-fn cornell_box() -> SceneData {
-    let mut s = SceneData {
-        background: DARK,
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+enum MaterialDef {
+    Lambertian { color: [f32; 3] },
+    Metal { color: [f32; 3], fuzz: f32 },
+    Dielectric { ior: f32 },
+    DiffuseLight { color: [f32; 3] },
+}
+
+/// The `name` on an object is documentation. Nothing looks it up, but a wall is
+/// easier to find in a file of twelve quads when it says which wall it is.
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+enum ObjectDef {
+    Sphere {
+        #[serde(default)]
+        name: Option<String>,
+        material: String,
+        center: [f32; 3],
+        radius: f32,
+    },
+    Quad {
+        #[serde(default)]
+        name: Option<String>,
+        material: String,
+        corner: [f32; 3],
+        u: [f32; 3],
+        v: [f32; 3],
+    },
+    Box {
+        #[serde(default)]
+        name: Option<String>,
+        material: String,
+        min: [f32; 3],
+        max: [f32; 3],
+        /// Degrees about Y, applied about the origin before `translate`.
+        #[serde(default)]
+        rotate_y: f32,
+        #[serde(default)]
+        translate: [f32; 3],
+    },
+}
+
+impl ObjectDef {
+    fn material(&self) -> &str {
+        match self {
+            Self::Sphere { material, .. }
+            | Self::Quad { material, .. }
+            | Self::Box { material, .. } => material,
+        }
+    }
+
+    /// How the object is described in an error, so a scene with a dozen quads
+    /// says which one is wrong.
+    fn label(&self, index: usize) -> String {
+        let (kind, name) = match self {
+            Self::Sphere { name, .. } => ("sphere", name),
+            Self::Quad { name, .. } => ("quad", name),
+            Self::Box { name, .. } => ("box", name),
+        };
+
+        match name {
+            Some(name) => format!("{kind} \"{name}\""),
+            None => format!("{kind} {index}"),
+        }
+    }
+}
+
+fn point(p: [f32; 3]) -> Point3 {
+    Point3::new(p[0], p[1], p[2])
+}
+
+fn vector(v: [f32; 3]) -> Vec3 {
+    Vec3::new(v[0], v[1], v[2])
+}
+
+fn color(c: [f32; 3]) -> Color {
+    Color::new(c[0], c[1], c[2])
+}
+
+/// Read and build the scene named by `name`, from `scenes/<name>.toml`.
+pub fn load(name: &str) -> Result<SceneData, Box<dyn Error>> {
+    load_from(SCENE_DIR, name)
+}
+
+fn load_from(dir: &str, name: &str) -> Result<SceneData, Box<dyn Error>> {
+    let path = PathBuf::from(dir).join(format!("{name}.toml"));
+    let contents = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    let file: SceneFile = toml::from_str(&contents)
+        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))?;
+
+    build(&file).map_err(|e| format!("Scene {name}: {e}").into())
+}
+
+/// Every scene name in `scenes/`, sorted.
+pub fn names() -> Result<Vec<String>, Box<dyn Error>> {
+    toml_stems(SCENE_DIR)
+}
+
+/// Every scene name, listed for an error message. A failure to read the
+/// directory is not worth reporting in place of the error being explained.
+pub fn names_or_empty() -> String {
+    names().unwrap_or_default().join(", ")
+}
+
+/// The names of the TOML files in a directory, sorted, without their extension.
+pub fn toml_stems(dir: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut stems: Vec<String> = fs::read_dir(dir)
+        .map_err(|e| format!("Failed to read {dir}/: {e}"))?
+        .filter_map(|entry| {
+            let path = entry.ok()?.path();
+            if path.extension()? != "toml" {
+                return None;
+            }
+            path.file_stem()?.to_str().map(str::to_string)
+        })
+        .collect();
+
+    stems.sort();
+
+    Ok(stems)
+}
+
+/// Turn a parsed scene file into the buffers the GPU reads.
+///
+/// Materials are built in name order and before any object refers to them, so an
+/// unused material still costs an entry. That keeps the material indices a
+/// property of the file rather than of the order objects happen to be listed in.
+fn build(file: &SceneFile) -> Result<SceneData, Box<dyn Error>> {
+    let mut scene = SceneData {
+        background: file.background,
         ..Default::default()
     };
 
-    let red = s.lambertian(Color::new(0.65, 0.05, 0.05));
-    let green = s.lambertian(Color::new(0.12, 0.45, 0.15));
-    let white = s.lambertian(Color::new(0.73, 0.73, 0.73));
-    let light = s.diffuse_light(Color::new(15., 15., 15.));
+    let mut materials: BTreeMap<&str, MaterialInfo> = BTreeMap::new();
+    for (name, def) in &file.materials {
+        let info = match *def {
+            MaterialDef::Lambertian { color: c } => scene.lambertian(color(c)),
+            MaterialDef::Metal { color: c, fuzz } => scene.metal(color(c), fuzz),
+            MaterialDef::Dielectric { ior } => scene.dielectric(ior),
+            MaterialDef::DiffuseLight { color: c } => scene.diffuse_light(color(c)),
+        };
+        materials.insert(name.as_str(), info);
+    }
 
-    // Left wall (green)
-    s.instances.push(Instance::quad(
-        Point3::new(555., 0., 0.),
-        Vec3::new(0., 555., 0.),
-        Vec3::new(0., 0., 555.),
-        green,
-    ));
-    // Right wall (red)
-    s.instances.push(Instance::quad(
-        Point3::new(0., 0., 0.),
-        Vec3::new(0., 555., 0.),
-        Vec3::new(0., 0., 555.),
-        red,
-    ));
-    // Floor
-    s.instances.push(Instance::quad(
-        Point3::new(0., 0., 0.),
-        Vec3::new(555., 0., 0.),
-        Vec3::new(0., 0., 555.),
-        white,
-    ));
-    // Ceiling
-    s.instances.push(Instance::quad(
-        Point3::new(555., 555., 555.),
-        Vec3::new(-555., 0., 0.),
-        Vec3::new(0., 0., -555.),
-        white,
-    ));
-    // Back wall
-    s.instances.push(Instance::quad(
-        Point3::new(0., 0., 555.),
-        Vec3::new(555., 0., 0.),
-        Vec3::new(0., 555., 0.),
-        white,
-    ));
-    // Light
-    s.instances.push(Instance::quad(
-        Point3::new(343., 554., 332.),
-        Vec3::new(-130., 0., 0.),
-        Vec3::new(0., 0., -105.),
-        light,
-    ));
+    for (index, object) in file.objects.iter().enumerate() {
+        let material = *materials.get(object.material()).ok_or_else(|| {
+            format!(
+                "{} uses unknown material \"{}\". Defined materials: {}",
+                object.label(index),
+                object.material(),
+                materials.keys().copied().collect::<Vec<_>>().join(", ")
+            )
+        })?;
 
-    // Tall box, rotated 15 degrees about Y
-    let tall = make_box(
-        Point3::ZERO,
-        Point3::new(165., 330., 165.),
-        Mat4::from_translation(Vec3::new(265., 0., 295.)) * Mat4::from_rotation_y(15. * PI / 180.),
-        white,
-    );
-    s.instances.extend_from_slice(&tall);
+        match *object {
+            ObjectDef::Sphere { center, radius, .. } => {
+                if radius <= 0.0 {
+                    return Err(format!("{} needs a positive radius", object.label(index)).into());
+                }
+                scene
+                    .instances
+                    .push(Instance::sphere(point(center), radius, material));
+            }
+            ObjectDef::Quad { corner, u, v, .. } => {
+                let (u, v) = (vector(u), vector(v));
+                if u.cross(v).length_squared() == 0.0 {
+                    return Err(format!(
+                        "{} has parallel edges, so it has no surface",
+                        object.label(index)
+                    )
+                    .into());
+                }
+                scene
+                    .instances
+                    .push(Instance::quad(point(corner), u, v, material));
+            }
+            ObjectDef::Box {
+                min,
+                max,
+                rotate_y,
+                translate,
+                ..
+            } => {
+                let (min, max) = (point(min), point(max));
+                if (max - min).min_element() <= 0.0 {
+                    return Err(format!(
+                        "{} needs a max corner greater than its min on every axis",
+                        object.label(index)
+                    )
+                    .into());
+                }
+                let transform = Mat4::from_translation(vector(translate))
+                    * Mat4::from_rotation_y(rotate_y.to_radians());
+                scene
+                    .instances
+                    .extend_from_slice(&make_box(min, max, transform, material));
+            }
+        }
+    }
 
-    // Short box, rotated -18 degrees about Y
-    let short = make_box(
-        Point3::ZERO,
-        Point3::new(165., 165., 165.),
-        Mat4::from_translation(Vec3::new(130., 0., 65.)) * Mat4::from_rotation_y(-18. * PI / 180.),
-        white,
-    );
-    s.instances.extend_from_slice(&short);
+    if scene.instances.is_empty() {
+        return Err("has no objects".into());
+    }
 
-    s
-}
-
-fn quads() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let red = s.lambertian(Color::new(1.0, 0.2, 0.2));
-    let green = s.lambertian(Color::new(0.2, 1.0, 0.2));
-    let blue = s.lambertian(Color::new(0.2, 0.2, 1.0));
-    let orange = s.lambertian(Color::new(1.0, 0.5, 0.0));
-    let teal = s.lambertian(Color::new(0.2, 0.8, 0.8));
-
-    // Left wall (red)
-    s.instances.push(Instance::quad(
-        Point3::new(-3., -2., 5.),
-        Vec3::new(0., 0., -4.),
-        Vec3::new(0., 4., 0.),
-        red,
-    ));
-    // Back wall (green)
-    s.instances.push(Instance::quad(
-        Point3::new(-2., -2., 0.),
-        Vec3::new(4., 0., 0.),
-        Vec3::new(0., 4., 0.),
-        green,
-    ));
-    // Right wall (blue)
-    s.instances.push(Instance::quad(
-        Point3::new(3., -2., 1.),
-        Vec3::new(0., 0., 4.),
-        Vec3::new(0., 4., 0.),
-        blue,
-    ));
-    // Ceiling (orange)
-    s.instances.push(Instance::quad(
-        Point3::new(-2., 3., 1.),
-        Vec3::new(4., 0., 0.),
-        Vec3::new(0., 0., 4.),
-        orange,
-    ));
-    // Floor (teal)
-    s.instances.push(Instance::quad(
-        Point3::new(-2., -3., 5.),
-        Vec3::new(4., 0., 0.),
-        Vec3::new(0., 0., -4.),
-        teal,
-    ));
-
-    s
-}
-
-fn metal_test() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let ground = s.lambertian(Color::new(0.5, 0.5, 0.5));
-    let red = s.lambertian(Color::new(0.8, 0.3, 0.3));
-    let metal = s.metal(Color::new(0.8, 0.8, 0.8), 0.1);
-
-    s.instances
-        .push(Instance::sphere(Point3::new(0., -100.5, 0.), 100., ground));
-    s.instances
-        .push(Instance::sphere(Point3::new(-1., 0., 0.), 0.5, red));
-    s.instances
-        .push(Instance::sphere(Point3::new(1., 0., 0.), 0.5, metal));
-
-    s
-}
-
-fn dielectric_test() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let ground = s.lambertian(Color::new(0.5, 0.5, 0.5));
-    let red = s.lambertian(Color::new(0.8, 0.3, 0.3));
-    let glass = s.dielectric(1.5);
-
-    s.instances
-        .push(Instance::sphere(Point3::new(0., -100.5, 0.), 100., ground));
-    s.instances
-        .push(Instance::sphere(Point3::new(-1., 0., 0.), 0.5, red));
-    s.instances
-        .push(Instance::sphere(Point3::new(1., 0., 0.), 0.5, glass));
-
-    s
-}
-
-fn two_spheres() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let ground = s.lambertian(Color::new(0.5, 0.5, 0.5));
-    let red = s.lambertian(Color::new(0.8, 0.3, 0.3));
-    let blue = s.lambertian(Color::new(0.3, 0.3, 0.8));
-
-    s.instances
-        .push(Instance::sphere(Point3::new(0., -100.5, 0.), 100., ground));
-    s.instances
-        .push(Instance::sphere(Point3::new(-1., 0., 0.), 0.5, red));
-    s.instances
-        .push(Instance::sphere(Point3::new(1., 0., 0.), 0.5, blue));
-
-    s
-}
-
-fn glass_debug() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let blue = s.lambertian(Color::new(0.3, 0.3, 0.8));
-    let glass = s.dielectric(1.5);
-
-    // Large blue floor sphere
-    s.instances
-        .push(Instance::sphere(Point3::new(0., -100., 0.), 100., blue));
-    // Glass sphere on top
-    s.instances
-        .push(Instance::sphere(Point3::new(0., 1., 0.), 1.0, glass));
-
-    s
-}
-
-fn three_spheres() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let ground = s.lambertian(Color::new(0.5, 0.5, 0.5));
-    let brown = s.lambertian(Color::new(0.4, 0.2, 0.1));
-    let metal = s.metal(Color::new(0.7, 0.6, 0.5), 0.0);
-    let glass = s.dielectric(1.5);
-
-    s.instances
-        .push(Instance::sphere(Point3::new(0., -1000., 0.), 1000., ground));
-    s.instances
-        .push(Instance::sphere(Point3::new(0., 1., 0.), 1.0, glass));
-    s.instances
-        .push(Instance::sphere(Point3::new(-4., 1., 0.), 1.0, brown));
-    s.instances
-        .push(Instance::sphere(Point3::new(4., 1., 0.), 1.0, metal));
-
-    s
-}
-
-fn many_spheres() -> SceneData {
-    let mut s = SceneData {
-        background: SKY,
-        ..Default::default()
-    };
-
-    let ground = s.lambertian(Color::new(0.5, 0.5, 0.5));
-
-    // Small lambertian spheres
-    let small_colors = [Color::new(0.73, 0.24, 0.14), Color::new(0.22, 0.55, 0.34)];
-    let lamb1 = s.lambertian(small_colors[0]);
-    let lamb2 = s.lambertian(small_colors[1]);
-
-    let brown = s.lambertian(Color::new(0.4, 0.2, 0.1));
-
-    let metal0 = s.metal(Color::new(0.85, 0.75, 0.65), 0.1);
-    let metal1 = s.metal(Color::new(0.72, 0.72, 0.78), 0.0);
-    let metal_main = s.metal(Color::new(0.7, 0.6, 0.5), 0.0);
-
-    let glass = s.dielectric(1.5);
-    let glass1 = s.dielectric(1.45);
-
-    // Ground
-    s.instances
-        .push(Instance::sphere(Point3::new(0., -1000., 0.), 1000., ground));
-
-    // Three main spheres
-    s.instances
-        .push(Instance::sphere(Point3::new(0., 1., 0.), 1.0, glass));
-    s.instances
-        .push(Instance::sphere(Point3::new(-4., 1., 0.), 1.0, brown));
-    s.instances
-        .push(Instance::sphere(Point3::new(4., 1., 0.), 1.0, metal_main));
-
-    // Small spheres
-    s.instances
-        .push(Instance::sphere(Point3::new(-3.5, 0.2, 1.5), 0.2, lamb1));
-    s.instances
-        .push(Instance::sphere(Point3::new(-2.2, 0.2, 2.8), 0.2, lamb2));
-    s.instances
-        .push(Instance::sphere(Point3::new(0.8, 0.2, -1.8), 0.2, metal0));
-    s.instances
-        .push(Instance::sphere(Point3::new(2.5, 0.2, -0.5), 0.2, metal1));
-    s.instances
-        .push(Instance::sphere(Point3::new(-0.2, 0.2, 0.5), 0.2, glass1));
-
-    s
+    Ok(scene)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scenes;
 
-    /// Every scene the rest of the host offers must actually be buildable.
+    /// Tests run from the crate directory rather than the workspace root, so the
+    /// scene directory has to be found rather than assumed.
+    const SCENES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../scenes");
+
+    fn scene_names() -> Vec<String> {
+        toml_stems(SCENES).expect("scenes/ is unreadable")
+    }
+
+    /// The scene files are data, so a typo in one is only found by reading it.
     #[test]
-    fn every_named_scene_builds() {
-        for name in scenes::names() {
-            let scene = build(name).unwrap_or_else(|| panic!("{name} has no scene data"));
+    fn every_scene_file_loads() {
+        for name in scene_names() {
+            let scene = load_from(SCENES, &name).unwrap_or_else(|e| panic!("{e}"));
             assert!(!scene.instances.is_empty(), "{name} built no instances");
         }
     }
@@ -384,8 +328,8 @@ mod tests {
     fn material_references_are_in_range() {
         use rtx_mat::material_kind;
 
-        for name in scenes::names() {
-            let scene = build(name).unwrap();
+        for name in scene_names() {
+            let scene = load_from(SCENES, &name).unwrap();
 
             for instance in &scene.instances {
                 let index = instance.material.index as usize;
@@ -400,5 +344,75 @@ mod tests {
                 assert!(index < len, "{name} references material {index} of {len}");
             }
         }
+    }
+
+    fn parse(source: &str) -> Result<SceneData, Box<dyn Error>> {
+        build(&toml::from_str(source)?)
+    }
+
+    const ONE_SPHERE: &str = r#"
+        background = [0.0, 0.0, 0.0]
+        [materials.red]
+        type = "lambertian"
+        color = [1.0, 0.0, 0.0]
+        [[objects]]
+        type = "sphere"
+        material = "red"
+        center = [0.0, 0.0, 0.0]
+        radius = 1.0
+    "#;
+
+    #[test]
+    fn a_box_becomes_six_quads() {
+        let source = r#"
+            background = [0.0, 0.0, 0.0]
+            [materials.white]
+            type = "lambertian"
+            color = [1.0, 1.0, 1.0]
+            [[objects]]
+            type = "box"
+            material = "white"
+            min = [0.0, 0.0, 0.0]
+            max = [1.0, 1.0, 1.0]
+        "#;
+
+        assert_eq!(parse(source).unwrap().instances.len(), 6);
+    }
+
+    #[test]
+    fn a_missing_material_names_the_object() {
+        let source = ONE_SPHERE.replace("material = \"red\"", "material = \"blue\"");
+        let error = match parse(&source) {
+            Ok(_) => panic!("an object with no material was accepted"),
+            Err(e) => e.to_string(),
+        };
+
+        assert!(error.contains("blue"), "{error}");
+        assert!(error.contains("red"), "{error}");
+    }
+
+    #[test]
+    fn a_degenerate_quad_is_rejected() {
+        let source = r#"
+            background = [0.0, 0.0, 0.0]
+            [materials.white]
+            type = "lambertian"
+            color = [1.0, 1.0, 1.0]
+            [[objects]]
+            type = "quad"
+            material = "white"
+            corner = [0.0, 0.0, 0.0]
+            u = [1.0, 0.0, 0.0]
+            v = [2.0, 0.0, 0.0]
+        "#;
+
+        assert!(parse(source).is_err());
+    }
+
+    #[test]
+    fn an_unknown_field_is_rejected() {
+        let source = ONE_SPHERE.replace("radius = 1.0", "radius = 1.0\nradius2 = 2.0");
+
+        assert!(parse(&source).is_err());
     }
 }

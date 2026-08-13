@@ -1,0 +1,64 @@
+# Five quads facing inward, each a different color, to check that arbitrary
+# parallelograms and their facing directions come out right.
+
+background = [0.7, 0.8, 1.0]
+
+[materials.red]
+type = "lambertian"
+color = [1.0, 0.2, 0.2]
+
+[materials.green]
+type = "lambertian"
+color = [0.2, 1.0, 0.2]
+
+[materials.blue]
+type = "lambertian"
+color = [0.2, 0.2, 1.0]
+
+[materials.orange]
+type = "lambertian"
+color = [1.0, 0.5, 0.0]
+
+[materials.teal]
+type = "lambertian"
+color = [0.2, 0.8, 0.8]
+
+[[objects]]
+name = "left wall"
+type = "quad"
+material = "red"
+corner = [-3.0, -2.0, 5.0]
+u = [0.0, 0.0, -4.0]
+v = [0.0, 4.0, 0.0]
+
+[[objects]]
+name = "back wall"
+type = "quad"
+material = "green"
+corner = [-2.0, -2.0, 0.0]
+u = [4.0, 0.0, 0.0]
+v = [0.0, 4.0, 0.0]
+
+[[objects]]
+name = "right wall"
+type = "quad"
+material = "blue"
+corner = [3.0, -2.0, 1.0]
+u = [0.0, 0.0, 4.0]
+v = [0.0, 4.0, 0.0]
+
+[[objects]]
+name = "ceiling"
+type = "quad"
+material = "orange"
+corner = [-2.0, 3.0, 1.0]
+u = [4.0, 0.0, 0.0]
+v = [0.0, 0.0, 4.0]
+
+[[objects]]
+name = "floor"
+type = "quad"
+material = "teal"
+corner = [-2.0, -3.0, 5.0]
+u = [4.0, 0.0, 0.0]
+v = [0.0, 0.0, -4.0]

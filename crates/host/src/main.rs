@@ -8,11 +8,11 @@ use futures::executor::block_on;
 
 mod bench_app;
 mod cli;
+mod config;
 mod gpu;
 mod live_app;
 mod render_app;
 mod scene_data;
-mod scenes;
 mod stats;
 mod window_surface;
 
@@ -26,7 +26,7 @@ fn run_test() -> Result<(), Box<dyn Error>> {
     let instance = GpuContext::create_instance();
     let gpu = block_on(GpuContext::new(instance, None))?;
 
-    let scenes = &scenes::SCENES;
+    let configs = config::ImageConfig::load_all()?;
 
     // 720p per scene
     let scene_width = 1280u32;
@@ -60,23 +60,29 @@ fn run_test() -> Result<(), Box<dyn Error>> {
     }
 
     // Render each scene and place in grid (top to bottom, left to right)
-    for (i, scene) in scenes.iter().enumerate() {
+    for (i, (name, image)) in configs.iter().enumerate() {
         let col = (i as u32) % grid_cols;
         let row = (i as u32) / grid_cols;
 
         let start = Instant::now();
-        let scene_data = scene_data::build(scene.name)
-            .ok_or_else(|| format!("Scene {} has no scene data", scene.name))?;
+        let scene_data = scene_data::load(&image.scene)?;
         let buffers = gpu.upload_scene(&scene_data);
-        let constants = scene.constants(scene_width, scene_height, scene_data.background);
+        // The grid is a comparison between scenes, not a set of finished
+        // pictures, so the tiles share a size and a sample count
+        let constants = image.camera.constants(
+            scene_width,
+            scene_height,
+            config::ImageConfig::preview_quality(),
+            scene_data.background,
+        );
         let pixels = block_on(gpu.render_to_image(&buffers, constants));
         let elapsed = start.elapsed();
 
         log::debug!(
             "Rendered {} ({}/{}) in {:.2?}",
-            scene.name,
+            name,
             i + 1,
-            scenes.len(),
+            configs.len(),
             elapsed
         );
         let scene_img = image::RgbaImage::from_raw(scene_width, scene_height, pixels)
@@ -138,7 +144,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Live { scene }) => live_app::run_live(&scene),
+        Some(Commands::Live { config }) => live_app::run_live(&config),
         Some(Commands::Test) => run_test(),
         Some(Commands::Render { name }) => render_app::run_render(name),
         Some(Commands::Bench { name: Some(name) }) => bench_app::run_bench(name),

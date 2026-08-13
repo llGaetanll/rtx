@@ -1,161 +1,198 @@
 # Scene Definitions
 
-Define scenes in TOML files instead of hardcoded shaders.
+Scenes, images and videos are all TOML files.
 
 ## Relevant Files
 
-- `crates/shader/src/scene.rs` - Current hardcoded scene functions
-- `crates/rtx-obj/src/lib.rs` - `Sphere`, `Quad`, `List` primitives
-- `crates/rtx-mat/src/lib.rs` - `Lambertian`, `Metal`, `Dielectric`, `DiffuseLight` materials
-- `crates/rtx-tex/src/lib.rs` - `SolidTexture` and texture table
+- `scenes/*.toml` - The scenes
+- `configs/image/*.toml`, `configs/video/*.toml` - The cameras looking at them
+- `crates/host/src/scene_data.rs` - Scene parsing, and `SceneData` as the GPU reads it
+- `crates/host/src/config.rs` - The image and video config formats
+- `crates/host/src/render_app.rs`, `live_app.rs`, `bench_app.rs`, `main.rs` - The commands that read them
+- `crates/rtx-bench/src/spline.rs` - `CatmullRomSpline`, which every animated camera field rides
 
 ## Overview
 
-Currently scenes are hardcoded as shader entry points (`cornell_box`, `two_spheres`, etc.). Each scene function builds primitives, materials, and textures at shader runtime. This works but:
-- Adding a scene requires recompiling the shader
-- Scene parameters can't be tweaked without code changes
-- Benchmarks and renders must reference shader entry point names
+Scenes used to be built inside the shader, once per pixel per frame. They moved
+to the host and were uploaded as buffers, which meant nothing about a scene had
+to be known at shader compile time any more; this task was the remaining step of
+not writing them in Rust either.
 
-Scene TOML files would allow defining scenes declaratively. The host parses the TOML and uploads scene data to the GPU via buffers, replacing the hardcoded scene functions with a single generic renderer.
+Two ideas drive the layout:
 
-## Status
+**A scene describes what exists, never where it is viewed from.** Cameras belong
+to whatever is doing the looking, so the same scene can back a still image, a
+benchmark fly-through and a video without being copied. `scenes/<name>.toml`
+therefore has materials, objects and a background, and nothing else.
 
-- [ ] Design TOML schema for scenes
-- [ ] GPU buffer layout for scene data
-- [ ] Host-side TOML parsing and buffer upload
-- [ ] Generic shader entry point that reads from buffers
-- [ ] Migrate existing scenes to TOML format
+**An image and a video differ only in whether the camera moves.** They share one
+config shape, distinguished by a `type` at the top and by whether the camera's
+fields hold a single value or a list of them.
 
-### Future Enhancements
+## Layout
 
-- [ ] Live reload: watch TOML files and re-upload on change
-- [ ] Scene includes: reference other TOML files for reusable object groups
-- [ ] Procedural generation: loops/randomization in scene definition
+```
+scenes/<name>.toml          what exists
+configs/image/<name>.toml   a still camera looking at it
+configs/video/<name>.toml   a moving camera looking at it
+```
 
-## Scene Definition Format
+Which command reads what:
 
-Scenes live in `scenes/<name>.toml`:
+| Command | Reads | Uses |
+|---------|-------|------|
+| `live <name>` | `configs/image/<name>.toml` | camera as the starting view; its own resolution and sample count |
+| `test` | every `configs/image/*.toml` | camera, one grid tile each |
+| `render <name>` | `configs/image/<name>.toml` | everything |
+| `bench [name]` | `configs/video/*.toml` | camera path and quality; records frame times instead of writing frames |
+
+`bench` reading video configs is the point of the split rather than an accident
+of it: a benchmark is a video whose frames are timed and thrown away.
+
+## Scene Format
 
 ```toml
-[camera]
-# Default camera for this scene (can be overridden by render/benchmark)
-position = [278.0, 278.0, -800.0]
-look_at = [278.0, 278.0, 0.0]
-vfov = 40.0
-focus_dist = 10.0
-defocus_angle = 0.0
+# scenes/cornell_box.toml
+background = [0.0, 0.0, 0.0]
 
-[[materials]]
-name = "white"
+[materials.white]
 type = "lambertian"
 color = [0.73, 0.73, 0.73]
 
-[[materials]]
-name = "red"
-type = "lambertian"
-color = [0.65, 0.05, 0.05]
-
-[[materials]]
-name = "light"
-type = "diffuse_light"
-color = [15.0, 15.0, 15.0]
-
-[[materials]]
-name = "glass"
-type = "dielectric"
-refraction_index = 1.5
-
-[[materials]]
-name = "mirror"
-type = "metal"
-color = [0.8, 0.8, 0.8]
-fuzz = 0.0
-
 [[objects]]
+name = "floor"
 type = "quad"
-corner = [555.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
 material = "white"
-
-[[objects]]
-type = "sphere"
-center = [190.0, 90.0, 190.0]
-radius = 90.0
-material = "glass"
+corner = [0.0, 0.0, 0.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 0.0, 555.0]
 ```
 
-### Material Types
+Materials are a table keyed by name, so an object refers to one without
+repeating it. Objects are an array, each naming the material it uses. The `name`
+on an object is documentation; nothing looks it up.
+
+### Materials
 
 | Type | Fields |
 |------|--------|
 | `lambertian` | `color` |
 | `metal` | `color`, `fuzz` (0.0-1.0) |
-| `dielectric` | `refraction_index` |
-| `diffuse_light` | `color` (can exceed 1.0 for brightness) |
+| `dielectric` | `ior` |
+| `diffuse_light` | `color`, values above 1.0 make it a light rather than a bright surface |
 
-### Object Types
+### Objects
 
 | Type | Fields |
 |------|--------|
-| `sphere` | `center`, `radius`, `material` |
-| `quad` | `corner`, `u`, `v`, `material` |
+| `sphere` | `center`, `radius` |
+| `quad` | `corner`, `u`, `v` |
+| `box` | `min`, `max`, optional `rotate_y` (degrees), optional `translate` |
 
-## Integration with Renders and Benchmarks
+A quad is a corner and the two edge vectors leading away from it, so it is any
+parallelogram rather than only an axis aligned rectangle; the order of `u` and
+`v` decides which way it faces. A box expands to six quads, with `rotate_y`
+applied first about the origin and `translate` afterwards.
 
-Render and benchmark TOMLs would reference scenes by name or define inline:
+## Config Format
 
-**Reference by name:**
+Both kinds share a shape. `type` says which one it is, so a config can be read
+before it is known what to do with it.
+
 ```toml
-scene = "cornell_box"  # loads scenes/cornell_box.toml
+# configs/image/cornell_box.toml
+type = "image"
+scene = "cornell_box"
 
 [camera]
 position = [278.0, 278.0, -800.0]
 look_at = [278.0, 278.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 10.0
 
 [quality]
-samples = 100
+samples = 500
 bounces = 50
+
+[output]
+width = 1920
+height = 1080
 ```
 
-**Inline scene definition:**
+A video is the same file with a camera that moves:
+
 ```toml
+# configs/video/cornell_box.toml
+type = "video"
+scene = "cornell_box"
+
 [camera]
-position = [13.0, 2.0, 3.0]
-look_at = [0.0, 0.0, 0.0]
+# A list is keyframes on a spline; a plain value is held for the whole path.
+position = [
+    [278.0, 278.0, -800.0],
+    [278.0, 278.0, -600.0],
+    [278.0, 300.0, -400.0],
+    [200.0, 278.0, -200.0],
+]
+look_at = [278.0, 278.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 10.0
 
 [quality]
-samples = 50
+samples = 8
 bounces = 10
 
-[scene]
-[[scene.materials]]
-name = "ground"
-type = "lambertian"
-color = [0.5, 0.5, 0.5]
-
-[[scene.objects]]
-type = "sphere"
-center = [0.0, -1000.0, 0.0]
-radius = 1000.0
-material = "ground"
+[output]
+width = 400
+height = 300
+frames = 60
 ```
 
-## GPU Buffer Design
+There is one `[camera]` section, not a static one and an animated one. Any field
+in it accepts either a single value or a list of values; a list is interpolated
+across the frames, a single value is constant. An image config rejects lists,
+since it has no frames to spread them over. The spline needs at least four
+keyframes, so a list shorter than that is an error.
 
-Scene data must be uploaded to the GPU since TOML is parsed on the host. Rough layout:
+`frames` belongs to `[output]` because it is a property of the thing being
+produced, alongside its width and height. It is required for a video and
+rejected for an image.
 
-- **Material buffer**: array of material structs (kind + parameters)
-- **Object buffer**: array of object structs (kind + geometry + material index)
-- **Texture buffer**: (future) image data for texture mapping
+## Phases
 
-The shader would have a single entry point that reads these buffers instead of calling scene-specific functions. This requires:
-1. Defining fixed-size buffer layouts (max objects, max materials)
-2. Or using storage buffers with dynamic sizing (if rust-gpu supports)
+### Phase 1: Load scenes from TOML
 
-## Open Questions
+- [x] Scene file types and TOML parsing in `scene_data.rs`
+- [x] Build `SceneData` from a parsed file: materials by name, objects to instances, boxes to quads
+- [x] Clear errors for unknown material names, unknown types and bad values
+- [x] Delete the hardcoded scene builder functions
+- [x] Tests: every scene in `scenes/` loads, and material references stay in range
+- [x] Check the rendered output still matches, scene by scene
 
-- Max object/material counts? Fixed compile-time limits vs dynamic?
-- How to handle the `List<NS, NQ>` const generics with dynamic scene sizes?
-- Should hardcoded scenes remain as fallbacks or be fully replaced?
-- Texture support: inline color only, or path to image files?
+### Phase 2: Image configs
+
+- [x] `configs/image/<name>.toml` for all eight scenes, cameras taken from the `SCENES` table
+- [x] Config module shared by the commands, with `type` dispatch
+- [x] `render` reads the new location, `renders/configs/` goes away
+- [x] `live` and `test` take their cameras from image configs
+- [x] Delete the `SCENES` table; scene and config names come from the directories
+
+### Phase 3: Video configs
+
+- [x] Camera fields that accept a value or a list of values
+- [x] `configs/video/<name>.toml` for the three existing benchmarks
+- [x] `bench` reads video configs, `bench/configs/` goes away
+- [x] Benchmark cameras stop borrowing fov and focus from the scene table
+
+## Future Work
+
+- Render a video config to frames, and encode them. The format is in place and
+  `bench` already flies its cameras; nothing writes the frames out yet.
+- Live reload: watch the TOML files and re-upload on change
+- Scene includes: reference other TOML files for reusable object groups
+- Procedural generation: loops or randomization in a scene definition
+- Textures beyond solid colors, which will need a path to an image file

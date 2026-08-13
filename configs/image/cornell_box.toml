@@ -1,3 +1,7 @@
+# The reference scene: a closed room lit only by its ceiling panel. Slow to
+# converge because every ray has to find that one small light.
+
+type = "image"
 scene = "cornell_box"
 
 [camera]

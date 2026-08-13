@@ -1,0 +1,47 @@
+# An orbit of the cheapest scene there is, which makes it the floor on
+# benchmark cost.
+
+type = "video"
+scene = "two_spheres"
+
+[camera]
+position = [
+    [5.0, 2.0, 5.0],   # Start: front-right
+    [5.0, 1.5, 0.0],   # Right side
+    [5.0, 2.0, -5.0],  # Back-right
+    [0.0, 3.0, -6.0],  # Back center, higher
+    [-5.0, 2.0, -5.0], # Back-left
+    [-5.0, 1.5, 0.0],  # Left side
+    [-5.0, 2.0, 5.0],  # Front-left
+    [0.0, 1.0, 7.0],   # Front center, lower
+    [5.0, 2.0, 5.0],   # Back to start
+    [5.0, 1.5, 0.0],   # (duplicate for spline)
+]
+
+# The origin throughout, with slight vertical variation
+look_at = [
+    [0.0, 0.5, 0.0],
+    [0.0, 0.3, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.8, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.3, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.2, 0.0],
+    [0.0, 0.5, 0.0],
+    [0.0, 0.3, 0.0],
+]
+
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 5.0
+
+[quality]
+samples = 8
+bounces = 10
+
+[output]
+width = 400
+height = 300
+frames = 60

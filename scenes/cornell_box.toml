@@ -1,0 +1,106 @@
+# The Cornell box: a closed room lit only by a panel in the ceiling.
+#
+# Lengths are in scene units and angles in degrees. The coordinate system is
+# right handed with +Y up, so the room spans 0..555 on every axis.
+#
+# A scene describes what exists, never where it is viewed from. Cameras belong to
+# whatever is doing the looking, so the same scene can back a still render, a
+# benchmark fly-through and a video without being copied.
+
+# What a ray that escapes the scene sees. Black here, so the only light in the
+# image is the panel below.
+background = [0.0, 0.0, 0.0]
+
+# Materials are named so an object can refer to one without repeating it, and so
+# a surface shared by several objects stays a single definition.
+
+[materials.red]
+type = "lambertian"
+color = [0.65, 0.05, 0.05]
+
+[materials.green]
+type = "lambertian"
+color = [0.12, 0.45, 0.15]
+
+[materials.white]
+type = "lambertian"
+color = [0.73, 0.73, 0.73]
+
+# Values above 1 are what make this a light rather than a bright surface
+[materials.light]
+type = "diffuse_light"
+color = [15.0, 15.0, 15.0]
+
+# A quad is a corner and the two edge vectors leading away from it, so it can be
+# any parallelogram rather than only an axis aligned rectangle. The order of `u`
+# and `v` decides which way the surface faces.
+
+[[objects]]
+name = "left wall"
+type = "quad"
+material = "green"
+corner = [555.0, 0.0, 0.0]
+u = [0.0, 555.0, 0.0]
+v = [0.0, 0.0, 555.0]
+
+[[objects]]
+name = "right wall"
+type = "quad"
+material = "red"
+corner = [0.0, 0.0, 0.0]
+u = [0.0, 555.0, 0.0]
+v = [0.0, 0.0, 555.0]
+
+[[objects]]
+name = "floor"
+type = "quad"
+material = "white"
+corner = [0.0, 0.0, 0.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 0.0, 555.0]
+
+[[objects]]
+name = "ceiling"
+type = "quad"
+material = "white"
+corner = [555.0, 555.0, 555.0]
+u = [-555.0, 0.0, 0.0]
+v = [0.0, 0.0, -555.0]
+
+[[objects]]
+name = "back wall"
+type = "quad"
+material = "white"
+corner = [0.0, 0.0, 555.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 555.0, 0.0]
+
+[[objects]]
+name = "light"
+type = "quad"
+material = "light"
+corner = [343.0, 554.0, 332.0]
+u = [-130.0, 0.0, 0.0]
+v = [0.0, 0.0, -105.0]
+
+# A box is the six quads spanning two opposite corners. `rotate_y` is applied
+# first, about the origin, and `translate` afterwards, which is why each box is
+# built at the origin and then moved into the room.
+
+[[objects]]
+name = "tall box"
+type = "box"
+material = "white"
+min = [0.0, 0.0, 0.0]
+max = [165.0, 330.0, 165.0]
+rotate_y = 15.0
+translate = [265.0, 0.0, 295.0]
+
+[[objects]]
+name = "short box"
+type = "box"
+material = "white"
+min = [0.0, 0.0, 0.0]
+max = [165.0, 165.0, 165.0]
+rotate_y = -18.0
+translate = [130.0, 0.0, 65.0]

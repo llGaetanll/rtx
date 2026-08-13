@@ -9,7 +9,8 @@ Track rendering performance across commits to detect regressions.
 - `crates/rtx-bench/src/types.rs` - `BenchmarkMetadata`, `FrameRecord`, `GpuInfo` types
 - `crates/host/src/bench_app.rs` - Benchmark application with render loop
 - `crates/host/src/cli.rs` - CLI definitions including `bench` subcommand
-- `bench/configs/*.toml` - Benchmark definition files
+- `crates/host/src/config.rs` - The config formats, including `VideoConfig`
+- `configs/video/*.toml` - The camera paths benchmarks run
 
 ## Overview
 
@@ -34,7 +35,7 @@ Run `cargo run --release -- bench` to execute all benchmarks. The camera follows
 
 ### Benchmark Definitions
 
-- [x] Benchmark definition files in `bench/configs/` directory (TOML format with scene + camera path)
+- [x] Benchmark definitions as video configs in `configs/video/` (scene + camera path)
 - [x] `--scene` CLI argument for single benchmark
 - [x] Output filename uses benchmark name (TOML filename) instead of scene name
 - [x] Run all benchmarks when no name specified
@@ -53,35 +54,45 @@ per-frame chart. Expect the first run after a build to be slower than a repeat r
 
 ## Benchmark Definition Format
 
-Benchmark definitions live in `bench/configs/<name>.toml`. The `<name>` is used in the output filename (`bench/results/<git-sha>/<datetime>-<name>.jsonl`):
+A benchmark is a video config: a scene, a camera that moves, and a frame count.
+The frames are timed and thrown away rather than saved, which is the only thing
+that separates `bench` from rendering the same file out.
+
+Definitions live in `configs/video/<name>.toml`, and `<name>` is used in the
+output filename (`bench/results/<git-sha>/<datetime>-<name>.jsonl`):
 
 ```toml
+type = "video"
 scene = "two_spheres"
-frame_count = 60
 
-# Workload settings. Optional, but set them explicitly: they decide how long a run
-# takes, and results are only comparable across commits when they match.
-width = 400
-height = 300
-samples = 8
-bounces = 10
-
+[camera]
+# A list is keyframes on a spline; a single value is held for the whole path.
 position = [
     [5.0, 2.0, 5.0],
     [5.0, 1.5, 0.0],
     [5.0, 2.0, -5.0],
     # ... more control points
 ]
+look_at = [0.0, 0.5, 0.0]
+vup = [0.0, 1.0, 0.0]
+fov = 40.0
+defocus_angle = 0.0
+focus_dist = 5.0
 
-look_at = [
-    [0.0, 0.5, 0.0],
-    [0.0, 0.3, 0.0],
-    [0.0, 0.5, 0.0],
-    # ... more control points
-]
+# Set these explicitly: they decide how long a run takes, and results are only
+# comparable across commits when they match.
+[quality]
+samples = 8
+bounces = 10
+
+[output]
+width = 400
+height = 300
+frames = 60
 ```
 
-Both `position` and `look_at` require at least 4 control points for the Catmull-Rom spline.
+Any camera field given as a list needs at least 4 keyframes, which is what a
+Catmull-Rom spline needs before it describes a curve.
 
 ## Output Format
 
@@ -109,7 +120,7 @@ Single JSONL file per benchmark run: `bench/results/<git-sha>/<datetime>-<benchm
 - `version` - format version for future compatibility
 - `timestamp` - ISO 8601 when benchmark started
 - `git_sha` - commit hash (from `git rev-parse HEAD`)
-- `scene` - shader entry point name
+- `scene` - the scene file the video looks at
 - `resolution` - window dimensions `[width, height]`
 - `gpu.name` - adapter name from wgpu
 - `gpu.driver` - driver version string

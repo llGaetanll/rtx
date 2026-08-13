@@ -1,0 +1,37 @@
+# Two diffuse spheres over a ground sphere. The cheapest scene, used as a floor
+# on benchmark cost.
+
+background = [0.7, 0.8, 1.0]
+
+[materials.ground]
+type = "lambertian"
+color = [0.5, 0.5, 0.5]
+
+[materials.red]
+type = "lambertian"
+color = [0.8, 0.3, 0.3]
+
+[materials.blue]
+type = "lambertian"
+color = [0.3, 0.3, 0.8]
+
+[[objects]]
+name = "ground"
+type = "sphere"
+material = "ground"
+center = [0.0, -100.5, 0.0]
+radius = 100.0
+
+[[objects]]
+name = "red"
+type = "sphere"
+material = "red"
+center = [-1.0, 0.0, 0.0]
+radius = 0.5
+
+[[objects]]
+name = "blue"
+type = "sphere"
+material = "blue"
+center = [1.0, 0.0, 0.0]
+radius = 0.5
