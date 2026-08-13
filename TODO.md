@@ -11,10 +11,10 @@
 3. [x] Transforms (translate, rotate, scale)
 4. [x] Finish Cornell box scene - add the two rotated boxes inside
    - Reference: `ray-tracing-in-one-weekend/src/main.rs:cornell_box`
-5. [ ] Image textures
-6. [ ] Noise textures (Perlin noise)
-7. [ ] Volumes / participating media (smoke, fog)
-8. [ ] Importance sampling / PDF sampling for lights
+5. [ ] Image textures - see [docs/tasks/image-textures.md](docs/tasks/image-textures.md)
+6. [ ] Noise textures (Perlin noise) - see [docs/tasks/perlin-noise.md](docs/tasks/perlin-noise.md)
+7. [ ] Volumes / participating media (smoke, fog) - see [docs/tasks/volumes.md](docs/tasks/volumes.md)
+8. [x] Importance sampling / PDF sampling for lights
 
 ## Testing Infrastructure
 
@@ -122,21 +122,26 @@
    - [ ] Display sample count somewhere (optional, for debugging)
 
 3. [ ] GPU coherence for ray tracing
-   
-   Currently, each GPU thread traces a single ray through its entire lifecycle: generate ray, intersect scene, scatter, repeat until max bounces. This is the simplest approach but can be inefficient on GPUs because threads in the same warp/wavefront diverge quickly—some rays hit nothing, others hit different materials, some bounce many times while others terminate early. This divergence means threads sit idle waiting for their neighbors.
-   
-   **Wavefront path tracing** is an alternative architecture that improves GPU utilization:
-   - Instead of one thread per ray, organize work into queues/buffers by operation type
-   - All rays needing intersection go into one queue, processed together
-   - All rays needing material evaluation go into another queue, grouped by material type
-   - This keeps threads in a warp doing the same work, reducing divergence
-   
-   **Trade-offs:**
-   - More complex implementation (multiple kernel launches, queue management)
-   - Memory overhead for intermediate buffers
-   - May not help for simple scenes where divergence is low
-   - Biggest wins come with complex scenes, many materials, and variable-depth paths
-   
+
+   Every thread still traces one whole path: generate a ray, intersect, scatter,
+   again until the bounce cap. Splitting that into stages that pass their state
+   through buffers is planned but not built. The plan, the stages, what it would
+   cost and how to tell early whether it is working are in
+   [docs/tasks/wavefront.md](docs/tasks/wavefront.md).
+
+   Two findings from the groundwork, which the doc explains in full:
+
+   - A compute entry point was built and taken back out again. Dispatched over
+     8x8 tiles it measured about 20% slower than the fragment one on this machine,
+     which is the deficit any later stage splitting has to win back first. Mapping
+     lanes so a subgroup covers a 4x4 block rather than an 8x2 strip was worth 10%
+     of that. The doc says what to build again, and what to watch out for.
+   - The reason to want this is register pressure rather than the divergence the
+     literature leads with. Both entry points compile to 159 and 169 registers
+     against the 128 an Intel thread gets before occupancy halves, and half
+     occupancy fits every measurement in this project. Stages should each fall
+     under that line, and Mesa will say whether they do before anything is timed.
+
    **References:**
    - "Megakernels Considered Harmful" (Laine et al., 2013) - foundational wavefront paper
    - NVIDIA OptiX uses this approach internally
