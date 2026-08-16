@@ -71,8 +71,17 @@ Render a single image, accumulating samples over many passes. Output is saved to
 cargo run --release -- render -s scenes/cornell_box.toml -c configs/image/cornell_box.toml
 ```
 
-Pass `--preview` to watch the image accumulate in a window; closing it early
-saves what has been rendered so far.
+Pass `--preview` to watch the image accumulate in a window. The window shows a
+scaled down copy of the render itself, so it stays a comfortable size whatever
+the output size is. Closing it before the end abandons the render and saves
+nothing.
+
+The output size is not limited by what the GPU will accept as a texture. An image
+larger than that is rendered as tiles and assembled as they finish, which is what
+makes print sizes like A1 at 300dpi possible. Tiles are an implementation detail
+and do not change the picture: the same config renders identically however many
+tiles it happens to be cut into. Setting `RTX_MAX_TILE` to a small number forces
+tiling on an image that would not otherwise need it, which is how that is tested.
 
 A config holds the camera, the quality and the output size. Every setting is
 required - the shader has no defaults of its own:

@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -92,50 +93,100 @@ pub fn format_duration(duration: Duration) -> String {
 }
 
 /// Timing for a render in progress, and the lines it reports as it goes.
+///
+/// A render is measured in passes over tiles, so the unit of progress is one pass
+/// over one tile and the total is that times the number of tiles. Counting passes
+/// alone would restart the estimate at every tile.
 pub struct Progress {
     plan: RenderPlan,
-    pixels_per_pass: u64,
+    tiles: u32,
+    /// Samples in one pass over one tile. Edge tiles are smaller, so this is an
+    /// average over the image rather than exact for any one of them.
+    samples_per_tile_pass: u64,
+    tile_passes_done: u32,
+    /// Which tile is being drawn, counted from one for the log.
+    tile: u32,
     start: Instant,
 }
 
 impl Progress {
-    pub fn new(plan: RenderPlan, width: u32, height: u32) -> Self {
+    pub fn new(plan: RenderPlan, width: u32, height: u32, tiles: u32) -> Self {
+        let per_pass = (width as u64) * (height as u64) * (plan.samples_per_pass as u64);
+
         Self {
             plan,
-            pixels_per_pass: (width as u64) * (height as u64) * (plan.samples_per_pass as u64),
+            tiles,
+            samples_per_tile_pass: per_pass / tiles.max(1) as u64,
+            tile_passes_done: 0,
+            tile: 1,
             start: Instant::now(),
         }
     }
 
-    fn msamples_per_second(&self, done: u32) -> f64 {
-        (self.pixels_per_pass * done as u64) as f64 / self.start.elapsed().as_secs_f64() / 1e6
+    /// Every pass over every tile, which is what the render has to get through.
+    fn total_tile_passes(&self) -> u32 {
+        self.plan.passes * self.tiles
+    }
+
+    fn msamples_per_second(&self) -> f64 {
+        (self.samples_per_tile_pass * self.tile_passes_done as u64) as f64
+            / self.start.elapsed().as_secs_f64()
+            / 1e6
+    }
+
+    /// Say how the render is cut up, when it is cut up at all. A single tile is
+    /// the ordinary case and needs no remark.
+    pub fn log_tiling(&self, tile_width: u32, tile_height: u32) {
+        if self.tiles > 1 {
+            log::info!(
+                "rendering in {} tiles of up to {}x{}",
+                self.tiles,
+                tile_width,
+                tile_height
+            );
+        }
+    }
+
+    /// Move on to the next tile, so later passes are reported against it.
+    pub fn next_tile(&mut self) {
+        self.tile += 1;
     }
 
     /// A line per finished pass, with an estimate of the time left.
-    pub fn log_pass(&self, done: u32) {
-        let eta = self.start.elapsed() / done * (self.plan.passes - done);
+    pub fn log_pass(&mut self, done: u32) {
+        self.tile_passes_done += 1;
+
+        let total = self.total_tile_passes();
+        let eta = self.start.elapsed() / self.tile_passes_done * (total - self.tile_passes_done);
+
+        // The tile is worth naming only when there is more than one of them
+        let where_ = if self.tiles > 1 {
+            format!("tile {}/{}  ", self.tile, self.tiles)
+        } else {
+            String::new()
+        };
 
         log::info!(
-            "pass {}/{}  {}/{} spp  {}%  {:.1} Msamples/s  eta {}",
+            "{}pass {}/{}  {}/{} spp  {}%  {:.1} Msamples/s  eta {}",
+            where_,
             done,
             self.plan.passes,
             done * self.plan.samples_per_pass,
             self.plan.samples,
-            done * 100 / self.plan.passes,
-            self.msamples_per_second(done),
+            self.tile_passes_done * 100 / total,
+            self.msamples_per_second(),
             format_duration(eta)
         );
     }
 
-    /// The closing line. `done` is what was actually drawn, which is fewer passes
-    /// than planned when a preview is closed early.
-    pub fn log_saved(&self, path: &Path, done: u32) {
+    /// The closing line, once the whole image has been written out.
+    pub fn log_saved(&self, path: &Path) {
         log::info!(
             "saved {} ({} spp in {}, {:.1} Msamples/s avg)",
             path.display(),
-            done * self.plan.samples_per_pass,
+            self.plan.samples,
             format_duration(self.start.elapsed()),
-            self.msamples_per_second(done)
+            self.msamples_per_second()
         );
     }
 }
@@ -210,13 +261,18 @@ pub fn run_render(
             .constants(width, height, def.quality, scene.info()),
     };
 
-    let progress = Progress::new(plan, width, height);
+    let tiling = crate::gpu::Tiling::new(&gpu.device, width, height);
+    let progress = RefCell::new(Progress::new(plan, width, height, tiling.tile_count()));
+    progress.borrow().log_tiling(tiling.tile_width, tiling.tile_height);
 
-    let accumulated =
-        block_on(gpu.render_to_image_accumulated(&request, |done| progress.log_pass(done)))?;
+    let accumulated = block_on(gpu.render_to_image_accumulated(
+        &request,
+        |accum| progress.borrow_mut().log_pass(accum.passes_done()),
+        |_| progress.borrow_mut().next_tile(),
+    ))?;
 
     let path = save(&name, &accumulated, width, height)?;
-    progress.log_saved(&path, passes);
+    progress.borrow().log_saved(&path);
 
     Ok(())
 }

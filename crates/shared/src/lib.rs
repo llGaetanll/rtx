@@ -45,6 +45,16 @@ pub struct ShaderConstants {
     /// so a scene with no emitters still uploads one zeroed light. Sampling that
     /// one would aim every shadow ray at a lightless point at the origin.
     pub light_count: u32,
+
+    /// Where in the full image this draw's top left pixel sits.
+    ///
+    /// An image larger than the adapter's maximum texture dimension cannot be a
+    /// render target in one piece, so it is drawn as tiles. A tile is not a
+    /// smaller picture: `width` and `height` above stay those of the whole image,
+    /// so every tile keeps the same camera, and this only says which pixels of it
+    /// this draw is responsible for.
+    pub tile_x: u32,
+    pub tile_y: u32,
 }
 
 /// Settings for drawing an accumulated image into a window.
@@ -60,5 +70,30 @@ pub struct BlitConstants {
 
     /// Reciprocal of the number of passes drawn so far, which turns the summed
     /// image into the average an unfinished render should look like.
+    pub scale: f32,
+}
+
+/// Settings for shrinking one finished tile into the preview image.
+///
+/// The window shows the render being worked on, not a render of its own, so each
+/// tile is copied into a small standing image as it is finished. That image is
+/// what the window blits, which is why a render far too large to be a texture can
+/// still be watched in a normal sized window.
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct TileBlitConstants {
+    /// Where this tile belongs in the preview image, in preview pixels. The tile
+    /// is scaled by the ratio between the preview and the full image, so this is
+    /// the tile's own origin carried through that same scale.
+    pub dst_x: f32,
+    pub dst_y: f32,
+    pub dst_width: f32,
+    pub dst_height: f32,
+
+    /// Size of the tile texture being read, in texels.
+    pub tile_width: u32,
+    pub tile_height: u32,
+
+    /// Reciprocal of the passes drawn into this tile, matching [`BlitConstants`].
     pub scale: f32,
 }

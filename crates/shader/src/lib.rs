@@ -17,6 +17,7 @@ use rtx_tex::TextureTable;
 use rtx_util::CameraParams;
 use shared::BlitConstants;
 use shared::ShaderConstants;
+use shared::TileBlitConstants;
 use spirv_std::glam::Vec4;
 use spirv_std::glam::uvec2;
 use spirv_std::glam::vec2;
@@ -74,10 +75,12 @@ fn pcg(state: u32) -> u32 {
 /// vertical neighbours one apart going into a single round, which is not enough
 /// avalanche: their first draws came out correlated at r = -0.13 eight rows apart,
 /// and no amount of passes averaged that away.
-fn gen_state(frag_coord: Vec4, seed: u32) -> u32 {
-    let x = frag_coord.x as u32;
-    let y = frag_coord.y as u32;
-
+///
+/// `x` and `y` are the pixel's place in the whole image, not in the tile being
+/// drawn. Seeding from the tile local coordinate instead would give the first
+/// pixel of every tile the same chain, and the tiling would print itself into the
+/// noise.
+fn gen_state(x: u32, y: u32, seed: u32) -> u32 {
     // Zero is a fixed point of the xorshift chain, so never hand it one
     pcg(x ^ pcg(y ^ pcg(seed))).max(1)
 }
@@ -126,12 +129,55 @@ pub fn trace_fs(
     };
     let tex_table = TextureTable { solids };
 
-    let i = frag_coord.y as usize;
-    let j = frag_coord.x as usize;
+    // Where this fragment sits in the whole image. The draw covers one tile, so
+    // the fragment coordinate is tile local and the camera, which knows only the
+    // full image, has to be asked about the pixel this really is
+    let x = frag_coord.x as u32 + constants.tile_x;
+    let y = frag_coord.y as u32 + constants.tile_y;
 
-    let mut state = gen_state(frag_coord, constants.seed);
+    let i = y as usize;
+    let j = x as usize;
+
+    let mut state = gen_state(x, y, constants.seed);
 
     let color = cam.render(&mut state, i, j, &mat_table, &tex_table, &world, &lights);
+
+    *output = vec4(color.x, color.y, color.z, 1.0);
+}
+
+/// Shrink one finished tile into the preview image.
+///
+/// Drawn over the whole preview target, so most fragments are outside the
+/// rectangle this tile occupies and are discarded rather than written. Keeping
+/// the other tiles is the point: the preview is built up over the course of the
+/// render and each tile only touches its own part of it.
+#[spirv(fragment)]
+pub fn tile_blit_fs(
+    #[spirv(frag_coord)] frag_coord: Vec4,
+    #[spirv(push_constant)] constants: &TileBlitConstants,
+    #[spirv(descriptor_set = 0, binding = 0)] tile: &Image2d,
+    output: &mut Vec4,
+) {
+    let x = frag_coord.x - constants.dst_x;
+    let y = frag_coord.y - constants.dst_y;
+
+    if x < 0.0 || y < 0.0 || x >= constants.dst_width || y >= constants.dst_height {
+        // Another tile's part of the preview, or the margin past the last tile
+        // in a row. Discarding leaves whatever was drawn there before
+        spirv_std::arch::kill();
+    }
+
+    // Nearest texel of the tile, which is all a non filterable float image
+    // allows. The preview is a look at the framing rather than the render, so
+    // the aliasing that comes with shrinking this way does not matter
+    let u = (x / constants.dst_width * constants.tile_width as f32) as u32;
+    let v = (y / constants.dst_height * constants.tile_height as f32) as u32;
+
+    let sum: Vec4 = tile.fetch(uvec2(
+        u.min(constants.tile_width - 1),
+        v.min(constants.tile_height - 1),
+    ));
+    let color = sum.truncate() * constants.scale;
 
     *output = vec4(color.x, color.y, color.z, 1.0);
 }

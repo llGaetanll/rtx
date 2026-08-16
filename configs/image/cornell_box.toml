@@ -18,9 +18,9 @@ defocus_angle = 0.0
 focus_dist = 1079.4603
 
 [quality]
-samples = 2000
-bounces = 50
+samples = 100
+bounces = 20
 
 [output]
-width = 594
-height = 841
+width = 7016
+height = 9933

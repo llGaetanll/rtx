@@ -325,6 +325,9 @@ impl Camera {
         shared::ShaderConstants {
             width,
             height,
+            // Whole image by default. The accumulator overrides these per tile
+            tile_x: 0,
+            tile_y: 0,
             time: 0.0,
             cursor_x: 0.0,
             cursor_y: 0.0,
