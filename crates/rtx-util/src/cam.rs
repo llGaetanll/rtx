@@ -27,13 +27,48 @@ const RR_MIN_BOUNCE: u32 = 3;
 /// Upper bound on the survival probability, so a bright path still terminates eventually
 const RR_MAX_SURVIVAL: F = 0.95;
 
-/// How far along a ray a hit has to be to count, so that a ray leaving a surface
-/// does not immediately find the surface it left.
-const RAY_EPSILON: F = 0.001;
+/// How far along a ray a hit has to be to count, as a fraction of how far from
+/// the origin the ray starts, so that a ray leaving a surface does not
+/// immediately find the surface it left.
+///
+/// A hit point is `orig + t * dir` in `f32`, so the coordinates it lands on are
+/// rounded to about `|p|` times the machine epsilon, which is 6e-8. A ray leaving
+/// that point can therefore start on either side of the surface by that much, and
+/// the offset that hides it has to be a multiple of it rather than a fixed length.
+/// A few hundred times the rounding is enough to clear it and still far too small
+/// to skip over anything the picture contains.
+const RAY_EPSILON_REL: F = 512.0 * F::EPSILON;
+
+/// The smallest offset to use, for a ray starting near the origin where a relative
+/// one would be nothing at all.
+const RAY_EPSILON_MIN: F = 1e-4;
 
 /// The fraction of the way to a light a shadow ray is allowed to travel. The rest
 /// is the margin that keeps it from hitting the light it is testing for.
 const SHADOW_REACH: F = 1.0 - 1e-4;
+
+/// The smallest `t` a hit on `ray` is allowed to have.
+///
+/// Two conversions happen here. The offset is a distance in the scene, scaled to
+/// the coordinates the ray starts at, because that is what decides how badly the
+/// starting point is rounded. It is then divided by the length of the direction,
+/// because `t` counts in units of that direction rather than in scene units, and
+/// the two differ by three orders of magnitude between a camera ray and a
+/// scattered one.
+pub fn ray_epsilon_at(orig: Point3, dir_len: F, came_from: F) -> F {
+    // Both terms are lengths whose rounding ends up in the starting point: where
+    // the point sits, and how far the ray that found it had to travel to get
+    // there. A point near the origin reached from far away is rounded by the
+    // second and not the first, which is what a corner of a large quad is
+    let scale = orig.abs().max_element().max(came_from);
+    let offset = (RAY_EPSILON_REL * scale).max(RAY_EPSILON_MIN);
+
+    offset / dir_len
+}
+
+pub fn ray_epsilon(ray: &Ray) -> F {
+    ray_epsilon_at(ray.orig(), ray.dir().length(), 0.)
+}
 
 /// How much of a contribution to credit to one of two sampling strategies that
 /// could both have produced it, given the density each assigns it.
@@ -233,9 +268,17 @@ impl Camera {
         let mut prev_specular = true;
         let mut prev_pdf_bsdf = 0.;
 
+        // How far the ray that produced the current starting point had to travel,
+        // which is half of what rounds that point. Zero for the camera ray, whose
+        // origin is given rather than computed
+        let mut came_from = 0.;
+
         while depth <= self.max_ray_bounce {
             // Start of range is not zero to avoid floating point errors
-            let mut range = Range::new(RAY_EPSILON, F::MAX);
+            let mut range = Range::new(
+                ray_epsilon_at(ray.orig(), ray.dir().length(), came_from),
+                F::MAX,
+            );
 
             if !world.hit(&ray, &mut range, &mut rec) {
                 // Nothing more to hit, so whatever is at infinity is the last
@@ -295,6 +338,7 @@ impl Camera {
                         &rec,
                         attenuation,
                         ray.time(),
+                        dist,
                     );
             }
 
@@ -327,6 +371,7 @@ impl Camera {
             };
 
             ray = scattered;
+            came_from = dist;
             depth += 1;
         }
 
@@ -355,6 +400,7 @@ impl Camera {
         rec: &HitRecord,
         albedo: Color,
         time: F,
+        came_from: F,
     ) -> Color {
         let sample = lights.sample(state, rec.p);
 
@@ -374,7 +420,12 @@ impl Camera {
         // amount, because a scene measured in hundreds of units has no use for an
         // epsilon chosen for one measured in ones
         let shadow = Ray::new(rec.p, sample.dir, time);
-        let range = Range::new(RAY_EPSILON, sample.dist * SHADOW_REACH);
+        let range = Range::new(
+            // The shadow ray's direction is a unit vector, so its `t` is already a
+            // distance in the scene
+            ray_epsilon_at(shadow.orig(), 1., came_from),
+            sample.dist * SHADOW_REACH,
+        );
         if world.occluded(&shadow, &range) {
             return Color::ZERO;
         }
