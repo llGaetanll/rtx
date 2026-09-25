@@ -634,6 +634,34 @@ impl Accumulator {
         });
     }
 
+    /// Draw a whole image of `width` by `height` into the top left of the
+    /// texture that is already there, emptying it if that is a change of size.
+    ///
+    /// For a view that trades resolution for speed from one frame to the next.
+    /// Reallocating for every change would cost more than the frames it saves,
+    /// and a smaller image fits in the texture a larger one needed.
+    pub fn set_image_size(&mut self, width: u32, height: u32) {
+        assert!(
+            width <= self.texture.width() && height <= self.texture.height(),
+            "{width}x{height} does not fit a {}x{} accumulator",
+            self.texture.width(),
+            self.texture.height(),
+        );
+
+        if (width, height) == (self.image_width, self.image_height) {
+            return;
+        }
+
+        self.image_width = width;
+        self.image_height = height;
+        self.start_tile(Tile {
+            x: 0,
+            y: 0,
+            width,
+            height,
+        });
+    }
+
     /// Throw away what has been summed, so the next pass starts from nothing.
     pub fn reset(&mut self) {
         self.passes_done = 0;

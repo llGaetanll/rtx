@@ -119,15 +119,15 @@ Opt in: absent or `0` means refine forever, as now.
 
 Opt in: absent or `1` means full resolution always, as now.
 
-- [ ] `moving_scale` in `[live]`, defaulting to `1`, validated to `(0, 1]`
-- [ ] Let the accumulator draw a smaller image into the top left of its texture
+- [x] `moving_scale` in `[live]`, defaulting to `1`, validated to `(0, 1]`
+- [x] Let the accumulator draw a smaller image into the top left of its texture
       without reallocating, and reset when that size changes
-- [ ] While moving, trace at `scale × window size` and tell the blit the smaller
+- [x] While moving, trace at `scale × window size` and tell the blit the smaller
       size, which it already stretches to fit the window
-- [ ] Stay at the lower resolution until the camera has been still for about
+- [x] Stay at the lower resolution until the camera has been still for about
       100 ms, so a drag with gaps between mouse events does not flicker between
       the two
-- [ ] Tests: default is off, out of range values are rejected
+- [x] Tests: default is off, out of range values are rejected
 
 ## Future Work
 

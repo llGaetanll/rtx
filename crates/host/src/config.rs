@@ -137,6 +137,10 @@ pub struct Live {
     /// Stop refining a still view once it has this many samples per pixel, and
     /// leave the GPU idle until the camera moves. `0` never stops.
     pub max_samples: u32,
+    /// Fraction of the window's resolution to trace at while the camera moves,
+    /// stretched to fill the window. A moving view is thrown away every frame
+    /// anyway, so it can afford to be coarse. `1` always traces at full size.
+    pub moving_scale: f32,
 }
 
 impl Default for Live {
@@ -146,6 +150,7 @@ impl Default for Live {
             bounces: 10,
             accumulate: true,
             max_samples: 0,
+            moving_scale: 1.0,
         }
     }
 }
@@ -412,6 +417,14 @@ impl ImageConfig {
         if self.live.bounces < 1 {
             return Err(format!("Image {name} needs at least 1 live bounce").into());
         }
+        // Written so NaN fails it too
+        if !(self.live.moving_scale > 0.0 && self.live.moving_scale <= 1.0) {
+            return Err(format!(
+                "Image {name} needs a live moving_scale above 0 and at most 1, not {}",
+                self.live.moving_scale
+            )
+            .into());
+        }
 
         Ok(())
     }
@@ -540,6 +553,31 @@ mod tests {
         let config: ImageConfig = toml::from_str(&source).unwrap();
 
         assert_eq!(config.live.max_samples, 4096);
+    }
+
+    /// Full resolution while moving unless a config asks otherwise.
+    #[test]
+    fn moving_scale_is_off_unless_set() {
+        assert_eq!(Live::default().moving_scale, 1.0);
+
+        let source = format!("{IMAGE_WITHOUT_LIVE}\n[live]\nmoving_scale = 0.5\n");
+        let config: ImageConfig = toml::from_str(&source).unwrap();
+
+        assert_eq!(config.live.moving_scale, 0.5);
+        config.validate("half").unwrap();
+    }
+
+    /// Zero would trace nothing, and above one would trace more than the window
+    /// shows.
+    #[test]
+    fn moving_scale_out_of_range_is_rejected() {
+        for scale in ["0.0", "-0.5", "1.5", "nan"] {
+            let source = format!("{IMAGE_WITHOUT_LIVE}\n[live]\nmoving_scale = {scale}\n");
+            let config: ImageConfig = toml::from_str(&source).unwrap();
+            let error = config.validate("bad").unwrap_err().to_string();
+
+            assert!(error.contains("moving_scale"), "{scale}: {error}");
+        }
     }
 
     #[test]

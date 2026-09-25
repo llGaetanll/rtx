@@ -34,6 +34,14 @@ use crate::window_surface::WindowSurfaceBuilder;
 /// Every frame would be unreadable, and on some compositors not free.
 const TITLE_INTERVAL: Duration = Duration::from_millis(250);
 
+/// How long the camera has to be still before a view traced at
+/// `[live].moving_scale` goes back to full resolution.
+///
+/// Mouse movement does not arrive every frame, so a drag has frames in it where
+/// the camera did not move. Switching on each of those would flicker between
+/// the two resolutions for as long as the drag lasts.
+const MOVING_HOLD: Duration = Duration::from_millis(100);
+
 /// Tracks which movement keys are currently held
 #[derive(Default)]
 struct KeysHeld {
@@ -87,6 +95,9 @@ pub struct LiveApp {
     /// The still view has all the samples `[live].max_samples` asks for, so
     /// nothing is traced until the camera moves again.
     converged: bool,
+    /// When the camera last moved, which decides whether the view is traced at
+    /// the lower moving resolution. `None` until it first moves.
+    last_moved: Option<Instant>,
 }
 
 impl LiveApp {
@@ -119,6 +130,7 @@ impl LiveApp {
             title_updated: Instant::now(),
             frames_since_title: 0,
             converged: false,
+            last_moved: None,
         }
     }
 
@@ -307,6 +319,27 @@ impl LiveApp {
             self.drawn_pos = self.cam_pos;
             self.drawn_orientation = self.cam_orientation;
         }
+        if moved {
+            self.last_moved = Some(Instant::now());
+        }
+
+        // Coarser while moving, if the config asks for it. Changing size empties
+        // the accumulator, so a view that has just stopped starts refining again
+        // at full resolution rather than stretching what it had
+        let live = self.image.live;
+        let low_res = live.moving_scale < 1.0
+            && self
+                .last_moved
+                .is_some_and(|moved| moved.elapsed() < MOVING_HOLD);
+        let (width, height) = if low_res {
+            (
+                scaled(config.width, live.moving_scale),
+                scaled(config.height, live.moving_scale),
+            )
+        } else {
+            (config.width, config.height)
+        };
+        accumulator.set_image_size(width, height);
 
         let surface = window_surface.borrow_surface();
         let frame = match surface.get_current_texture() {
@@ -325,7 +358,6 @@ impl LiveApp {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        let live = self.image.live;
         // The camera has been flown away from where the config put it, so only
         // its lens settings come from there. The accumulator fills in the size
         // and seed
@@ -352,13 +384,17 @@ impl LiveApp {
 
         let passes = accumulator.passes_done();
         let samples = passes * live.samples;
-        self.converged = live.max_samples > 0 && samples >= live.max_samples;
+        // Not while still coarse: the view has yet to go back to full size, and
+        // an idle event loop would never draw the frame that does it
+        self.converged = !low_res && live.max_samples > 0 && samples >= live.max_samples;
         blit.draw(
             &mut encoder,
             &view,
             &shared::BlitConstants {
-                image_width: config.width,
-                image_height: config.height,
+                // Smaller than the window while moving, which the blit
+                // stretches to fill it
+                image_width: width,
+                image_height: height,
                 surface_width: config.width,
                 surface_height: config.height,
                 scale: 1.0 / passes as f32,
@@ -488,6 +524,11 @@ impl ApplicationHandler for LiveApp {
             event_loop.set_control_flow(ControlFlow::Poll);
         }
     }
+}
+
+/// A window dimension at a fraction of its size, never less than one pixel.
+fn scaled(size: u32, scale: f32) -> u32 {
+    ((size as f32 * scale).round() as u32).max(1)
 }
 
 /// The orientation looking from a camera's position towards what it looks at.
