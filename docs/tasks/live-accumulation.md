@@ -98,15 +98,14 @@ cargo run --release -- live -s scenes/cornell_box.toml -c configs/image/cornell_
 
 ### Phase 3: Check it
 
-- [ ] Run the judging command and compare frame rate and still-camera quality
-      against `accumulate = false` with `samples = 40`
-- [ ] Update the "Dynamic ray sampling" item in `live-mode.md` and the "Sample
+- [x] Run the judging command and compare frame rate and still-camera quality
+      against `accumulate = false` with `samples = 40`. Judged by eye: live is
+      significantly faster
+- [x] Update the "Dynamic ray sampling" item in `live-mode.md` and the "Sample
       accumulation in live mode" item in `TODO.md`
 
 ## Future Work
 
-- [ ] Movement speed is 5 units a second, which barely moves in a 555 unit
-      Cornell box. It should scale with the scene
 - [ ] Stop adding passes after a cap, so a converged view leaves the GPU idle
-- [ ] Adapt samples per frame to hold a frame time target
-- [ ] Lower resolution while moving
+- [ ] Adapt samples per frame to hold a frame time target - feasible?
+- [ ] Allow lowering resolution while moving - should be a setting

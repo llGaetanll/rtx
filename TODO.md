@@ -111,15 +111,15 @@
          box across the plane and names it from both sides, which would break the
          invariant that leaves tile the instance buffer
 
-2. [ ] Sample accumulation in live mode
+2. [x] Sample accumulation in live mode
    
-   When the camera is stationary, accumulate samples over multiple frames to progressively refine the image. This gives high-quality results without requiring many samples per frame. When the camera moves, reset the accumulator and start fresh.
+   When the camera is stationary, accumulate samples over multiple frames to progressively refine the image. This gives high-quality results without requiring many samples per frame. When the camera moves, reset the accumulator and start fresh. See [docs/tasks/live-accumulation.md](docs/tasks/live-accumulation.md).
    
-   - [ ] Track camera position/direction, detect when it changes
-   - [ ] Accumulation buffer (separate from display buffer)
-   - [ ] Blend new samples with accumulated samples (running average)
-   - [ ] Reset accumulator on camera movement or scene change
-   - [ ] Display sample count somewhere (optional, for debugging)
+   - [x] Track camera position/direction, detect when it changes
+   - [x] Accumulation buffer (separate from display buffer)
+   - [x] Blend new samples with accumulated samples (running average)
+   - [x] Reset accumulator on camera movement or window resize
+   - [x] Display sample count somewhere (window title, with frame rate)
 
 3. [ ] GPU coherence for ray tracing
 

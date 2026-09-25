@@ -58,5 +58,5 @@ The camera previously crashed when looking straight up or down because `vup` bec
 
 ## Future Enhancements
 
-- [ ] **Dynamic ray sampling**: Lower samples per pixel when camera/world is moving for faster feedback, then accumulate rays over time when stationary for higher quality. Requires tracking frame-to-frame camera changes and maintaining an accumulation buffer.
+- [x] **Dynamic ray sampling**: Lower samples per pixel when camera/world is moving for faster feedback, then accumulate rays over time when stationary for higher quality. See [live-accumulation.md](live-accumulation.md); settings are the `[live]` section of the image config.
 - [ ] Screenshot with current camera position
