@@ -104,8 +104,33 @@ cargo run --release -- live -s scenes/cornell_box.toml -c configs/image/cornell_
 - [x] Update the "Dynamic ray sampling" item in `live-mode.md` and the "Sample
       accumulation in live mode" item in `TODO.md`
 
+### Phase 4: Sample cap
+
+Opt in: absent or `0` means refine forever, as now.
+
+- [x] `max_samples` in `[live]`, defaulting to `0`
+- [x] Once the sum reaches it, skip the trace pass and only blit what is there
+- [x] Once converged and no key is held, let the event loop wait for input
+      rather than polling, so the CPU idles as well as the GPU
+- [x] Say it has converged in the window title
+- [x] Tests: default is off, a set value parses
+
+### Phase 5: Lower resolution while moving
+
+Opt in: absent or `1` means full resolution always, as now.
+
+- [ ] `moving_scale` in `[live]`, defaulting to `1`, validated to `(0, 1]`
+- [ ] Let the accumulator draw a smaller image into the top left of its texture
+      without reallocating, and reset when that size changes
+- [ ] While moving, trace at `scale × window size` and tell the blit the smaller
+      size, which it already stretches to fit the window
+- [ ] Stay at the lower resolution until the camera has been still for about
+      100 ms, so a drag with gaps between mouse events does not flicker between
+      the two
+- [ ] Tests: default is off, out of range values are rejected
+
 ## Future Work
 
-- [ ] Stop adding passes after a cap, so a converged view leaves the GPU idle
-- [ ] Adapt samples per frame to hold a frame time target - feasible?
-- [ ] Allow lowering resolution while moving - should be a setting
+- [ ] Adapt samples per frame to hold a frame time target. Needs GPU timestamp
+      queries rather than CPU timing, since `Fifo` makes every frame read as the
+      refresh interval. Not now; maybe later

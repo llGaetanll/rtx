@@ -134,6 +134,9 @@ pub struct Live {
     /// Sum frames while the camera is still. Off, every frame stands alone at
     /// `samples`, which is how `live` used to behave.
     pub accumulate: bool,
+    /// Stop refining a still view once it has this many samples per pixel, and
+    /// leave the GPU idle until the camera moves. `0` never stops.
+    pub max_samples: u32,
 }
 
 impl Default for Live {
@@ -142,6 +145,7 @@ impl Default for Live {
             samples: 2,
             bounces: 10,
             accumulate: true,
+            max_samples: 0,
         }
     }
 }
@@ -524,6 +528,18 @@ mod tests {
                 ..Live::default()
             }
         );
+    }
+
+    /// The cap is opt in: a still view refines forever unless a config says
+    /// otherwise.
+    #[test]
+    fn the_sample_cap_is_off_unless_set() {
+        assert_eq!(Live::default().max_samples, 0);
+
+        let source = format!("{IMAGE_WITHOUT_LIVE}\n[live]\nmax_samples = 4096\n");
+        let config: ImageConfig = toml::from_str(&source).unwrap();
+
+        assert_eq!(config.live.max_samples, 4096);
     }
 
     #[test]

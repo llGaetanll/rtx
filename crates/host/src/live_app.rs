@@ -45,6 +45,12 @@ struct KeysHeld {
     c: bool,
 }
 
+impl KeysHeld {
+    fn any(&self) -> bool {
+        self.w || self.a || self.s || self.d || self.space || self.c
+    }
+}
+
 pub struct LiveApp {
     /// The config this view started from. Its camera is only a starting point,
     /// but its lens settings keep applying as the camera is flown around.
@@ -78,6 +84,9 @@ pub struct LiveApp {
     /// When the title was last refreshed, and frames drawn since.
     title_updated: Instant,
     frames_since_title: u32,
+    /// The still view has all the samples `[live].max_samples` asks for, so
+    /// nothing is traced until the camera moves again.
+    converged: bool,
 }
 
 impl LiveApp {
@@ -109,12 +118,16 @@ impl LiveApp {
             drawn_orientation: orientation(camera),
             title_updated: Instant::now(),
             frames_since_title: 0,
+            converged: false,
         }
     }
 
     fn update_camera(&mut self) {
         let now = Instant::now();
-        let dt = now.duration_since(self.last_frame).as_secs_f32();
+        // Capped, because a converged view stops drawing frames. Without it the
+        // first key press after a pause would move the camera as though it had
+        // been held for the whole of that pause
+        let dt = now.duration_since(self.last_frame).as_secs_f32().min(0.1);
         self.last_frame = now;
 
         // Mouse look: compute delta from last cursor position
@@ -329,9 +342,17 @@ impl LiveApp {
                 .constants(config.width, config.height, live.quality(), self.scene)
         };
 
-        accumulator.record_pass(&mut encoder, scene_buffers, &constants, live.samples);
+        // A still view that already has every sample it asked for is only shown
+        // again, which is what lets the GPU idle
+        let samples_before = accumulator.passes_done() * live.samples;
+        let capped = live.max_samples > 0 && samples_before >= live.max_samples;
+        if !capped {
+            accumulator.record_pass(&mut encoder, scene_buffers, &constants, live.samples);
+        }
 
         let passes = accumulator.passes_done();
+        let samples = passes * live.samples;
+        self.converged = live.max_samples > 0 && samples >= live.max_samples;
         blit.draw(
             &mut encoder,
             &view,
@@ -349,12 +370,17 @@ impl LiveApp {
 
         self.frames_since_title += 1;
         let since = self.title_updated.elapsed();
-        if since >= TITLE_INTERVAL {
+        if self.converged {
+            // Frames stop here, so this is the last chance to say so, and a
+            // frame rate would describe frames that are no longer being drawn
+            window_surface
+                .borrow_window()
+                .set_title(&format!("rtx live: converged, {samples} samples/px"));
+        } else if since >= TITLE_INTERVAL {
             let fps = self.frames_since_title as f32 / since.as_secs_f32();
-            window_surface.borrow_window().set_title(&format!(
-                "rtx live: {fps:.0} fps, {} samples/px",
-                passes * live.samples
-            ));
+            window_surface
+                .borrow_window()
+                .set_title(&format!("rtx live: {fps:.0} fps, {samples} samples/px"));
             self.title_updated = Instant::now();
             self.frames_since_title = 0;
         }
@@ -375,6 +401,8 @@ impl ApplicationHandler for LiveApp {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        let redraw = matches!(event, WindowEvent::RedrawRequested);
+
         match event {
             WindowEvent::CloseRequested => self.close_requested = true,
             WindowEvent::Resized(new_size) => {
@@ -434,19 +462,31 @@ impl ApplicationHandler for LiveApp {
 
         if self.close_requested {
             event_loop.exit();
-        } else if let Some(ws) = &self.window_surface {
+        } else if !redraw && let Some(ws) = &self.window_surface {
+            // Any input may have moved the camera, and a converged view is
+            // not drawing frames on its own to notice. Not after a redraw,
+            // which would keep an idle view drawing forever
             ws.borrow_window().request_redraw();
         }
-        event_loop.set_control_flow(ControlFlow::Poll);
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.close_requested {
             event_loop.exit();
-        } else if let Some(ws) = &self.window_surface {
-            ws.borrow_window().request_redraw();
+            return;
         }
-        event_loop.set_control_flow(ControlFlow::Poll);
+
+        // A converged view with nothing held has nothing new to draw, so wait
+        // for input instead of spinning. Input arrives as a window event, which
+        // asks for the frame that notices it
+        if self.converged && !self.keys_held.any() {
+            event_loop.set_control_flow(ControlFlow::Wait);
+        } else {
+            if let Some(ws) = &self.window_surface {
+                ws.borrow_window().request_redraw();
+            }
+            event_loop.set_control_flow(ControlFlow::Poll);
+        }
     }
 }
 
