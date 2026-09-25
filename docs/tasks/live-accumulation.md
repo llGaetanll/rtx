@@ -86,15 +86,15 @@ cargo run --release -- live -s scenes/cornell_box.toml -c configs/image/cornell_
 
 ### Phase 2: Accumulate in live
 
-- [ ] Give `Accumulator` a pass that records into a caller's encoder without
+- [x] Give `Accumulator` a pass that records into a caller's encoder without
       waiting on the GPU, keeping the blocking one for `render`
-- [ ] Hold an `Accumulator` and a blit pipeline in `LiveApp`, sized to the window
-- [ ] Each frame: one pass into the accumulator, then blit it to the swapchain
-- [ ] Pick an sRGB swapchain format
-- [ ] `accumulate = false`: reset before every pass, so each frame stands alone
-- [ ] Reset when the camera position or orientation changes
-- [ ] Recreate the accumulator when the window is resized
-- [ ] Show the pass count in the window title
+- [x] Hold an `Accumulator` and a blit pipeline in `LiveApp`, sized to the window
+- [x] Each frame: one pass into the accumulator, then blit it to the swapchain
+- [x] Pick an sRGB swapchain format
+- [x] `accumulate = false`: reset before every pass, so each frame stands alone
+- [x] Reset when the camera position or orientation changes
+- [x] Recreate the accumulator when the window is resized
+- [x] Show the pass count in the window title
 
 ### Phase 3: Check it
 

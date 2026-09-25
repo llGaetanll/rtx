@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 use std::time::Instant;
 
 use futures::executor::block_on;
@@ -19,12 +20,19 @@ use winit::keyboard::NamedKey;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
+use crate::blit::Blit;
 use crate::config::ImageConfig;
+use crate::gpu::Accumulator;
 use crate::gpu::GpuContext;
 use crate::gpu::SceneBuffers;
+use crate::gpu::Tiling;
 use crate::scene_data;
 use crate::window_surface::WindowSurface;
 use crate::window_surface::WindowSurfaceBuilder;
+
+/// How often the window title's frame rate and sample count are refreshed.
+/// Every frame would be unreadable, and on some compositors not free.
+const TITLE_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Tracks which movement keys are currently held
 #[derive(Default)]
@@ -44,7 +52,9 @@ pub struct LiveApp {
     scene_path: PathBuf,
     gpu: Option<GpuContext>,
     config: Option<wgpu::SurfaceConfiguration>,
-    render_pipeline: Option<wgpu::RenderPipeline>,
+    /// Where frames are summed while the camera is still. Sized to the window.
+    accumulator: Option<Accumulator>,
+    blit: Option<Blit>,
     scene_buffers: Option<SceneBuffers>,
     scene: crate::scene_data::SceneInfo,
     /// Declared after everything holding a GPU handle. Fields drop in declaration
@@ -61,6 +71,13 @@ pub struct LiveApp {
     last_cursor_x: f32,
     last_cursor_y: f32,
     last_frame: Instant,
+    /// The camera the accumulated frames were drawn from. Any other camera
+    /// sees a different picture, so they are thrown away when this changes.
+    drawn_pos: Vec3,
+    drawn_orientation: Quat,
+    /// When the title was last refreshed, and frames drawn since.
+    title_updated: Instant,
+    frames_since_title: u32,
 }
 
 impl LiveApp {
@@ -74,7 +91,8 @@ impl LiveApp {
             gpu: None,
             window_surface: None,
             config: None,
-            render_pipeline: None,
+            accumulator: None,
+            blit: None,
             scene_buffers: None,
             scene: Default::default(),
             close_requested: false,
@@ -87,6 +105,10 @@ impl LiveApp {
             last_cursor_x: 0.0,
             last_cursor_y: 0.0,
             last_frame: Instant::now(),
+            drawn_pos: cam_pos,
+            drawn_orientation: orientation(camera),
+            title_updated: Instant::now(),
+            frames_since_title: 0,
         }
     }
 
@@ -183,7 +205,7 @@ impl LiveApp {
 
     async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
         let window_attributes = WindowAttributes::default()
-            .with_title("Rust Shader Sandbox")
+            .with_title("rtx live")
             .with_inner_size(LogicalSize::new(800.0, 600.0));
         let window_box = event_loop.create_window(window_attributes)?;
 
@@ -205,9 +227,14 @@ impl LiveApp {
 
         let gpu = GpuContext::new(instance, Some(surface)).await?;
 
-        let swapchain_format = surface.get_capabilities(&gpu.adapter).formats[0];
+        let swapchain_format = crate::blit::surface_format(surface, &gpu.adapter);
 
-        let render_pipeline = gpu.create_pipeline(swapchain_format);
+        // Never zero sized: a window can be created minimized, and a texture
+        // cannot be
+        let width = window_size.width.max(1);
+        let height = window_size.height.max(1);
+        let accumulator = Accumulator::tiled(&gpu, &Tiling::new(&gpu.device, width, height))?;
+        let blit = Blit::new(&gpu, accumulator.view(), swapchain_format);
 
         let scene = scene_data::load(&self.scene_path)?;
         self.scene = scene.info();
@@ -228,7 +255,8 @@ impl LiveApp {
         self.gpu = Some(gpu);
         self.window_surface = Some(window_surface);
         self.config = Some(config);
-        self.render_pipeline = Some(render_pipeline);
+        self.accumulator = Some(accumulator);
+        self.blit = Some(blit);
         self.scene_buffers = Some(scene_buffers);
         self.start = Instant::now();
         Ok(())
@@ -237,20 +265,37 @@ impl LiveApp {
     fn render(&mut self) {
         // Update camera state before rendering
         self.update_camera();
+        let cam_dir = self.cam_dir();
+        let cam_vup = self.cam_vup();
 
-        let window_surface = match &self.window_surface {
-            Some(ws) => ws,
-            None => return,
+        let (Some(window_surface), Some(gpu), Some(config)) =
+            (&self.window_surface, &self.gpu, &self.config)
+        else {
+            return;
         };
-        let gpu = match &self.gpu {
-            Some(gpu) => gpu,
-            None => return,
+        let (Some(accumulator), Some(blit), Some(scene_buffers)) =
+            (&mut self.accumulator, &self.blit, &self.scene_buffers)
+        else {
+            return;
         };
 
-        let window = window_surface.borrow_window();
-        let current_size = window.inner_size();
+        // A minimized window has nothing to draw into
+        if config.width == 0 || config.height == 0 {
+            return;
+        }
+
+        // What has been summed so far only belongs to the camera it was drawn
+        // from. Without accumulation every frame starts over, which is live mode
+        // as it was before
+        let moved =
+            self.cam_pos != self.drawn_pos || self.cam_orientation != self.drawn_orientation;
+        if moved || !self.image.live.accumulate {
+            accumulator.reset();
+            self.drawn_pos = self.cam_pos;
+            self.drawn_orientation = self.cam_orientation;
+        }
+
         let surface = window_surface.borrow_surface();
-
         let frame = match surface.get_current_texture() {
             Ok(frame) => frame,
             Err(e) => {
@@ -267,53 +312,52 @@ impl LiveApp {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        let cam_dir = self.cam_dir();
-        let cam_vup = self.cam_vup();
+        let live = self.image.live;
         // The camera has been flown away from where the config put it, so only
-        // its lens settings come from there
-        let push_constants = shared::ShaderConstants {
+        // its lens settings come from there. The accumulator fills in the size
+        // and seed
+        let constants = shared::ShaderConstants {
             time: self.start.elapsed().as_secs_f32(),
             cursor_x: self.cursor_x,
             cursor_y: self.cursor_y,
             cam_pos: self.cam_pos.into(),
             cam_dir: cam_dir.into(),
             cam_vup: cam_vup.into(),
-            ..self.image.camera.constants(
-                current_size.width,
-                current_size.height,
-                self.image.live.quality(),
-                self.scene,
-            )
+            ..self
+                .image
+                .camera
+                .constants(config.width, config.height, live.quality(), self.scene)
         };
 
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        accumulator.record_pass(&mut encoder, scene_buffers, &constants, live.samples);
 
-            rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());
-            rpass.set_bind_group(0, &self.scene_buffers.as_ref().unwrap().bind_group, &[]);
-            rpass.set_push_constants(
-                wgpu::ShaderStages::VERTEX_FRAGMENT,
-                0,
-                bytemuck::bytes_of(&push_constants),
-            );
-            rpass.draw(0..3, 0..1);
-        }
+        let passes = accumulator.passes_done();
+        blit.draw(
+            &mut encoder,
+            &view,
+            &shared::BlitConstants {
+                image_width: config.width,
+                image_height: config.height,
+                surface_width: config.width,
+                surface_height: config.height,
+                scale: 1.0 / passes as f32,
+            },
+        );
 
         gpu.queue.submit(Some(encoder.finish()));
         frame.present();
+
+        self.frames_since_title += 1;
+        let since = self.title_updated.elapsed();
+        if since >= TITLE_INTERVAL {
+            let fps = self.frames_since_title as f32 / since.as_secs_f32();
+            window_surface.borrow_window().set_title(&format!(
+                "rtx live: {fps:.0} fps, {} samples/px",
+                passes * live.samples
+            ));
+            self.title_updated = Instant::now();
+            self.frames_since_title = 0;
+        }
     }
 }
 
@@ -337,10 +381,20 @@ impl ApplicationHandler for LiveApp {
                 if let Some(config) = self.config.as_mut() {
                     config.width = new_size.width;
                     config.height = new_size.height;
-                    if let Some(ws) = &self.window_surface {
-                        let surface = ws.borrow_surface();
-                        if let Some(gpu) = &self.gpu {
-                            surface.configure(&gpu.device, config);
+                    // Minimized. Neither a surface nor a texture can be zero
+                    // sized, and render skips drawing until this changes
+                    let visible = new_size.width > 0 && new_size.height > 0;
+                    if let (true, Some(ws), Some(gpu)) = (visible, &self.window_surface, &self.gpu)
+                    {
+                        ws.borrow_surface().configure(&gpu.device, config);
+
+                        // A different size is a different picture, so the
+                        // sum starts again at the new resolution
+                        if let (Some(accumulator), Some(blit)) =
+                            (&mut self.accumulator, &mut self.blit)
+                        {
+                            accumulator.resize(gpu, new_size.width, new_size.height);
+                            blit.rebind(gpu, accumulator.view());
                         }
                     }
                 }

@@ -578,6 +578,20 @@ impl Accumulator {
             }),
         );
 
+        let (texture, view) = Self::target(gpu, width, height);
+
+        Ok(Self {
+            texture,
+            view,
+            pipeline,
+            image_width,
+            image_height,
+            tile,
+            passes_done: 0,
+        })
+    }
+
+    fn target(gpu: &GpuContext, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
         let texture = gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("accumulation_texture"),
             size: wgpu::Extent3d {
@@ -596,15 +610,33 @@ impl Accumulator {
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        Ok(Self {
-            texture,
-            view,
-            pipeline,
-            image_width,
-            image_height,
-            tile,
-            passes_done: 0,
-        })
+        (texture, view)
+    }
+
+    /// Make this an accumulator for a whole image of a new size, emptied. The
+    /// pipeline does not depend on the size and is kept, so this is cheap enough
+    /// to do on every step of a window being dragged larger.
+    ///
+    /// Only for an image that is one tile, which is what a window is. The view
+    /// changes, so anything bound to the old one has to be bound again.
+    pub fn resize(&mut self, gpu: &GpuContext, width: u32, height: u32) {
+        let (texture, view) = Self::target(gpu, width, height);
+
+        self.texture = texture;
+        self.view = view;
+        self.image_width = width;
+        self.image_height = height;
+        self.start_tile(Tile {
+            x: 0,
+            y: 0,
+            width,
+            height,
+        });
+    }
+
+    /// Throw away what has been summed, so the next pass starts from nothing.
+    pub fn reset(&mut self) {
+        self.passes_done = 0;
     }
 
     /// The summed image, for a shader that wants to display it. Its values are
@@ -631,9 +663,34 @@ impl Accumulator {
     /// Draw one more pass of `samples_per_pass` samples per pixel into the image.
     /// `constants` supplies the camera and bounce settings; the resolution, sample
     /// count and seed are this accumulator's to decide.
+    ///
+    /// Waits for the pass to finish, which keeps a long render from queueing
+    /// more work than the watchdog will allow.
     pub fn pass(
         &mut self,
         gpu: &GpuContext,
+        scene: &SceneBuffers,
+        constants: &shared::ShaderConstants,
+        samples_per_pass: u32,
+    ) {
+        let mut encoder = gpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("accumulation_encoder"),
+            });
+
+        self.record_pass(&mut encoder, scene, constants, samples_per_pass);
+
+        gpu.queue.submit(Some(encoder.finish()));
+        gpu.device.poll(wgpu::PollType::Wait).unwrap();
+    }
+
+    /// Record one more pass into `encoder` without submitting or waiting on it,
+    /// for a caller that has more to draw in the same submission, such as a
+    /// window showing the result in the same frame.
+    pub fn record_pass(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
         scene: &SceneBuffers,
         constants: &shared::ShaderConstants,
         samples_per_pass: u32,
@@ -651,12 +708,6 @@ impl Accumulator {
             seed: self.passes_done + 1,
             ..*constants
         };
-
-        let mut encoder = gpu
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("accumulation_encoder"),
-            });
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -692,9 +743,6 @@ impl Accumulator {
             );
             rpass.draw(0..3, 0..1);
         }
-
-        gpu.queue.submit(Some(encoder.finish()));
-        gpu.device.poll(wgpu::PollType::Wait).unwrap();
 
         self.passes_done += 1;
     }

@@ -5,6 +5,7 @@ use std::path::Path;
 use clap::Parser;
 
 mod bench_app;
+mod blit;
 mod cli;
 mod config;
 mod gpu;

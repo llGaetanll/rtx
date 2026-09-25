@@ -14,6 +14,7 @@ use winit::keyboard::NamedKey;
 use winit::window::WindowAttributes;
 use winit::window::WindowId;
 
+use crate::blit::Blit;
 use crate::config::ImageConfig;
 use crate::gpu::Accumulator;
 use crate::gpu::GpuContext;
@@ -54,90 +55,6 @@ fn preview_size(width: u32, height: u32) -> (u32, u32) {
         ((width as f64 * scale) as u32).max(1),
         ((height as f64 * scale) as u32).max(1),
     )
-}
-
-/// The pipeline that puts the accumulated image on screen.
-struct Blit {
-    pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
-}
-
-impl Blit {
-    fn new(gpu: &GpuContext, accumulated: &wgpu::TextureView, format: wgpu::TextureFormat) -> Self {
-        let layout = gpu
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("blit_layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        // A 32 bit float texture cannot be filtered, so the
-                        // shader reads texels directly and needs no sampler
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                }],
-            });
-
-        let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("blit"),
-            layout: &layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(accumulated),
-            }],
-        });
-
-        let pipeline_layout = gpu
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("blit_pipeline_layout"),
-                bind_group_layouts: &[&layout],
-                push_constant_ranges: &[wgpu::PushConstantRange {
-                    stages: wgpu::ShaderStages::FRAGMENT,
-                    range: 0..std::mem::size_of::<shared::BlitConstants>() as u32,
-                }],
-            });
-
-        let pipeline = gpu
-            .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("blit_pipeline"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &gpu.shader_module,
-                    entry_point: Some("main_vs"),
-                    buffers: &[],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &gpu.shader_module,
-                    entry_point: Some("blit_fs"),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    ..Default::default()
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState::default(),
-                multiview: None,
-                cache: None,
-            });
-
-        Self {
-            pipeline,
-            bind_group,
-        }
-    }
 }
 
 /// The standing preview image, and the pipeline that shrinks tiles into it.
@@ -423,18 +340,7 @@ impl PreviewApp {
         let surface = window_surface.borrow_surface();
         let gpu = block_on(GpuContext::new(instance, Some(surface)))?;
 
-        // The blit shader writes linear color and lets the surface encode it,
-        // the same transfer the offscreen render path gets from its sRGB target
-        let capabilities = surface.get_capabilities(&gpu.adapter);
-        let format = capabilities
-            .formats
-            .iter()
-            .copied()
-            .find(|format| format.is_srgb())
-            .unwrap_or(capabilities.formats[0]);
-        if !format.is_srgb() {
-            log::warn!("no sRGB surface format available, the preview will look dark");
-        }
+        let format = crate::blit::surface_format(surface, &gpu.adapter);
 
         let window_size = window_surface.borrow_window().inner_size();
         let surface_config = wgpu::SurfaceConfiguration {
@@ -579,31 +485,7 @@ impl PreviewApp {
                     label: Some("preview_encoder"),
                 });
 
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("preview_render_pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            rpass.set_pipeline(&ready.blit.pipeline);
-            rpass.set_bind_group(0, &ready.blit.bind_group, &[]);
-            rpass.set_push_constants(
-                wgpu::ShaderStages::FRAGMENT,
-                0,
-                bytemuck::bytes_of(&constants),
-            );
-            rpass.draw(0..3, 0..1);
-        }
+        ready.blit.draw(&mut encoder, &view, &constants);
 
         ready.gpu.queue.submit(Some(encoder.finish()));
         frame.present();
