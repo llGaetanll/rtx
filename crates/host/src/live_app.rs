@@ -281,7 +281,7 @@ impl LiveApp {
             ..self.image.camera.constants(
                 current_size.width,
                 current_size.height,
-                ImageConfig::preview_quality(),
+                self.image.live.quality(),
                 self.scene,
             )
         };

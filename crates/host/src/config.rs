@@ -28,14 +28,6 @@ pub const BENCH_MANIFEST: &str = "bench.toml";
 /// smallest path that goes anywhere.
 const MIN_KEYFRAMES: usize = 4;
 
-/// Rays per pixel for the interactive renderer, which sets its own rather than
-/// taking the sample count an image config asks of `render`. That count is
-/// chosen to make a good picture, not to keep a window responsive.
-pub const PREVIEW_SAMPLES: u32 = 40;
-
-/// Maximum ray bounce depth for the interactive renderer.
-pub const PREVIEW_BOUNCES: u32 = 10;
-
 /// Read and parse a TOML file, saying which file was at fault when it fails.
 fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn Error>> {
     let contents = fs::read_to_string(path)
@@ -99,6 +91,10 @@ pub struct ImageConfig {
     pub camera: Camera,
     pub quality: Quality,
     pub output: Output,
+    /// Optional, since most configs are written for `render` and a window has
+    /// sensible settings of its own to fall back on.
+    #[serde(default)]
+    pub live: Live,
 }
 
 /// Every setting is explicit. The shader has no camera defaults of its own to
@@ -119,6 +115,44 @@ pub struct Camera {
 pub struct Quality {
     pub samples: u32,
     pub bounces: u32,
+}
+
+/// How `live` draws a config, which is a different trade from `render`'s: a
+/// window has to stay responsive, so each frame traces only a few samples and a
+/// still view is refined by adding frames together rather than by tracing more
+/// per frame.
+///
+/// Every field falls back to its default on its own, so a section only has to
+/// name what it changes.
+#[derive(Deserialize, Clone, Copy, Debug, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Live {
+    /// Rays per pixel in each frame, not in the picture as a whole. With
+    /// `accumulate` on, a still view gathers this many more every frame.
+    pub samples: u32,
+    pub bounces: u32,
+    /// Sum frames while the camera is still. Off, every frame stands alone at
+    /// `samples`, which is how `live` used to behave.
+    pub accumulate: bool,
+}
+
+impl Default for Live {
+    fn default() -> Self {
+        Self {
+            samples: 2,
+            bounces: 10,
+            accumulate: true,
+        }
+    }
+}
+
+impl Live {
+    pub fn quality(&self) -> Quality {
+        Quality {
+            samples: self.samples,
+            bounces: self.bounces,
+        }
+    }
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -368,17 +402,14 @@ impl ImageConfig {
         if self.output.width < 1 || self.output.height < 1 {
             return Err(format!("Image {name} needs a non-zero output size").into());
         }
+        if self.live.samples < 1 {
+            return Err(format!("Image {name} needs at least 1 live sample").into());
+        }
+        if self.live.bounces < 1 {
+            return Err(format!("Image {name} needs at least 1 live bounce").into());
+        }
 
         Ok(())
-    }
-
-    /// The sample count and depth an interactive view uses, rather than the ones
-    /// the config asks of `render`.
-    pub fn preview_quality() -> Quality {
-        Quality {
-            samples: PREVIEW_SAMPLES,
-            bounces: PREVIEW_BOUNCES,
-        }
     }
 }
 
@@ -452,6 +483,56 @@ mod tests {
 
         let config: ImageConfig = toml::from_str(source).unwrap();
         assert_eq!(config.kind, ConfigType::Video);
+    }
+
+    const IMAGE_WITHOUT_LIVE: &str = r#"
+        type = "image"
+        [camera]
+        position = [0.0, 1.0, 5.0]
+        look_at = [0.0, 0.0, 0.0]
+        vup = [0.0, 1.0, 0.0]
+        fov = 40.0
+        defocus_angle = 0.0
+        focus_dist = 5.0
+        [quality]
+        samples = 100
+        bounces = 20
+        [output]
+        width = 400
+        height = 300
+    "#;
+
+    /// Most configs are written for `render` and say nothing about a window.
+    #[test]
+    fn live_settings_default_when_absent() {
+        let config: ImageConfig = toml::from_str(IMAGE_WITHOUT_LIVE).unwrap();
+
+        assert_eq!(config.live, Live::default());
+    }
+
+    /// A section only names what it changes; the rest keep their defaults.
+    #[test]
+    fn live_settings_default_field_by_field() {
+        let source = format!("{IMAGE_WITHOUT_LIVE}\n[live]\nsamples = 4\naccumulate = false\n");
+        let config: ImageConfig = toml::from_str(&source).unwrap();
+
+        assert_eq!(
+            config.live,
+            Live {
+                samples: 4,
+                accumulate: false,
+                ..Live::default()
+            }
+        );
+    }
+
+    #[test]
+    fn zero_live_samples_are_rejected() {
+        let source = format!("{IMAGE_WITHOUT_LIVE}\n[live]\nsamples = 0\n");
+        let config: ImageConfig = toml::from_str(&source).unwrap();
+        let error = config.validate("zero").unwrap_err().to_string();
+
+        assert!(error.contains("live sample"), "{error}");
     }
 
     #[test]

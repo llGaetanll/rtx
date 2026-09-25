@@ -21,6 +21,14 @@ focus_dist = 1079.4603
 samples = 100
 bounces = 20
 
+# What `live` traces instead. A window has to keep up with the mouse, so each
+# frame is only a couple of samples, and a still view keeps adding frames to what
+# it already has until the camera moves again.
+[live]
+samples = 2
+bounces = 10
+accumulate = true
+
 [output]
 width = 7016
 height = 9933
