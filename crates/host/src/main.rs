@@ -60,9 +60,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Bench {
             scene: Some(scene),
             config: Some(config),
-        } => bench_app::run_bench(&scene, &config),
+            headless,
+        } => bench_app::run_bench(&scene, &config, headless),
         // Clap rejects one without the other, so nothing else is left
-        Commands::Bench { .. } => bench_app::run_all_benchmarks(),
+        Commands::Bench { headless, .. } => bench_app::run_all_benchmarks(headless),
         Commands::Chart => run_chart(),
         Commands::Stats => stats::run_stats(),
     }

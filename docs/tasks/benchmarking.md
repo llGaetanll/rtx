@@ -25,6 +25,8 @@ Run `cargo run --release -- bench` to execute all benchmarks. The camera follows
 - [x] `CameraPath` - combines position and look-at splines with duration
 - [x] `bench` CLI subcommand - runs benchmark with animated camera
 - [x] Benchmark exits after camera path completes
+- [x] `--headless` renders into an offscreen texture instead of a window, at the
+      config's exact size. Recorded as `headless` in the metadata
 
 ### Output & Metadata
 

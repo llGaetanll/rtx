@@ -128,6 +128,16 @@ paired with the scene it flies through:
 cargo run --release -- bench
 ```
 
+Add `--headless` to render offscreen instead of opening a window, so a run can go
+on in the background while the machine is used for other things:
+
+```sh
+cargo run --release -- bench --headless
+```
+
+Headless runs also render at exactly the size the config asks for, where a window
+may be resized by the window manager.
+
 Benchmarks are video configs: a benchmark is a video whose frames are timed and
 thrown away rather than saved. See [docs/tasks/benchmarking.md](docs/tasks/benchmarking.md)
 for the output format.

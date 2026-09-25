@@ -59,6 +59,11 @@ pub enum Commands {
         /// Path to a video config TOML file
         #[arg(short, long, requires = "scene")]
         config: Option<PathBuf>,
+
+        /// Render offscreen instead of opening a window, at exactly the size each
+        /// config asks for.
+        #[arg(long)]
+        headless: bool,
     },
     /// Generate SVG charts from benchmark results
     Chart,
