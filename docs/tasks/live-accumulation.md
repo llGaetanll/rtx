@@ -134,3 +134,4 @@ Opt in: absent or `1` means full resolution always, as now.
 - [ ] Adapt samples per frame to hold a frame time target. Needs GPU timestamp
       queries rather than CPU timing, since `Fifo` makes every frame read as the
       refresh interval. Not now; maybe later
+- [ ] Noise while moving: planned separately in [denoising.md](denoising.md)

@@ -121,7 +121,14 @@
    - [x] Reset accumulator on camera movement or window resize
    - [x] Display sample count somewhere (window title, with frame rate)
 
-3. [ ] GPU coherence for ray tracing
+3. [ ] Denoising in live mode
+
+   A moving view shows a single pass of noise, since accumulation resets on every
+   camera change. Temporal reprojection and an edge-aware spatial filter (SVGF)
+   would reuse samples across frames and pixels. Planned, not built: see
+   [docs/tasks/denoising.md](docs/tasks/denoising.md).
+
+4. [ ] GPU coherence for ray tracing
 
    Every thread still traces one whole path: generate a ray, intersect, scatter,
    again until the bounce cap. Splitting that into stages that pass their state
