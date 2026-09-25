@@ -278,8 +278,7 @@ mod build {
 
                 let whole = area(bounds);
                 let cost = COST_NODE
-                    + (left_area[b] * left as F + area(acc.as_ref().unwrap()) * right as F)
-                        / whole
+                    + (left_area[b] * left as F + area(acc.as_ref().unwrap()) * right as F) / whole
                         * COST_INSTANCE;
 
                 if best.as_ref().is_none_or(|s| cost < s.cost) {

@@ -263,7 +263,9 @@ pub fn run_render(
 
     let tiling = crate::gpu::Tiling::new(&gpu.device, width, height);
     let progress = RefCell::new(Progress::new(plan, width, height, tiling.tile_count()));
-    progress.borrow().log_tiling(tiling.tile_width, tiling.tile_height);
+    progress
+        .borrow()
+        .log_tiling(tiling.tile_width, tiling.tile_height);
 
     let accumulated = block_on(gpu.render_to_image_accumulated(
         &request,

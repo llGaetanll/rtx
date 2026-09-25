@@ -536,7 +536,10 @@ impl Accumulator {
     /// An accumulator that will be moved across the tiles of `tiling`, starting
     /// at the first of them.
     pub fn tiled(gpu: &GpuContext, tiling: &Tiling) -> Result<Self, Box<dyn Error>> {
-        let first = tiling.tiles().next().expect("An image has at least one tile");
+        let first = tiling
+            .tiles()
+            .next()
+            .expect("An image has at least one tile");
 
         Self::for_tiles(
             gpu,
@@ -837,8 +840,8 @@ impl Accumulator {
 
         for row in 0..tile.height as usize {
             let src = row * tile.width as usize * CHANNELS;
-            let dst = ((tile.y as usize + row) * self.image_width as usize + tile.x as usize)
-                * CHANNELS;
+            let dst =
+                ((tile.y as usize + row) * self.image_width as usize + tile.x as usize) * CHANNELS;
             let len = tile.width as usize * CHANNELS;
 
             image[dst..dst + len].copy_from_slice(&pixels[src..src + len]);
